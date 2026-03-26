@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock } from 'lucide-react';
 import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
+import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
+import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
 import AnticipoDMA from './components/AnticipoDMA';
 
 type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | null;
@@ -55,12 +57,42 @@ export default function App() {
   );
 
   const renderActiveService = () => {
+    if (activeService === 'pensione') {
+      return (
+        <div className="relative">
+          <button
+            onClick={() => setActiveService(null)}
+            className="absolute bottom-8 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Torna alla selezione
+          </button>
+          <CalcoloUltimoMiglioPensione />
+        </div>
+      );
+    }
+
+    if (activeService === 'tfs_servizio') {
+      return (
+        <div className="relative">
+          <button
+            onClick={() => setActiveService(null)}
+            className="absolute bottom-8 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Torna alla selezione
+          </button>
+          <UltimoMiglioTFSServizio />
+        </div>
+      );
+    }
+
     if (activeService === 'tfs_pensione') {
       return (
         <div className="relative">
           <button
             onClick={() => setActiveService(null)}
-            className="absolute top-4 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
+            className="absolute bottom-8 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Torna alla selezione

@@ -194,7 +194,11 @@ export default function UltimoMiglioTFSPensione() {
                       step="0.01"
                       value={importoBaseStipendio || ''}
                       placeholder="0,00"
-                      onChange={e => setImportoBaseStipendio(parseFloat(e.target.value) || 0)}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value) || 0;
+                        setImportoBaseStipendio(val);
+                        setImportoBaseTredicesima(val / 12);
+                      }}
                     />
                   </div>
                   <div>
@@ -244,7 +248,7 @@ export default function UltimoMiglioTFSPensione() {
                           placeholder="0,00"
                           onChange={e => {
                             const val = parseFloat(e.target.value) || 0;
-                            setStipendiMensili(prev => prev.map((x, j) => j === i ? { ...x, stipendio: val } : x));
+                            setStipendiMensili(prev => prev.map((x, j) => j === i ? { ...x, stipendio: val, tredicesima: val / 12 } : x));
                             if (!eccezioni[i]) {
                               setEccezioni(prev => prev.map((x, j) => j === i ? true : x));
                             }
@@ -295,10 +299,10 @@ export default function UltimoMiglioTFSPensione() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th style={{ width: '55%' }}>Voce Retributiva</th>
-                      <th style={{ width: '8%' }}>Valido 13^</th>
-                      <th style={{ width: '20%' }}>Importo Mensile (€)</th>
-                      <th style={{ width: '17%' }}>Importo Annuo (€)</th>
+                      <th style={{ width: '45%' }}>Voce Retributiva</th>
+                      <th style={{ width: '10%', textAlign: 'center' }}>Valido 13^</th>
+                      <th style={{ width: '25%' }}>Importo Mensile (€)</th>
+                      <th style={{ width: '20%' }}>Importo Annuo (€)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -417,16 +421,16 @@ export default function UltimoMiglioTFSPensione() {
                   <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th>Voce</th>
-                        <th style={{ textAlign: 'center' }}>13^</th>
-                        <th style={{ textAlign: 'right' }}>Mensile (€)</th>
-                        <th style={{ textAlign: 'right' }}>Annuo (€)</th>
+                        <th style={{ width: '45%' }}>Voce</th>
+                        <th style={{ width: '10%', textAlign: 'center' }}>13^</th>
+                        <th style={{ width: '25%', textAlign: 'right' }}>Mensile (€)</th>
+                        <th style={{ width: '20%', textAlign: 'right' }}>Annuo (€)</th>
                       </tr>
                     </thead>
                     <tbody>
                       {risultato.vociAnnualizzate.map((v, i) => (
                         <tr key={v.id} className={i % 2 === 0 ? styles.rowEven : ''}>
-                          <td className={styles.tdLabel}>{v.label}</td>
+                          <td className={styles.tdLabel} style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>{v.label}</td>
                           <td className={styles.tdCenter}>
                             <span className={v.valido13 ? styles.badgeSi : styles.badgeNo}>
                               {v.valido13 ? 'SI' : 'NO'}
