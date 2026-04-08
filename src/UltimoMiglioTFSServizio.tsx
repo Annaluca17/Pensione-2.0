@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import styles from './App.module.css';
 import { exportTFSServizioToExcel } from '../exportTFSServizioExcel';
 import { exportTFSServizioToPDF } from '../exportTFSServizioPDF';
-import { MOTIVI_CESSAZIONE } from '../constants/motiviCessazione';
 import { fmtEuro, round2 } from '../utils/math';
 
 type Step = 'anagrafica' | 'stipendi' | 'voci' | 'risultato';
@@ -19,7 +18,6 @@ interface Anagrafica {
   codiceFiscale: string;
   dataInizio: string;
   dataFine: string;
-  motivoCessazione: string;
 }
 
 const emptyAnagrafica = (): Anagrafica => ({
@@ -27,7 +25,6 @@ const emptyAnagrafica = (): Anagrafica => ({
   codiceFiscale: '',
   dataInizio: '',
   dataFine: '',
-  motivoCessazione: ''
 });
 
 const VOCI_RETRIBUTIVE = [
@@ -95,7 +92,7 @@ export default function UltimoMiglioTFSServizio() {
         importoAnnuo = round2(importoMensile * 12);
       } else if (v.id === 'v2') {
         importoMensile = round2(totale13Step2);
-        importoAnnuo = importoMensile; // Eccezione logica
+        importoAnnuo = importoMensile;
       } else {
         importoAnnuo = round2(importoMensile * 12);
       }
@@ -231,19 +228,6 @@ export default function UltimoMiglioTFSServizio() {
                     value={anagrafica.dataFine}
                     onChange={e => setAnagrafica({ ...anagrafica, dataFine: e.target.value })}
                   />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label}>Motivo Cessazione</label>
-                  <select
-                    className={styles.input}
-                    value={anagrafica.motivoCessazione}
-                    onChange={e => setAnagrafica({ ...anagrafica, motivoCessazione: e.target.value })}
-                  >
-                    <option value="">-- Seleziona --</option>
-                    {MOTIVI_CESSAZIONE.map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
               <div className={styles.actions}>
@@ -429,7 +413,6 @@ export default function UltimoMiglioTFSServizio() {
                   <div><label>Codice Fiscale</label><span>{anagrafica.codiceFiscale || '–'}</span></div>
                   <div><label>Data Inizio</label><span>{anagrafica.dataInizio || '–'}</span></div>
                   <div><label>Data Fine</label><span>{anagrafica.dataFine || '–'}</span></div>
-                  <div><label>Motivo Cessazione</label><span>{anagrafica.motivoCessazione || '–'}</span></div>
                 </div>
               </div>
 
