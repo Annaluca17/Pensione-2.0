@@ -2,9 +2,6 @@ import * as XLSX from 'xlsx';
 import type { Anagrafica, RisultatoCalcolo } from './types';
 import { MESI_LABELS } from './types';
 
-const fmt = (n: number) =>
-  n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 export function exportToExcel(anagrafica: Anagrafica, risultato: RisultatoCalcolo) {
   const wb = XLSX.utils.book_new();
 
@@ -18,6 +15,7 @@ export function exportToExcel(anagrafica: Anagrafica, risultato: RisultatoCalcol
     ['Codice Fiscale', anagrafica.codiceFiscale, '', ''],
     ['Qualifica', anagrafica.qualifica, '', ''],
     ['Data Pensionamento', anagrafica.dataPensione, '', ''],
+    ['Motivo Cessazione', anagrafica.motivoCessazione, '', ''],
     ['Ente', anagrafica.ente, '', ''],
     [''],
     ['VOCI RETRIBUTIVE ANNUALIZZATE', '', '', ''],

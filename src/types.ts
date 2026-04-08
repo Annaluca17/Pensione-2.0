@@ -1,11 +1,14 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+import { round2 } from './utils/math';
+
 export interface Anagrafica {
   cognomeNome: string;
   codiceFiscale: string;
   qualifica: string;
   dataPensione: string;
   ente: string;
+  motivoCessazione: string;
 }
 
 export interface VoceRetributiva {
@@ -47,23 +50,17 @@ export const MESI_LABELS = [
 // ─── Calculation Engine ───────────────────────────────────────────────────────
 
 export interface RisultatoCalcolo {
-  // Sezione Voci annualizzate
   vociAnnualizzate: { id: string; label: string; importoMensile: number; importoAnnuo: number; valido13: boolean }[];
-
-  // Ultimi 12 mesi
   stipendiMensili: MeseStipendioInput[];
-
   totaleStipendi12mesi: number;
   totaleTredicesime12mesi: number;
-
-  // Ultimo Miglio TFS (tabella destra foglio)
-  ria: number;             // I3 = SUM(E9)  = RIA annua
-  tredicesima: number;     // I4 = E4+D5+D6+D7+D8+D9+D11
-  stipTabellare: number;   // I5 = E3+E5+E6+E7+E8+E11
-  indAsili: number;        // I6 = E13+E14
-  ind6456: number;         // I7 = E10
-  indVigilanza: number;    // I8 = E12
-  totaleUltimoMiglio: number; // I9 = SUM(I3:I8)
+  ria: number;
+  tredicesima: number;
+  stipTabellare: number;
+  indAsili: number;
+  ind6456: number;
+  indVigilanza: number;
+  totaleUltimoMiglio: number;
 }
 
 export function calcolaRisultato(
@@ -72,32 +69,41 @@ export function calcolaRisultato(
 ): RisultatoCalcolo {
   const byId = (id: string) => voci.find(v => v.id === id)?.importoMensile ?? 0;
 
-  const totaleStipendi12mesi = stipendiMensili.reduce((s, v) => s + v.stipendio, 0);
-  const totaleTredicesime12mesi = stipendiMensili.reduce((s, v) => s + v.tredicesima, 0);
+  const totaleStipendi12mesi = round2(
+    stipendiMensili.reduce((s, v) => s + v.stipendio, 0)
+  );
+  const totaleTredicesime12mesi = round2(
+    stipendiMensili.reduce((s, v) => s + v.tredicesima, 0)
+  );
 
   const E: Record<string, number> = {};
   voci.forEach(v => {
     if (v.id === 'stip_tab') E[v.id] = totaleStipendi12mesi;
     else if (v.id === 'tredicesima') E[v.id] = totaleTredicesime12mesi;
-    else E[v.id] = byId(v.id) * 12;
+    else E[v.id] = round2(byId(v.id) * 12);
   });
 
-  // Ultimo Miglio TFS (colonna I)
-  const ria = E['ria'];                                                    // I3
-  const tredicesima = E['tredicesima'] + byId('diff_storico') + byId('diff_stip')
-    + byId('ass_iis') + byId('ass_pers') + byId('ria') + byId('ivc');     // I4
-  const stipTabellare = E['stip_tab'] + E['diff_storico'] + E['diff_stip']
-    + E['ass_iis'] + E['ass_pers'] + E['ivc'];                            // I5
-  const indAsili = E['ind_prof_asili'] + E['ind_agg_asili'];              // I6
-  const ind6456 = E['ind_spec'];                                           // I7
-  const indVigilanza = E['ind_vig'];                                       // I8
-  const totaleUltimoMiglio = ria + tredicesima + stipTabellare + indAsili + ind6456 + indVigilanza; // I9
+  const ria = round2(E['ria']);
+  const tredicesima = round2(
+    E['tredicesima'] + byId('diff_storico') + byId('diff_stip')
+    + byId('ass_iis') + byId('ass_pers') + byId('ria') + byId('ivc')
+  );
+  const stipTabellare = round2(
+    E['stip_tab'] + E['diff_storico'] + E['diff_stip']
+    + E['ass_iis'] + E['ass_pers'] + E['ivc']
+  );
+  const indAsili = round2(E['ind_prof_asili'] + E['ind_agg_asili']);
+  const ind6456 = round2(E['ind_spec']);
+  const indVigilanza = round2(E['ind_vig']);
+  const totaleUltimoMiglio = round2(
+    ria + tredicesima + stipTabellare + indAsili + ind6456 + indVigilanza
+  );
 
   const vociAnnualizzate = voci.map(v => ({
     id: v.id,
     label: v.label,
-    importoMensile: v.importoMensile,
-    importoAnnuo: E[v.id],
+    importoMensile: round2(v.importoMensile),
+    importoAnnuo: round2(E[v.id]),
     valido13: v.valido13,
   }));
 

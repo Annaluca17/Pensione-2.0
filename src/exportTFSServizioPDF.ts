@@ -1,37 +1,43 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+import { fmtEuro } from './utils/math';
 
-const fmtEuro = (n: number) =>
-  n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+interface Anagrafica {
+  cognomeNome: string;
+  codiceFiscale: string;
+  dataInizio: string;
+  dataFine: string;
+  motivoCessazione: string;
+}
 
 export function exportTFSServizioToPDF(
-  anagrafica: any,
+  anagrafica: Anagrafica,
   vociCalcolate: any[],
   risultato: any,
-  mesiCalcolati: any[],
-  totale13Step2: number
+  _mesiCalcolati: any[],
+  _totale13Step2: number
 ) {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
 
-  // Intestazione
-  doc.setFontSize(18);
-  doc.setTextColor(30, 58, 138); // blue-900
-  doc.text('Calcolo Ultimo Miglio TFS - Tabella G', 14, 20);
+  doc.setFillColor(30, 41, 59);
+  doc.rect(0, 0, pageW, 25, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Immedia S.p.A.', 14, 12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Calcolo Ultimo Miglio TFS – Personale in Servizio', 14, 19);
 
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 14, 28);
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Riepilogo Calcolo', 14, 35);
 
-  // Anagrafica
-  (doc as any).autoTable({
-    startY: 35,
-    theme: 'plain',
-    styles: { fontSize: 10, cellPadding: 2 },
-    columnStyles: {
-      0: { fontStyle: 'bold', textColor: [71, 85, 105], cellWidth: 50 },
-      1: { textColor: [15, 23, 42] },
-    },
-    head: [],
+  autoTable(doc, {
+    startY: 40,
+    head: [['Dati Anagrafici', '']],
     body: [
       ['Cognome e Nome', anagrafica.cognomeNome || '–'],
       ['Codice Fiscale', anagrafica.codiceFiscale || '–'],
@@ -39,58 +45,75 @@ export function exportTFSServizioToPDF(
       ['Data Fine Periodo', anagrafica.dataFine || '–'],
       ['Motivo Cessazione', anagrafica.motivoCessazione || '–'],
     ],
-  });
-
-  // Risultati Finali
-  const finalY = (doc as any).lastAutoTable.finalY + 10;
-  
-  (doc as any).autoTable({
-    startY: finalY,
     theme: 'grid',
     headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 11, cellPadding: 4 },
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: { 0: { cellWidth: 55, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+  });
+
+  const startY1 = (doc as any).lastAutoTable.finalY + 8;
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Risultato Finale – Tabella G', 14, startY1);
+
+  autoTable(doc, {
+    startY: startY1 + 3,
     head: [['Componente', 'Importo Annuo (€)']],
     body: [
       ['Stipendio tabellare nuove Aree Tab G', fmtEuro(risultato.r1)],
       ['Retribuzione Ind. di Anzianità RIA', fmtEuro(risultato.r2)],
       ['Tredicesima mensilità', fmtEuro(risultato.r3)],
-      ['Assegno ad personam assorbibile progressione verticale per 13 mensilità', fmtEuro(risultato.r4)],
-      ['Indennità Aggiuntive personale asili nido per 12 mensilità', fmtEuro(risultato.r5)],
+      ['Assegno ad personam assorbibile progressione verticale', fmtEuro(risultato.r4)],
+      ['Indennità Aggiuntive personale asili nido', fmtEuro(risultato.r5)],
       ['Assegno personale non riassorbibile art 29', fmtEuro(risultato.r6)],
       ['Indennità 64,56 annue lorde ex 3^ 4^ qualifica', fmtEuro(risultato.r7)],
-      ['Indennità di vigilanza per 12 mensilità', fmtEuro(risultato.r8)],
+      ['Indennità di vigilanza', fmtEuro(risultato.r8)],
       ['Differenziali stipendiali', fmtEuro(risultato.r9)],
-      ['TOTALE GENERALE', fmtEuro(risultato.totale)]
+      ['TOTALE GENERALE', fmtEuro(risultato.totale)],
     ],
-    columnStyles: {
-      0: { fontStyle: 'bold' },
-      1: { halign: 'right', fontStyle: 'bold' },
+    theme: 'striped',
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: { 0: { cellWidth: 130 }, 1: { cellWidth: 'auto', halign: 'right' } },
+    didParseCell: (data) => {
+      const isLastRow = data.row.index === data.table.body.length - 1;
+      if (isLastRow && data.section === 'body') {
+        data.cell.styles.fillColor = [224, 242, 254];
+        data.cell.styles.fontStyle = 'bold';
+        data.cell.styles.fontSize = 10;
+      }
     },
   });
 
-  // Dettaglio Voci
-  const vociY = (doc as any).lastAutoTable.finalY + 10;
-  
-  (doc as any).autoTable({
-    startY: vociY,
-    theme: 'striped',
-    headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold' },
-    styles: { fontSize: 9, cellPadding: 3 },
-    head: [['Voce', 'Valido 13^', 'Mensile (€)', 'Annuo (€)']],
+  const startY2 = (doc as any).lastAutoTable.finalY + 8;
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Dettaglio Voci Retributive', 14, startY2);
+
+  autoTable(doc, {
+    startY: startY2 + 3,
+    head: [['Voce', '13^', 'Mensile (€)', 'Annuo (€)']],
     body: vociCalcolate.map(v => [
       v.label,
       v.valido13 ? 'SI' : 'NO',
       fmtEuro(v.importoMensile),
-      fmtEuro(v.importoAnnuo)
+      fmtEuro(v.importoAnnuo),
     ]),
+    theme: 'striped',
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: 'bold' },
+    styles: { fontSize: 8, cellPadding: 1.5 },
     columnStyles: {
-      0: { cellWidth: 80 },
-      1: { halign: 'center' },
-      2: { halign: 'right' },
-      3: { halign: 'right' },
+      0: { cellWidth: 110 },
+      1: { cellWidth: 15, halign: 'center' },
+      2: { cellWidth: 30, halign: 'right' },
+      3: { cellWidth: 30, halign: 'right' },
     },
   });
 
-  const filename = `TFSServizio_${anagrafica.codiceFiscale || 'export'}_${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(filename);
+  const footerY = doc.internal.pageSize.getHeight() - 10;
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  doc.text(`Generato il ${new Date().toLocaleString('it-IT')} – Immedia S.p.A.`, 14, footerY);
+
+  doc.save(`TFS_Servizio_${anagrafica.codiceFiscale || 'export'}_${new Date().toISOString().slice(0,10)}.pdf`);
 }

@@ -21,6 +21,21 @@ export default function App() {
     }
   };
 
+  // Pulsante back unificato per tutti i servizi (posizionamento fisso)
+  const BackButton = ({ darkMode = false }: { darkMode?: boolean }) => (
+    <button
+      onClick={() => setActiveService(null)}
+      className={`fixed top-4 left-4 z-30 flex items-center text-sm font-medium px-3 py-1.5 rounded-md shadow-sm backdrop-blur transition-colors ${
+        darkMode
+          ? 'text-slate-200 hover:text-white bg-slate-800/90 hover:bg-slate-700'
+          : 'text-slate-600 hover:text-slate-900 bg-white/90 border border-slate-200 hover:bg-slate-50'
+      }`}
+    >
+      <ArrowLeft className="w-4 h-4 mr-2" />
+      Torna alla selezione
+    </button>
+  );
+
   const renderServiceSelection = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-12">
       <ServiceCard
@@ -59,73 +74,43 @@ export default function App() {
   const renderActiveService = () => {
     if (activeService === 'pensione') {
       return (
-        <div className="relative">
-          <button
-            onClick={() => setActiveService(null)}
-            className="absolute bottom-8 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Torna alla selezione
-          </button>
+        <>
+          <BackButton darkMode />
           <CalcoloUltimoMiglioPensione />
-        </div>
+        </>
       );
     }
 
     if (activeService === 'tfs_servizio') {
       return (
-        <div className="relative">
-          <button
-            onClick={() => setActiveService(null)}
-            className="absolute bottom-8 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Torna alla selezione
-          </button>
+        <>
+          <BackButton darkMode />
           <UltimoMiglioTFSServizio />
-        </div>
+        </>
       );
     }
 
     if (activeService === 'tfs_pensione') {
       return (
-        <div className="relative">
-          <button
-            onClick={() => setActiveService(null)}
-            className="absolute bottom-8 left-4 z-10 flex items-center text-sm font-medium text-slate-400 hover:text-white mb-6 transition-colors bg-slate-800 px-3 py-1.5 rounded-md"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Torna alla selezione
-          </button>
+        <>
+          <BackButton darkMode />
           <UltimoMiglioTFSPensione />
-        </div>
+        </>
       );
     }
 
     if (activeService === 'anticipo_dma') {
       return (
-        <div className="relative">
-          <button
-            onClick={() => setActiveService(null)}
-            className="flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Torna alla selezione
-          </button>
+        <div className="pt-14">
+          <BackButton />
           <AnticipoDMA />
         </div>
       );
     }
 
     return (
-      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-8 max-w-4xl mx-auto">
-        <button
-          onClick={() => setActiveService(null)}
-          className="flex items-center text-sm font-medium text-slate-500 hover:text-slate-800 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Torna alla selezione
-        </button>
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-8 max-w-4xl mx-auto pt-14">
+        <BackButton />
         <h2 className="text-2xl font-semibold text-slate-800 mb-6">
           {getServiceTitle(activeService)}
         </h2>
