@@ -18,3 +18,10 @@ export function round(value: number, decimals = 2): number {
   const factor = Math.pow(10, decimals);
   return Math.round((value + Number.EPSILON) * factor) / factor;
 }
+
+/**
+ * Alias di round() con precisione fissa a 2 decimali
+ */
+export function round2(value: number): number {
+  return round(value, 2);
+}
