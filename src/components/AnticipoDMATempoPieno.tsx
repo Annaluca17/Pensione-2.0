@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Calculator, Save, ArrowRight, ArrowLeft, FileText } from 'lucide-react';
+import { round2 } from '../utils/math';
 
 type VoceRetributiva = {
   id: string;
@@ -95,8 +96,8 @@ export default function AnticipoDMATempoPieno() {
   const updateVoce = (id: string, field: keyof VoceRetributiva, value: any) => {
     setMatrice(matrice.map(v => {
       if (v.id === id) {
-        const updatedVoce = { ...v, [field]: value };
-        
+        const updatedVoce = { ...v, [field]: field === 'importo_mensile' ? round2(value) : value };
+
         if (field === 'voce_retributiva') {
           const flags = VOCI_FLAGS[value as string];
           if (flags) {
@@ -112,7 +113,7 @@ export default function AnticipoDMATempoPieno() {
     }));
   };
 
-  const totaleMensile = matrice.reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0);
+  const totaleMensile = round2(matrice.reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0));
 
   const handleSave = () => {
     if (totaleMensile <= 0) {
@@ -123,25 +124,28 @@ export default function AnticipoDMATempoPieno() {
     setStep(2);
   };
 
-  // Calcoli
-  const totaleTredicesima = matrice.filter(v => v.flag_tredicesima).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0);
-  const totaleTFS = matrice.filter(v => v.flag_tfs).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0);
-  const totaleTFR = matrice.filter(v => v.flag_tfr).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0);
+  // Calcoli — tutti arrotondati a 2 decimali alla sorgente
+  const totaleTredicesima = round2(matrice.filter(v => v.flag_tredicesima).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0));
+  const totaleTFS = round2(matrice.filter(v => v.flag_tfs).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0));
+  const totaleTFR = round2(matrice.filter(v => v.flag_tfr).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0));
 
-  const totaleTredicesimaTFS = matrice.filter(v => v.flag_tfs && v.flag_tredicesima).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0);
-  const totaleTredicesimaTFR = matrice.filter(v => v.flag_tfr && v.flag_tredicesima).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0);
+  const totaleTredicesimaTFS = round2(matrice.filter(v => v.flag_tfs && v.flag_tredicesima).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0));
+  const totaleTredicesimaTFR = round2(matrice.filter(v => v.flag_tfr && v.flag_tredicesima).reduce((acc, curr) => acc + (curr.importo_mensile || 0), 0));
 
-  const totale365 = totaleMensile;
-  const totale26 = (totaleMensile / 26) * metadati.giorni_mensili;
-  
-  const tredicesimaCPDEL = (totaleTredicesima / 365) * metadati.giorni_tredicesima;
-  const tredicesimaTFS = (totaleTredicesimaTFS / 365) * metadati.giorni_tredicesima;
-  const tredicesimaTFR = (totaleTredicesimaTFR / 365) * metadati.giorni_tredicesima;
+  const totale365 = round2(totaleMensile);
+  const totale26 = round2((totaleMensile / 26) * metadati.giorni_mensili);
 
-  const imponibileCPDEL = totale26 + tredicesimaCPDEL;
-  const imponibileFondoCredito = imponibileCPDEL;
-  const imponibileTFS80 = (((totaleTFS / 26) * metadati.giorni_mensili) + tredicesimaTFS) * 0.80;
-  const imponibileTFR80 = (((totaleTFR / 26) * metadati.giorni_mensili) + tredicesimaTFR) * 0.80;
+  const tredicesimaCPDEL = round2((totaleTredicesima / 365) * metadati.giorni_tredicesima);
+  const tredicesimaTFS = round2((totaleTredicesimaTFS / 365) * metadati.giorni_tredicesima);
+  const tredicesimaTFR = round2((totaleTredicesimaTFR / 365) * metadati.giorni_tredicesima);
+
+  const imponibileCPDEL = round2(totale26 + tredicesimaCPDEL);
+  const imponibileFondoCredito = round2(imponibileCPDEL);
+  const imponibileTFS80 = round2((((totaleTFS / 26) * metadati.giorni_mensili) + tredicesimaTFS) * 0.80);
+  const imponibileTFR80 = round2((((totaleTFR / 26) * metadati.giorni_mensili) + tredicesimaTFR) * 0.80);
+
+  const fmtEuro = (n: number) =>
+    round2(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   if (step === 2) {
     return (
@@ -153,9 +157,8 @@ export default function AnticipoDMATempoPieno() {
             </div>
           </div>
           <h3 className="text-2xl font-bold text-slate-800 text-center mb-8">Risultati Calcolo Anticipo DMA</h3>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Box Riepilogo Dati */}
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
               <h4 className="font-semibold text-slate-800 mb-4 border-b border-slate-200 pb-2">Dati Inseriti</h4>
               <div className="space-y-3 text-sm">
@@ -166,38 +169,36 @@ export default function AnticipoDMATempoPieno() {
               </div>
             </div>
 
-            {/* Box Calcoli Intermedi */}
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
               <h4 className="font-semibold text-blue-900 mb-4 border-b border-blue-200 pb-2">Calcoli Intermedi</h4>
               <div className="space-y-3 text-sm">
-                <div className="flex justify-between"><span className="text-blue-700">Totale su 365 giorni:</span> <span className="font-medium text-blue-900">{totale365.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between"><span className="text-blue-700">Totale su 26 giorni:</span> <span className="font-medium text-blue-900">{totale26.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between"><span className="text-blue-700">Tredicesima CPDEL:</span> <span className="font-medium text-blue-900">{tredicesimaCPDEL.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between"><span className="text-blue-700">Tredicesima TFS:</span> <span className="font-medium text-blue-900">{tredicesimaTFS.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span></div>
-                <div className="flex justify-between"><span className="text-blue-700">Tredicesima TFR:</span> <span className="font-medium text-blue-900">{tredicesimaTFR.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span></div>
+                <div className="flex justify-between"><span className="text-blue-700">Totale su 365 giorni:</span> <span className="font-medium text-blue-900">€ {fmtEuro(totale365)}</span></div>
+                <div className="flex justify-between"><span className="text-blue-700">Totale su 26 giorni:</span> <span className="font-medium text-blue-900">€ {fmtEuro(totale26)}</span></div>
+                <div className="flex justify-between"><span className="text-blue-700">Tredicesima CPDEL:</span> <span className="font-medium text-blue-900">€ {fmtEuro(tredicesimaCPDEL)}</span></div>
+                <div className="flex justify-between"><span className="text-blue-700">Tredicesima TFS:</span> <span className="font-medium text-blue-900">€ {fmtEuro(tredicesimaTFS)}</span></div>
+                <div className="flex justify-between"><span className="text-blue-700">Tredicesima TFR:</span> <span className="font-medium text-blue-900">€ {fmtEuro(tredicesimaTFR)}</span></div>
               </div>
             </div>
           </div>
 
-          {/* Box Risultati Finali */}
           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 mb-8 text-white shadow-md">
             <h4 className="font-semibold text-slate-100 mb-4 border-b border-slate-600 pb-2">Risultati Imponibili</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div className="flex justify-between items-center p-4 bg-slate-700/50 rounded-lg">
-                <span className="text-slate-300">Imponibile CPDEL:</span> 
-                <span className="font-bold text-xl text-white">{imponibileCPDEL.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span>
+                <span className="text-slate-300">Imponibile CPDEL:</span>
+                <span className="font-bold text-xl text-white">€ {fmtEuro(imponibileCPDEL)}</span>
               </div>
               <div className="flex justify-between items-center p-4 bg-slate-700/50 rounded-lg">
-                <span className="text-slate-300">Imponibile Fondo Credito:</span> 
-                <span className="font-bold text-xl text-white">{imponibileFondoCredito.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span>
+                <span className="text-slate-300">Imponibile Fondo Credito:</span>
+                <span className="font-bold text-xl text-white">€ {fmtEuro(imponibileFondoCredito)}</span>
               </div>
               <div className="flex justify-between items-center p-4 bg-slate-700/50 rounded-lg">
-                <span className="text-slate-300">Imponibile TFS 80%:</span> 
-                <span className="font-bold text-xl text-white">{imponibileTFS80.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span>
+                <span className="text-slate-300">Imponibile TFS 80%:</span>
+                <span className="font-bold text-xl text-white">€ {fmtEuro(imponibileTFS80)}</span>
               </div>
               <div className="flex justify-between items-center p-4 bg-slate-700/50 rounded-lg">
-                <span className="text-slate-300">Imponibile TFR 80%:</span> 
-                <span className="font-bold text-xl text-white">{imponibileTFR80.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}</span>
+                <span className="text-slate-300">Imponibile TFR 80%:</span>
+                <span className="font-bold text-xl text-white">€ {fmtEuro(imponibileTFR80)}</span>
               </div>
             </div>
           </div>
@@ -232,9 +233,7 @@ export default function AnticipoDMATempoPieno() {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Data Competenza
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Data Competenza</label>
             <input
               type="date"
               value={metadati.data_competenza}
@@ -243,9 +242,7 @@ export default function AnticipoDMATempoPieno() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Numero giorni tredicesima (su 365)
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Numero giorni tredicesima (su 365)</label>
             <input
               type="number"
               min="0"
@@ -256,9 +253,7 @@ export default function AnticipoDMATempoPieno() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Numero giorni Mensili (su 26)
-            </label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Numero giorni Mensili (su 26)</label>
             <input
               type="number"
               min="0"
@@ -299,44 +294,24 @@ export default function AnticipoDMATempoPieno() {
               {matrice.map((voce) => (
                 <tr key={voce.id} className="hover:bg-slate-50 transition-colors">
                   <td className="py-3 px-4">
-                    <div className="space-y-2">
-                      <select
-                        value={voce.voce_retributiva}
-                        onChange={(e) => updateVoce(voce.id, 'voce_retributiva', e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
-                      >
-                        {VOCI_CCNL.map(v => (
-                          <option key={v} value={v}>{v}</option>
-                        ))}
-                      </select>
-                    </div>
+                    <select
+                      value={voce.voce_retributiva}
+                      onChange={(e) => updateVoce(voce.id, 'voce_retributiva', e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                    >
+                      {VOCI_CCNL.map(v => (
+                        <option key={v} value={v}>{v}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={voce.flag_tfr}
-                      readOnly
-                      disabled
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 bg-slate-100 cursor-not-allowed"
-                    />
+                    <input type="checkbox" checked={voce.flag_tfr} readOnly disabled className="w-4 h-4 text-blue-600 rounded border-slate-300 bg-slate-100 cursor-not-allowed" />
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={voce.flag_tfs}
-                      readOnly
-                      disabled
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 bg-slate-100 cursor-not-allowed"
-                    />
+                    <input type="checkbox" checked={voce.flag_tfs} readOnly disabled className="w-4 h-4 text-blue-600 rounded border-slate-300 bg-slate-100 cursor-not-allowed" />
                   </td>
                   <td className="py-3 px-4 text-center">
-                    <input
-                      type="checkbox"
-                      checked={voce.flag_tredicesima}
-                      readOnly
-                      disabled
-                      className="w-4 h-4 text-blue-600 rounded border-slate-300 bg-slate-100 cursor-not-allowed"
-                    />
+                    <input type="checkbox" checked={voce.flag_tredicesima} readOnly disabled className="w-4 h-4 text-blue-600 rounded border-slate-300 bg-slate-100 cursor-not-allowed" />
                   </td>
                   <td className="py-3 px-4">
                     <input
@@ -364,9 +339,7 @@ export default function AnticipoDMATempoPieno() {
             <tfoot>
               <tr className="bg-slate-50 font-semibold text-slate-800">
                 <td colSpan={4} className="py-4 px-4 text-right">Totale Mensile:</td>
-                <td className="py-4 px-4 text-right">
-                  {totaleMensile.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
-                </td>
+                <td className="py-4 px-4 text-right">€ {fmtEuro(totaleMensile)}</td>
                 <td></td>
               </tr>
             </tfoot>
@@ -380,7 +353,7 @@ export default function AnticipoDMATempoPieno() {
             {error}
           </div>
         )}
-        <button 
+        <button
           onClick={handleSave}
           className="flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
         >
