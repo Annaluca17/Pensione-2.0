@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import styles from './App.module.css';
 import { exportPensioneToExcel } from '../exportPensioneExcel';
 import { exportPensioneToPDF } from '../exportPensionePDF';
+import { POSIZIONI_TABELLARI } from '../data/tabellaStipendiCCNL';
 
 const fmtEuro = (n: number) =>
   n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,6 +59,11 @@ export default function CalcoloUltimoMiglioPensione() {
   ]);
   const [error, setError] = useState<string | null>(null);
 
+  // ─── Stato Miglioramento Contrattuale ────────────────────────────────────
+  const [miglioramentoContrattuale, setMiglioramentoContrattuale] = useState(false);
+  const [mansioneMC, setMansioneMC] = useState<string>('');
+  const [dataDecorrenzaMC, setDataDecorrenzaMC] = useState<'2024' | '2026'>('2024');
+
   const currentStepIdx = STEPS.findIndex(s => s.id === step);
   const go = (s: Step) => setStep(s);
 
@@ -73,6 +79,7 @@ export default function CalcoloUltimoMiglioPensione() {
     setVoci(prev => prev.map(v => v.idRiga === idRiga ? { ...v, [field]: value } : v));
   };
 
+  // ─── Calcolo base ────────────────────────────────────────────────────────
   const vociArricchite = useMemo(() => {
     return voci.map(v => {
       const catalogo = CATALOGO_VOCI_PENSIONE.find(c => c.id === v.idVoceCatalogo);
@@ -97,10 +104,56 @@ export default function CalcoloUltimoMiglioPensione() {
     }, 0);
   }, [vociArricchite]);
 
+  // ─── Calcolo parallelo Miglioramento Contrattuale ────────────────────────
+  const posizioneSelezionata = useMemo(
+    () => POSIZIONI_TABELLARI.find(p => p.codice === mansioneMC) ?? null,
+    [mansioneMC]
+  );
+
+  const nuovoTabellare = useMemo(() => {
+    if (!posizioneSelezionata) return 0;
+    return dataDecorrenzaMC === '2024'
+      ? posizioneSelezionata.tabellareMensile2024
+      : posizioneSelezionata.tabellareMensile2026;
+  }, [posizioneSelezionata, dataDecorrenzaMC]);
+
+  const vociArricchiteMC = useMemo(() => {
+    if (!miglioramentoContrattuale || !posizioneSelezionata) return null;
+    return voci.map(v => {
+      const catalogo = CATALOGO_VOCI_PENSIONE.find(c => c.id === v.idVoceCatalogo);
+      // Solo lo stipendio tabellare (voce '01') viene aggiornato con il nuovo valore CCNL
+      const importoMensile = v.idVoceCatalogo === '01' ? nuovoTabellare : v.importoMensile;
+      return {
+        ...v,
+        importoMensile,
+        catalogo,
+        importoAnnuo: catalogo ? importoMensile * catalogo.moltiplicatore : 0
+      };
+    });
+  }, [miglioramentoContrattuale, posizioneSelezionata, nuovoTabellare, voci]);
+
+  const totaleVociFisseAnnuoMC = useMemo(
+    () => vociArricchiteMC
+      ? vociArricchiteMC.reduce((s, v) => s + v.importoAnnuo, 0)
+      : 0,
+    [vociArricchiteMC]
+  );
+
+  const totaleTredicesimaMensilita_MC = useMemo(
+    () => vociArricchiteMC
+      ? vociArricchiteMC.reduce((s, v) => v.catalogo?.valido13 ? s + v.importoMensile : s, 0)
+      : 0,
+    [vociArricchiteMC]
+  );
+
   const handleCalcola = () => {
     const stipendioTabellare = vociArricchite.find(v => v.idVoceCatalogo === '01');
     if (!stipendioTabellare || stipendioTabellare.importoMensile <= 0) {
       setError('Errore: Lo Stipendio Tabellare (01) deve essere inserito con un importo maggiore di zero.');
+      return;
+    }
+    if (miglioramentoContrattuale && !mansioneMC) {
+      setError('Errore: Selezionare la Mansione per il calcolo comparativo del Miglioramento Contrattuale.');
       return;
     }
     setError(null);
@@ -160,6 +213,8 @@ export default function CalcoloUltimoMiglioPensione() {
 
         {/* Content */}
         <div className={styles.content}>
+
+          {/* ─── STEP 1: Anagrafica ─────────────────────────────────────── */}
           {step === 'anagrafica' && (
             <div className={styles.card}>
               <div className={styles.grid2}>
@@ -200,7 +255,9 @@ export default function CalcoloUltimoMiglioPensione() {
                   >
                     <option value="">-- Seleziona --</option>
                     <option value="Limiti di età">Limiti di età</option>
-                    <option value="Dimissioni">Dimissioni</option>
+                    <option value="Pensione di Vecchiaia">Pensione di Vecchiaia</option>
+                    <option value="Pensione Anticipata">Pensione Anticipata</option>
+                    <option value="Dimissioni volontarie">Dimissioni volontarie</option>
                     <option value="Inabilità">Inabilità</option>
                     <option value="Decesso">Decesso</option>
                     <option value="Altro">Altro</option>
@@ -219,6 +276,7 @@ export default function CalcoloUltimoMiglioPensione() {
             </div>
           )}
 
+          {/* ─── STEP 2: Voci Retributive ──────────────────────────────── */}
           {step === 'voci' && (
             <div className={styles.card}>
               {error && (
@@ -247,7 +305,7 @@ export default function CalcoloUltimoMiglioPensione() {
                             style={{ whiteSpace: 'normal', wordWrap: 'break-word', width: '100%' }}
                             value={v.idVoceCatalogo}
                             onChange={(e) => updateRow(v.idRiga, 'idVoceCatalogo', e.target.value)}
-                            disabled={v.idVoceCatalogo === '01'} // Stipendio tabellare non modificabile
+                            disabled={v.idVoceCatalogo === '01'}
                           >
                             <option value="">-- Seleziona Voce --</option>
                             {CATALOGO_VOCI_PENSIONE.map(c => (
@@ -299,8 +357,8 @@ export default function CalcoloUltimoMiglioPensione() {
                   </tbody>
                 </table>
               </div>
-              
-              <div className="mt-4 mb-8">
+
+              <div className="mt-4 mb-6">
                 <button
                   onClick={addRow}
                   className="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-md text-sm font-medium transition-colors flex items-center"
@@ -309,6 +367,7 @@ export default function CalcoloUltimoMiglioPensione() {
                 </button>
               </div>
 
+              {/* Totali base */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-lg border border-slate-200">
                 <div>
                   <label className="block text-sm font-medium text-slate-500 mb-1">
@@ -328,6 +387,98 @@ export default function CalcoloUltimoMiglioPensione() {
                 </div>
               </div>
 
+              {/* ─── Sezione Miglioramento Contrattuale ──────────────── */}
+              <div
+                className="mt-6 p-5 rounded-lg border-2"
+                style={{ borderColor: '#f59e0b', backgroundColor: '#fffbeb' }}
+              >
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={miglioramentoContrattuale}
+                    onChange={e => {
+                      setMiglioramentoContrattuale(e.target.checked);
+                      if (!e.target.checked) setMansioneMC('');
+                    }}
+                    className="w-4 h-4 rounded"
+                    style={{ accentColor: '#d97706' }}
+                  />
+                  <span className="font-semibold text-base" style={{ color: '#92400e' }}>
+                    Calcolo Comparativo – Miglioramento Contrattuale CCNL 2022-2024
+                  </span>
+                </label>
+                <p className="mt-1 ml-7 text-sm" style={{ color: '#b45309' }}>
+                  Esegue un calcolo parallelo sostituendo solo lo stipendio tabellare con il nuovo valore Tab. G del CCNL 2022-2024.
+                </p>
+
+                {miglioramentoContrattuale && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className={styles.field}>
+                      <label className={styles.label}>Mansione / Ex Posizione Economica</label>
+                      <select
+                        className={styles.input}
+                        value={mansioneMC}
+                        onChange={e => setMansioneMC(e.target.value)}
+                      >
+                        <option value="">-- Seleziona Mansione --</option>
+                        <optgroup label="Funzionari ed E.Q. (Area D)">
+                          {POSIZIONI_TABELLARI.filter(p => p.area === 'Funzionari ed E.Q.').map(p => (
+                            <option key={p.codice} value={p.codice}>
+                              {p.area} – {p.codice}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Istruttori (Area C)">
+                          {POSIZIONI_TABELLARI.filter(p => p.area === 'Istruttori').map(p => (
+                            <option key={p.codice} value={p.codice}>
+                              {p.area} – {p.codice}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Operatori Esperti (Area B)">
+                          {POSIZIONI_TABELLARI.filter(p => p.area === 'Operatori Esperti').map(p => (
+                            <option key={p.codice} value={p.codice}>
+                              {p.area} – {p.codice}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Operatori (Area A)">
+                          {POSIZIONI_TABELLARI.filter(p => p.area === 'Operatori').map(p => (
+                            <option key={p.codice} value={p.codice}>
+                              {p.area} – {p.codice}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    <div className={styles.field}>
+                      <label className={styles.label}>Decorrenza CCNL 2022-2024</label>
+                      <select
+                        className={styles.input}
+                        value={dataDecorrenzaMC}
+                        onChange={e => setDataDecorrenzaMC(e.target.value as '2024' | '2026')}
+                      >
+                        <option value="2024">Dal 01.01.2024</option>
+                        <option value="2026">Dal 01.01.2026 (con conglobamento parz. Ind. Comparto)</option>
+                      </select>
+                    </div>
+
+                    {mansioneMC && posizioneSelezionata && (
+                      <div
+                        className="md:col-span-2 text-sm font-medium px-4 py-3 rounded-md"
+                        style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', color: '#78350f' }}
+                      >
+                        Area: <strong>{posizioneSelezionata.area} – {mansioneMC}</strong>
+                        {'  ·  '}
+                        Nuovo stipendio tabellare mensile (Tab. G):
+                        <strong> € {fmtEuro(nuovoTabellare)}</strong>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className={styles.actions} style={{ marginTop: '2rem' }}>
                 <button className={styles.btnSecondary} onClick={() => go('anagrafica')}>
                   ← Indietro
@@ -339,6 +490,7 @@ export default function CalcoloUltimoMiglioPensione() {
             </div>
           )}
 
+          {/* ─── STEP 3: Risultato ─────────────────────────────────────── */}
           {step === 'risultato' && (
             <div>
               <div className={styles.risultatoLock}>
@@ -346,15 +498,19 @@ export default function CalcoloUltimoMiglioPensione() {
                 Risultato calcolato il {new Date().toLocaleString('it-IT')} – non modificabile
               </div>
 
-              <div className={styles.card}>
-                <h2 className={styles.sectionTitle}>Riepilogo Calcolo Ultimo Miglio Pensione</h2>
-                
-                <div className={styles.anagraficaRiepilogo} style={{ marginBottom: 24 }}>
+              {/* Anagrafica riepilogo */}
+              <div className={styles.card} style={{ marginBottom: 16 }}>
+                <div className={styles.anagraficaRiepilogo}>
                   <div><label>Nominativo</label><span>{anagrafica.cognomeNome || '–'}</span></div>
                   <div><label>Codice Fiscale</label><span>{anagrafica.codiceFiscale || '–'}</span></div>
                   <div><label>Data Inizio</label><span>{anagrafica.dataInizio || '–'}</span></div>
                   <div><label>Motivo Cessazione</label><span>{anagrafica.motivoCessazione || '–'}</span></div>
                 </div>
+              </div>
+
+              {/* Totali base */}
+              <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Riepilogo Calcolo Ultimo Miglio Pensione</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                   <div className="bg-blue-50 p-6 rounded-lg border border-blue-100">
@@ -415,6 +571,134 @@ export default function CalcoloUltimoMiglioPensione() {
                   </button>
                 </div>
               </div>
+
+              {/* ─── Calcolo Comparativo Miglioramento Contrattuale ──── */}
+              {miglioramentoContrattuale && vociArricchiteMC && posizioneSelezionata && (
+                <div
+                  className={styles.card}
+                  style={{ marginTop: 20, borderColor: '#f59e0b', borderWidth: 2 }}
+                >
+                  <h2 className={styles.sectionTitle} style={{ color: '#b45309' }}>
+                    Calcolo Comparativo – CCNL 2022-2024 (dal 01.01.{dataDecorrenzaMC})
+                  </h2>
+
+                  {/* Banner informativo */}
+                  <div
+                    className="text-sm mb-6 px-4 py-3 rounded-md font-medium"
+                    style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', color: '#78350f' }}
+                  >
+                    Mansione: <strong>{posizioneSelezionata.area} – {mansioneMC}</strong>
+                    {'  ·  '}
+                    Variabile modificata: <strong>Stipendio tabellare (voce 01)</strong>
+                    {'  ·  '}
+                    Nuovo valore mensile (Tab. G): <strong>€ {fmtEuro(nuovoTabellare)}</strong>
+                  </div>
+
+                  {/* Tabella comparativa totali */}
+                  <h3 className="text-base font-semibold text-slate-700 mb-3">Confronto Totali</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1' }}>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#64748b' }}>
+                        CCNL 2019-2021 – Totale voci fisse annuo
+                      </label>
+                      <div className="text-2xl font-bold" style={{ color: '#334155' }}>
+                        € {fmtEuro(totaleVociFisseAnnuo)}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d' }}>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#b45309' }}>
+                        CCNL 2022-2024 – Totale voci fisse annuo
+                      </label>
+                      <div className="text-2xl font-bold" style={{ color: '#92400e' }}>
+                        € {fmtEuro(totaleVociFisseAnnuoMC)}
+                      </div>
+                      {totaleVociFisseAnnuoMC !== totaleVociFisseAnnuo && totaleVociFisseAnnuo > 0 && (
+                        <div
+                          className="text-sm font-semibold mt-1"
+                          style={{ color: totaleVociFisseAnnuoMC >= totaleVociFisseAnnuo ? '#16a34a' : '#dc2626' }}
+                        >
+                          {totaleVociFisseAnnuoMC >= totaleVociFisseAnnuo ? '+' : ''}
+                          € {fmtEuro(totaleVociFisseAnnuoMC - totaleVociFisseAnnuo)}
+                          {' '}
+                          ({((totaleVociFisseAnnuoMC - totaleVociFisseAnnuo) / totaleVociFisseAnnuo * 100).toFixed(2)}%)
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1' }}>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#64748b' }}>
+                        CCNL 2019-2021 – 13^ mensilità
+                      </label>
+                      <div className="text-2xl font-bold" style={{ color: '#334155' }}>
+                        € {fmtEuro(totaleTredicesimaMensilita)}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-lg" style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d' }}>
+                      <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#b45309' }}>
+                        CCNL 2022-2024 – 13^ mensilità
+                      </label>
+                      <div className="text-2xl font-bold" style={{ color: '#92400e' }}>
+                        € {fmtEuro(totaleTredicesimaMensilita_MC)}
+                      </div>
+                      {totaleTredicesimaMensilita_MC !== totaleTredicesimaMensilita && (
+                        <div
+                          className="text-sm font-semibold mt-1"
+                          style={{ color: totaleTredicesimaMensilita_MC >= totaleTredicesimaMensilita ? '#16a34a' : '#dc2626' }}
+                        >
+                          {totaleTredicesimaMensilita_MC >= totaleTredicesimaMensilita ? '+' : ''}
+                          € {fmtEuro(totaleTredicesimaMensilita_MC - totaleTredicesimaMensilita)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dettaglio voci CCNL 2022-2024 */}
+                  <h3 className="text-base font-semibold mb-3" style={{ color: '#334155' }}>
+                    Dettaglio Voci – CCNL 2022-2024
+                  </h3>
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '45%' }}>Voce</th>
+                          <th style={{ width: '10%', textAlign: 'center' }}>13^</th>
+                          <th style={{ width: '25%', textAlign: 'right' }}>Mensile (€)</th>
+                          <th style={{ width: '20%', textAlign: 'right' }}>Annuo (€)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vociArricchiteMC.filter(v => v.catalogo).map((v, i) => (
+                          <tr
+                            key={v.idRiga}
+                            className={i % 2 === 0 ? styles.rowEven : ''}
+                            style={v.idVoceCatalogo === '01' ? { backgroundColor: '#fef9c3' } : undefined}
+                          >
+                            <td className={styles.tdLabel} style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>
+                              {v.catalogo?.nome}
+                              {v.idVoceCatalogo === '01' && (
+                                <span
+                                  className="ml-2 text-xs font-bold px-1.5 py-0.5 rounded"
+                                  style={{ backgroundColor: '#fbbf24', color: '#78350f' }}
+                                >
+                                  AGGIORNATO
+                                </span>
+                              )}
+                            </td>
+                            <td className={styles.tdCenter}>
+                              <div className="flex justify-center items-center">
+                                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${v.catalogo?.valido13 ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${v.catalogo?.valido13 ? 'translate-x-5' : 'translate-x-1'}`} />
+                                </div>
+                              </div>
+                            </td>
+                            <td className={styles.tdRight}>{fmtEuro(v.importoMensile)}</td>
+                            <td className={styles.tdRight}>{fmtEuro(v.importoAnnuo)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
