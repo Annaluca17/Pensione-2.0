@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock } from 'lucide-react';
+import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock, Layers } from 'lucide-react';
 import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
 import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
 import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
 import AnticipoDMA from './components/AnticipoDMA';
+import CalcoloUnificatoUltimoMiglio from './components/CalcoloUnificatoUltimoMiglio';
 
-type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | null;
+type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | 'unificato' | null;
 
 export default function App() {
   const [activeService, setActiveService] = useState<ServiceType>(null);
@@ -17,6 +18,7 @@ export default function App() {
       case 'tfs_servizio': return 'Ultimo miglio TFS In Servizio';
       case 'lettere': return 'Modelli Lettere';
       case 'anticipo_dma': return 'Anticipo DMA';
+      case 'unificato': return 'Calcolo Unificato Ultimo Miglio';
       default: return '';
     }
   };
@@ -68,6 +70,12 @@ export default function App() {
         icon={<Clock className="w-8 h-8 text-blue-600" />}
         onClick={() => setActiveService('anticipo_dma')}
       />
+      <ServiceCard
+        title="Calcolo Unificato Ultimo Miglio"
+        description="Tool unificato Pensione + TFS Pensionati. Inserimento unico, export Excel e PDF PASSWEB."
+        icon={<Layers className="w-8 h-8 text-blue-600" />}
+        onClick={() => setActiveService('unificato')}
+      />
     </div>
   );
 
@@ -105,6 +113,15 @@ export default function App() {
           <BackButton />
           <AnticipoDMA />
         </div>
+      );
+    }
+
+    if (activeService === 'unificato') {
+      return (
+        <>
+          <BackButton darkMode />
+          <CalcoloUnificatoUltimoMiglio />
+        </>
       );
     }
 
