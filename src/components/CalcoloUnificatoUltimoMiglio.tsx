@@ -182,10 +182,14 @@ function exportXLSX(
     ['ULTIMO MIGLIO TFS PENSIONATI'],
     [],
     ['Componente', 'Importo annuo (€)'],
-    ['Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)', tfs.stipT],
-    ['Tredicesima mensilità',                                        tfs.tredT],
+    ['Retribuzione Ind. Anzianità (R.I.A.)',                        tfs.ria],
+    ['Tredicesima mensilità',                                       tfs.tredT],
+    ['Stipendio tabellare (TAB E)',                                  tfs.stipT],
+    ['Indennità aggiuntive personale asili nido e scolastico',      tfs.asili],
+    ['Indennità specifica ex art.4 comma 3 ccnl 1996',              tfs.ind64],
+    ['Indennità di vigilanza per 12 mensilità',                     tfs.vig],
     [],
-    ['TOTALE TFS PENSIONATI',                                        tfs.totTab],
+    ['TOTALE TFS PENSIONATI',                                       tfs.tot],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsTFSData), 'TFS Pensionati');
 
@@ -197,9 +201,7 @@ function exportXLSX(
       ['Indicatore', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Variazione (€)', 'Var. (%)'],
       ['Pensione — Tot. voci fisse annuo', pensione.a,   pensioneMC.a,   r2(pensioneMC.a - pensione.a),   +(((pensioneMC.a - pensione.a) / pensione.a) * 100).toFixed(2)],
       ['Pensione — 13^ mensilità',         pensione.t,   pensioneMC.t,   r2(pensioneMC.t - pensione.t),   +(((pensioneMC.t - pensione.t) / pensione.t) * 100).toFixed(2)],
-      ['TFS — Stipendio tabellare TAB E',  tfs.stipT,    tfsMC.stipT,    r2(tfsMC.stipT - tfs.stipT),     tfs.stipT > 0 ? +(((tfsMC.stipT - tfs.stipT) / tfs.stipT) * 100).toFixed(2) : 0],
-      ['TFS — 13^ mensilità',              tfs.tredT,    tfsMC.tredT,    r2(tfsMC.tredT - tfs.tredT),     tfs.tredT > 0 ? +(((tfsMC.tredT - tfs.tredT) / tfs.tredT) * 100).toFixed(2) : 0],
-      ['TFS — Totale Tabellare',           tfs.totTab,   tfsMC.totTab,   r2(tfsMC.totTab - tfs.totTab),   tfs.totTab > 0 ? +(((tfsMC.totTab - tfs.totTab) / tfs.totTab) * 100).toFixed(2) : 0],
+      ['TFS — Totale complessivo',         tfs.tot,      tfsMC.tot,      r2(tfsMC.tot - tfs.tot),         tfs.tot > 0 ? +(((tfsMC.tot - tfs.tot) / tfs.tot) * 100).toFixed(2) : 0],
     ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsMCData), 'Miglioramento Contrattuale');
   }
@@ -268,11 +270,15 @@ function exportPDF(
     startY: y,
     head: [['Componente', 'Importo annuo (€)']],
     body: [
-      ['Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)', eur(tfs.stipT)],
-      ['Tredicesima mensilità', eur(tfs.tredT)],
+      ['Retribuzione Ind. Anzianità (R.I.A.)',                       eur(tfs.ria)],
+      ['Tredicesima mensilità',                                      eur(tfs.tredT)],
+      ['Stipendio tabellare (TAB E)',                                 eur(tfs.stipT)],
+      ['Indennità aggiuntive personale asili nido e scolastico',     eur(tfs.asili)],
+      ['Indennità specifica ex art.4 comma 3 ccnl 1996',             eur(tfs.ind64)],
+      ['Indennità di vigilanza per 12 mensilità',                    eur(tfs.vig)],
       [
         { content: 'TOTALE TFS PENSIONATI', styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
-        { content: '€ ' + eur(tfs.totTab), styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
+        { content: '€ ' + eur(tfs.tot), styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
       ],
     ],
     styles: { fontSize: 8 },
@@ -294,9 +300,7 @@ function exportPDF(
       body: [
         ['Pensione — Tot. voci fisse annuo', '€ ' + eur(pensione.a), '€ ' + eur(pensioneMC.a), (pensioneMC.a >= pensione.a ? '+' : '') + '€ ' + eur(pensioneMC.a - pensione.a)],
         ['Pensione — 13^ mensilità',         '€ ' + eur(pensione.t), '€ ' + eur(pensioneMC.t), (pensioneMC.t >= pensione.t ? '+' : '') + '€ ' + eur(pensioneMC.t - pensione.t)],
-        ['TFS — Stipendio tabellare TAB E', '€ ' + eur(tfs.stipT),   '€ ' + eur(tfsMC.stipT),   (tfsMC.stipT >= tfs.stipT ? '+' : '') + '€ ' + eur(tfsMC.stipT - tfs.stipT)],
-        ['TFS — 13^ mensilità',             '€ ' + eur(tfs.tredT),   '€ ' + eur(tfsMC.tredT),   (tfsMC.tredT >= tfs.tredT ? '+' : '') + '€ ' + eur(tfsMC.tredT - tfs.tredT)],
-        ['TFS — Totale Tabellare',          '€ ' + eur(tfs.totTab),  '€ ' + eur(tfsMC.totTab),  (tfsMC.totTab >= tfs.totTab ? '+' : '') + '€ ' + eur(tfsMC.totTab - tfs.totTab)],
+        ['TFS — Totale complessivo',        '€ ' + eur(tfs.tot),     '€ ' + eur(tfsMC.tot),     (tfsMC.tot >= tfs.tot ? '+' : '') + '€ ' + eur(tfsMC.tot - tfs.tot)],
       ],
       styles: { fontSize: 8 },
       headStyles: { fillColor: [30, 41, 59] },
@@ -627,23 +631,26 @@ export default function CalcoloUnificatoUltimoMiglio() {
                 </tr>
               </thead>
               <tbody>
-                {resTFS.stipT > 0 && (
-                  <tr className="bg-white">
-                    <td className="px-3 py-1.5 text-slate-700">Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)</td>
-                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.stipT)}</td>
-                  </tr>
-                )}
-                {resTFS.tredT > 0 && (
-                  <tr className="bg-slate-50">
-                    <td className="px-3 py-1.5 text-slate-700">Tredicesima mensilità</td>
-                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.tredT)}</td>
-                  </tr>
+                {([
+                  { label: 'Retribuzione Ind. Anzianità (R.I.A.)',                           val: resTFS.ria   },
+                  { label: 'Tredicesima mensilità',                                          val: resTFS.tredT },
+                  { label: 'Stipendio tabellare (TAB E)',                                     val: resTFS.stipT },
+                  { label: 'Indennità aggiuntive personale asili nido e scolastico',         val: resTFS.asili },
+                  { label: 'Indennità specifica ex art.4 comma 3 ccnl 1996',                val: resTFS.ind64 },
+                  { label: 'Indennità di vigilanza per 12 mensilità',                       val: resTFS.vig   },
+                ] as { label: string; val: number }[]).map(({ label, val }, i) =>
+                  val > 0 ? (
+                    <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="px-3 py-1.5 text-slate-700">{label}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">€ {eur(val)}</td>
+                    </tr>
+                  ) : null
                 )}
               </tbody>
               <tfoot>
                 <tr className="bg-blue-50 font-semibold border-t border-blue-200">
                   <td className="px-3 py-2 text-blue-800">TOTALE TFS PENSIONATI</td>
-                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.totTab)}</td>
+                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.tot)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -658,9 +665,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
         const rows: MCRow[] = [
           { label: 'Pensione — Tot. voci fisse annuo',          base: resPensione.a,   mc: resPensioneMC.a   },
           { label: 'Pensione — 13^ mensilità',                   base: resPensione.t,   mc: resPensioneMC.t   },
-          { label: 'TFS — Stipendio tabellare TAB E',            base: resTFS.stipT,    mc: resTFSMC.stipT    },
-          { label: 'TFS — 13^ mensilità',                        base: resTFS.tredT,    mc: resTFSMC.tredT    },
-          { label: 'TFS — Totale Tabellare',                     base: resTFS.totTab,   mc: resTFSMC.totTab   },
+          { label: 'TFS — Totale complessivo',                     base: resTFS.tot,      mc: resTFSMC.tot      },
         ];
         return (
           <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
