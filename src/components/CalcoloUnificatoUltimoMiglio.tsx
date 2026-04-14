@@ -43,6 +43,11 @@ interface RisultatoTFS {
   asili: number;
   ind64: number;
   vig: number;
+  /** Quota tabellare: stipT + tredT */
+  totTab: number;
+  /** Quota ultimo miglio: ria + asili + ind64 + vig */
+  totUM: number;
+  /** Totale complessivo TFS */
   tot: number;
 }
 
@@ -132,13 +137,19 @@ function calcTFS(
   const vm = (id: string) => r2(parseFloat(imp[id]) || 0);
   const sS   = r2(stipEff.reduce((s, v) => s + v.s, 0));
   const sT   = r2(stipEff.reduce((s, v) => s + v.t, 0));
+  // Quota tabellare (Tab. E PASSWEB)
   const stipT = r2(sS + (vm('02') + vm('03') + vm('04') + vm('05') + vm('09')) * 12);
   const tredT = r2(sT + vm('02') + vm('03') + vm('04') + vm('05') + vm('09') + vm('06'));
+  // Quota ultimo miglio
   const ria   = r2(vm('06') * 12);
   const asili = r2((vm('12') + vm('13')) * 12);
   const ind64 = r2(vm('08') * 12);
   const vig   = r2(vm('11') * 12);
-  return { stipT, tredT, ria, asili, ind64, vig, tot: r2(stipT + tredT + ria + asili + ind64 + vig) };
+
+  const totTab = r2(stipT + tredT);
+  const totUM  = r2(ria + asili + ind64 + vig);
+
+  return { stipT, tredT, ria, asili, ind64, vig, totTab, totUM, tot: r2(totTab + totUM) };
 }
 
 // ─── Export Excel (SheetJS) ───────────────────────────────────────────────────
@@ -175,14 +186,18 @@ function exportXLSX(
   const wsTFSData = [
     ['ULTIMO MIGLIO TFS PENSIONATI'],
     [],
-    ['Componente', 'Importo annuo (€)'],
-    ['Stipendio tabellare TAB E (comprensivo: differenziali, assegni IIS, IVC)', tfs.stipT],
-    ['Tredicesima mensilità',                                                   tfs.tredT],
-    ['R.I.A.',                                                                  tfs.ria   ],
-    ['Indennità aggiuntive asili nido/scolastico',                              tfs.asili ],
-    ['Indennità € 64,56 annue lorde',                                           tfs.ind64 ],
-    ['Indennità di vigilanza',                                                  tfs.vig   ],
-    ['TOTALE TFS',                                                              tfs.tot   ],
+    ['Componente', 'Importo annuo (€)', 'Sezione'],
+    ['Stipendio tabellare TAB E (comprensivo: differenziali, assegni IIS, IVC)', tfs.stipT,  'Quota Tabellare'],
+    ['Tredicesima mensilità',                                                    tfs.tredT,  'Quota Tabellare'],
+    ['TOTALE QUOTA TABELLARE (stipT + tredT)',                                   tfs.totTab, ''],
+    [],
+    ['R.I.A.',                                                                   tfs.ria,    'Quota Ultimo Miglio'],
+    ['Indennità aggiuntive asili nido/scolastico',                               tfs.asili,  'Quota Ultimo Miglio'],
+    ['Indennità € 64,56 annue lorde',                                            tfs.ind64,  'Quota Ultimo Miglio'],
+    ['Indennità di vigilanza',                                                   tfs.vig,    'Quota Ultimo Miglio'],
+    ['TOTALE QUOTA ULTIMO MIGLIO (ria + asili + ind64 + vig)',                   tfs.totUM,  ''],
+    [],
+    ['TOTALE COMPLESSIVO TFS',                                                   tfs.tot,    ''],
   ];
   const wsTFS = XLSX.utils.aoa_to_sheet(wsTFSData);
   XLSX.utils.book_append_sheet(wb, wsTFS, 'TFS Pensionati');
@@ -194,9 +209,11 @@ function exportXLSX(
       ['Posizione', mcPos, 'Decorrenza', '01.01.' + mcDec, 'Nuovo tabellare mensile', nuovoTab],
       [],
       ['Indicatore', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Variazione (€)', 'Var. (%)'],
-      ['Pensione — Tot. voci fisse annuo', pensione.a, pensioneMC.a, r2(pensioneMC.a - pensione.a), +(((pensioneMC.a - pensione.a) / pensione.a) * 100).toFixed(2)],
-      ['Pensione — 13^ mensilità',         pensione.t, pensioneMC.t, r2(pensioneMC.t - pensione.t), +(((pensioneMC.t - pensione.t) / pensione.t) * 100).toFixed(2)],
-      ['TFS — Totale Ultimo Miglio',       tfs.tot,    tfsMC.tot,    r2(tfsMC.tot - tfs.tot),        +(((tfsMC.tot - tfs.tot) / tfs.tot) * 100).toFixed(2)],
+      ['Pensione — Tot. voci fisse annuo', pensione.a,   pensioneMC.a,   r2(pensioneMC.a   - pensione.a),   +(((pensioneMC.a   - pensione.a)   / pensione.a)   * 100).toFixed(2)],
+      ['Pensione — 13^ mensilità',         pensione.t,   pensioneMC.t,   r2(pensioneMC.t   - pensione.t),   +(((pensioneMC.t   - pensione.t)   / pensione.t)   * 100).toFixed(2)],
+      ['TFS — Quota Tabellare',            tfs.totTab,   tfsMC.totTab,   r2(tfsMC.totTab   - tfs.totTab),   +(((tfsMC.totTab   - tfs.totTab)   / tfs.totTab)   * 100).toFixed(2)],
+      ['TFS — Quota Ultimo Miglio',        tfs.totUM,    tfsMC.totUM,    r2(tfsMC.totUM    - tfs.totUM),    +(((tfsMC.totUM    - tfs.totUM)    / tfs.totUM)    * 100).toFixed(2)],
+      ['TFS — Totale Complessivo',         tfs.tot,      tfsMC.tot,      r2(tfsMC.tot      - tfs.tot),      +(((tfsMC.tot      - tfs.tot)      / tfs.tot)      * 100).toFixed(2)],
     ];
     const wsMC = XLSX.utils.aoa_to_sheet(wsMCData);
     XLSX.utils.book_append_sheet(wb, wsMC, 'Miglioramento Contrattuale');
@@ -251,7 +268,7 @@ function exportPDF(
     body: [
       ...pensione.voci.filter(v => v.m > 0).map(v => [v.n, v.v13 ? 'SÌ' : 'NO', eur(v.m), eur(v.a)]),
       [{ content: 'TOTALE VOCI FISSE ANNUO', styles: { fontStyle: 'bold' } }, '', '', { content: '€ ' + eur(pensione.a), styles: { fontStyle: 'bold' } }],
-      [{ content: '13^ MENSILITÀ', styles: { fontStyle: 'bold' } }, '', '', { content: '€ ' + eur(pensione.t), styles: { fontStyle: 'bold' } }],
+      [{ content: '13^ MENSILITÀ',           styles: { fontStyle: 'bold' } }, '', '', { content: '€ ' + eur(pensione.t), styles: { fontStyle: 'bold' } }],
     ],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [30, 41, 59] },
@@ -263,23 +280,40 @@ function exportPDF(
   // TFS
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('TFS PENSIONATI — Ultimo Miglio', 14, y);
+  doc.text('TFS PENSIONATI — Ultimo Miglio (Tabellare + Ultimo Miglio)', 14, y);
   y += 4;
   autoTable(doc, {
     startY: y,
-    head: [['Componente', 'Importo annuo (€)']],
+    head: [['Componente', 'Sezione', 'Importo annuo (€)']],
     body: [
-      ['Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)', eur(tfs.stipT)],
-      ['Tredicesima mensilità',                                        eur(tfs.tredT)],
-      ['R.I.A.',                                                       eur(tfs.ria)  ],
-      ['Indennità aggiuntive asili nido/scolastico',                   eur(tfs.asili)],
-      ['Indennità € 64,56 annue lorde',                                eur(tfs.ind64)],
-      ['Indennità di vigilanza',                                       eur(tfs.vig)  ],
-      [{ content: 'TOTALE ULTIMO MIGLIO TFS', styles: { fontStyle: 'bold' } }, { content: '€ ' + eur(tfs.tot), styles: { fontStyle: 'bold' } }],
+      // Quota tabellare
+      ['Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)', 'Quota Tabellare', eur(tfs.stipT)],
+      ['Tredicesima mensilità',                                        'Quota Tabellare', eur(tfs.tredT)],
+      [
+        { content: 'TOTALE QUOTA TABELLARE', styles: { fontStyle: 'bold' } },
+        { content: 'stipT + tredT',          styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+        { content: '€ ' + eur(tfs.totTab),   styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+      ],
+      // Quota ultimo miglio
+      ['R.I.A.',                                                       'Quota Ultimo Miglio', eur(tfs.ria)],
+      ['Indennità aggiuntive asili nido/scolastico',                   'Quota Ultimo Miglio', eur(tfs.asili)],
+      ['Indennità € 64,56 annue lorde',                                'Quota Ultimo Miglio', eur(tfs.ind64)],
+      ['Indennità di vigilanza',                                       'Quota Ultimo Miglio', eur(tfs.vig)],
+      [
+        { content: 'TOTALE QUOTA ULTIMO MIGLIO', styles: { fontStyle: 'bold' } },
+        { content: 'ria + asili + ind64 + vig',  styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+        { content: '€ ' + eur(tfs.totUM),        styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+      ],
+      // Totale finale
+      [
+        { content: 'TOTALE COMPLESSIVO TFS', styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
+        { content: '',                        styles: { fillColor: [30,41,59] } },
+        { content: '€ ' + eur(tfs.tot),      styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
+      ],
     ],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [30, 41, 59] },
-    columnStyles: { 1: { halign: 'right' } },
+    columnStyles: { 2: { halign: 'right' } },
   });
 
   // MC (opzionale)
@@ -295,9 +329,11 @@ function exportPDF(
       startY: 28,
       head: [['Indicatore', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Variazione']],
       body: [
-        ['Pensione — Tot. voci fisse annuo', '€ ' + eur(pensione.a), '€ ' + eur(pensioneMC.a), (pensioneMC.a >= pensione.a ? '+' : '') + '€ ' + eur(pensioneMC.a - pensione.a)],
-        ['Pensione — 13^ mensilità',         '€ ' + eur(pensione.t), '€ ' + eur(pensioneMC.t), (pensioneMC.t >= pensione.t ? '+' : '') + '€ ' + eur(pensioneMC.t - pensione.t)],
-        ['TFS — Totale Ultimo Miglio',       '€ ' + eur(tfs.tot),    '€ ' + eur(tfsMC.tot),    (tfsMC.tot >= tfs.tot ? '+' : '') + '€ ' + eur(tfsMC.tot - tfs.tot)],
+        ['Pensione — Tot. voci fisse annuo', '€ ' + eur(pensione.a),   '€ ' + eur(pensioneMC.a),   (pensioneMC.a   >= pensione.a   ? '+' : '') + '€ ' + eur(pensioneMC.a   - pensione.a)],
+        ['Pensione — 13^ mensilità',         '€ ' + eur(pensione.t),   '€ ' + eur(pensioneMC.t),   (pensioneMC.t   >= pensione.t   ? '+' : '') + '€ ' + eur(pensioneMC.t   - pensione.t)],
+        ['TFS — Quota Tabellare',            '€ ' + eur(tfs.totTab),   '€ ' + eur(tfsMC.totTab),   (tfsMC.totTab   >= tfs.totTab   ? '+' : '') + '€ ' + eur(tfsMC.totTab   - tfs.totTab)],
+        ['TFS — Quota Ultimo Miglio',        '€ ' + eur(tfs.totUM),    '€ ' + eur(tfsMC.totUM),    (tfsMC.totUM    >= tfs.totUM    ? '+' : '') + '€ ' + eur(tfsMC.totUM    - tfs.totUM)],
+        ['TFS — Totale Complessivo',         '€ ' + eur(tfs.tot),      '€ ' + eur(tfsMC.tot),      (tfsMC.tot      >= tfs.tot      ? '+' : '') + '€ ' + eur(tfsMC.tot      - tfs.tot)],
       ],
       styles: { fontSize: 8 },
       headStyles: { fillColor: [30, 41, 59] },
@@ -331,7 +367,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
   const [stips, setStips] = useState<string[]>(Array(12).fill(''));
   const [exc,   setExc]   = useState<boolean[]>(Array(12).fill(false));
 
-  // Quando cambia la voce 01, aggiorna i mesi non in eccezione
   const baseStr = String(base);
   const stipsEff = stips.map((s, i) => exc[i] ? s : baseStr);
 
@@ -496,7 +531,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   </td>
                   <td
                     className="px-3 py-1.5 text-right font-mono text-sm"
-                    style={{ minWidth: a > 0 ? 500 : 400, color: a > 0 ? '#0f172a' : '#94a3b8' }}
+                    style={{ color: a > 0 ? '#0f172a' : '#94a3b8' }}
                   >
                     € {eur(a)}
                   </td>
@@ -653,7 +688,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
           </div>
         </div>
 
-        {/* TFS */}
+        {/* TFS — con suddivisione tabellare / ultimo miglio */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="bg-slate-800 text-white px-4 py-3">
             <h3 className="font-semibold text-sm">TFS PENSIONATI — Ultimo Miglio</h3>
@@ -667,24 +702,70 @@ export default function CalcoloUnificatoUltimoMiglio() {
                 </tr>
               </thead>
               <tbody>
-                {(Object.entries({
-                  'Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)': resTFS.stipT,
-                  'Tredicesima mensilità':                                         resTFS.tredT,
-                  'R.I.A.':                                                        resTFS.ria,
-                  'Indennità aggiuntive asili nido/scolastico':                    resTFS.asili,
-                  'Indennità € 64,56 annue lorde':                                 resTFS.ind64,
-                  'Indennità di vigilanza':                                        resTFS.vig,
-                }) as [string, number][]).filter(([, v]) => v > 0).map(([l, v], i) => (
-                  <tr key={l} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                    <td className="px-3 py-1.5 text-slate-700">{l}</td>
-                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(v)}</td>
+                {/* ── Sezione TABELLARE ── */}
+                <tr className="bg-slate-100">
+                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Quota Tabellare
+                  </td>
+                </tr>
+                {resTFS.stipT > 0 && (
+                  <tr className="bg-white">
+                    <td className="px-3 py-1.5 text-slate-700 pl-6">Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)</td>
+                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.stipT)}</td>
                   </tr>
-                ))}
+                )}
+                {resTFS.tredT > 0 && (
+                  <tr className="bg-slate-50">
+                    <td className="px-3 py-1.5 text-slate-700 pl-6">Tredicesima mensilità</td>
+                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.tredT)}</td>
+                  </tr>
+                )}
+                <tr className="bg-blue-50 font-semibold border-t border-blue-200">
+                  <td className="px-3 py-2 text-blue-800">TOTALE QUOTA TABELLARE</td>
+                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.totTab)}</td>
+                </tr>
+
+                {/* ── Sezione ULTIMO MIGLIO ── */}
+                <tr className="bg-slate-100">
+                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Quota Ultimo Miglio
+                  </td>
+                </tr>
+                {resTFS.ria > 0 && (
+                  <tr className="bg-white">
+                    <td className="px-3 py-1.5 text-slate-700 pl-6">R.I.A.</td>
+                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.ria)}</td>
+                  </tr>
+                )}
+                {resTFS.asili > 0 && (
+                  <tr className="bg-slate-50">
+                    <td className="px-3 py-1.5 text-slate-700 pl-6">Indennità aggiuntive asili nido/scolastico</td>
+                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.asili)}</td>
+                  </tr>
+                )}
+                {resTFS.ind64 > 0 && (
+                  <tr className="bg-white">
+                    <td className="px-3 py-1.5 text-slate-700 pl-6">Indennità € 64,56 annue lorde</td>
+                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.ind64)}</td>
+                  </tr>
+                )}
+                {resTFS.vig > 0 && (
+                  <tr className="bg-slate-50">
+                    <td className="px-3 py-1.5 text-slate-700 pl-6">Indennità di vigilanza</td>
+                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(resTFS.vig)}</td>
+                  </tr>
+                )}
+                <tr className="bg-blue-50 font-semibold border-t border-blue-200">
+                  <td className="px-3 py-2 text-blue-800">TOTALE QUOTA ULTIMO MIGLIO</td>
+                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.totUM)}</td>
+                </tr>
               </tbody>
-              <tfoot className="bg-blue-50 font-semibold">
-                <tr>
-                  <td className="px-3 py-2 text-slate-700">TOTALE ULTIMO MIGLIO TFS</td>
-                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.tot)}</td>
+
+              {/* ── Totale finale ── */}
+              <tfoot>
+                <tr className="bg-slate-800 text-white font-bold">
+                  <td className="px-3 py-2.5">TOTALE COMPLESSIVO TFS</td>
+                  <td className="px-3 py-2.5 text-right font-mono">€ {eur(resTFS.tot)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -714,7 +795,9 @@ export default function CalcoloUnificatoUltimoMiglio() {
                 {([
                   ['Pensione — Tot. voci fisse annuo', resPensione.a,  resPensioneMC.a],
                   ['Pensione — 13^ mensilità',         resPensione.t,  resPensioneMC.t],
-                  ['TFS — Totale Ultimo Miglio',       resTFS.tot,     resTFSMC.tot],
+                  ['TFS — Quota Tabellare',            resTFS.totTab,  resTFSMC.totTab],
+                  ['TFS — Quota Ultimo Miglio',        resTFS.totUM,   resTFSMC.totUM],
+                  ['TFS — Totale Complessivo',         resTFS.tot,     resTFSMC.tot],
                 ] as [string, number, number][]).map(([l, base, mc], i) => {
                   const delta = r2(mc - base);
                   const pct   = base > 0 ? ((delta / base) * 100).toFixed(2) : '—';
