@@ -25,8 +25,8 @@ interface VocePensione {
   id: string;
   n: string;
   v13: boolean;
-  x: number;   // moltiplicatore annuale
-  tfs: boolean; // impatta calcolo TFS
+  x: number;
+  tfs: boolean;
 }
 
 interface TabellaArea {
@@ -105,11 +105,11 @@ function getNuovoTab(pos: string, dec: DecId): number {
   return dec === '2024' ? TAB[idx].t24 : TAB[idx].t26;
 }
 
-// ─── Motore di calcolo (puro, testabile) ─────────────────────────────────────
+// ─── Motore di calcolo ────────────────────────────────────────────────────────
 
 interface CalcPensioneResult {
-  a: number; // totale voci fisse annuo
-  t: number; // 13^ mensilità
+  a: number;
+  t: number;
   voci: Array<{ id:string; n:string; v13:boolean; m:number; a:number }>;
 }
 
@@ -166,57 +166,49 @@ function exportXLSX(
 ): void {
   const wb = XLSX.utils.book_new();
 
-  // Foglio 1 — Pensione
   const wsPensioneData = [
     ['ULTIMO MIGLIO PENSIONE'],
     ['Nominativo', ana.nome, 'CF', ana.cf, 'Data inizio', ana.data, 'Motivo', ana.motivo],
     [],
     ['Voce Retributiva', '13^', 'Mensile (€)', 'Annuo (€)'],
-    ...pensione.voci
-      .filter(v => v.m > 0)
-      .map(v => [v.n, v.v13 ? 'SÌ' : 'NO', v.m, v.a]),
+    ...pensione.voci.filter(v => v.m > 0).map(v => [v.n, v.v13 ? 'SÌ' : 'NO', v.m, v.a]),
     [],
     ['TOTALE VOCI FISSE ANNUO', '', '', pensione.a],
     ['13^ MENSILITÀ', '', '', pensione.t],
   ];
-  const wsPensione = XLSX.utils.aoa_to_sheet(wsPensioneData);
-  XLSX.utils.book_append_sheet(wb, wsPensione, 'Pensione');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsPensioneData), 'Pensione');
 
-  // Foglio 2 — TFS
   const wsTFSData = [
     ['ULTIMO MIGLIO TFS PENSIONATI'],
     [],
     ['Componente', 'Importo annuo (€)', 'Sezione'],
-    ['Stipendio tabellare TAB E (comprensivo: differenziali, assegni IIS, IVC)', tfs.stipT,  'Quota Tabellare'],
-    ['Tredicesima mensilità',                                                    tfs.tredT,  'Quota Tabellare'],
-    ['TOTALE QUOTA TABELLARE (stipT + tredT)',                                   tfs.totTab, ''],
+    ['Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)', tfs.stipT,  'Quota Tabellare'],
+    ['Tredicesima mensilità',                                        tfs.tredT,  'Quota Tabellare'],
+    ['TOTALE QUOTA TABELLARE (stipT + tredT)',                       tfs.totTab, ''],
     [],
-    ['R.I.A.',                                                                   tfs.ria,    'Quota Ultimo Miglio'],
-    ['Indennità aggiuntive asili nido/scolastico',                               tfs.asili,  'Quota Ultimo Miglio'],
-    ['Indennità € 64,56 annue lorde',                                            tfs.ind64,  'Quota Ultimo Miglio'],
-    ['Indennità di vigilanza',                                                   tfs.vig,    'Quota Ultimo Miglio'],
-    ['TOTALE QUOTA ULTIMO MIGLIO (ria + asili + ind64 + vig)',                   tfs.totUM,  ''],
+    ['R.I.A.',                                                        tfs.ria,    'Quota Ultimo Miglio'],
+    ['Indennità aggiuntive asili nido/scolastico',                    tfs.asili,  'Quota Ultimo Miglio'],
+    ['Indennità € 64,56 annue lorde',                                 tfs.ind64,  'Quota Ultimo Miglio'],
+    ['Indennità di vigilanza',                                        tfs.vig,    'Quota Ultimo Miglio'],
+    ['TOTALE QUOTA ULTIMO MIGLIO (ria + asili + ind64 + vig)',        tfs.totUM,  ''],
     [],
-    ['TOTALE COMPLESSIVO TFS',                                                   tfs.tot,    ''],
+    ['TOTALE COMPLESSIVO TFS',                                        tfs.tot,    ''],
   ];
-  const wsTFS = XLSX.utils.aoa_to_sheet(wsTFSData);
-  XLSX.utils.book_append_sheet(wb, wsTFS, 'TFS Pensionati');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsTFSData), 'TFS Pensionati');
 
-  // Foglio 3 — Confronto MC (opzionale)
   if (pensioneMC && tfsMC) {
     const wsMCData = [
       ['CONFRONTO MIGLIORAMENTO CONTRATTUALE CCNL 2022-2024'],
       ['Posizione', mcPos, 'Decorrenza', '01.01.' + mcDec, 'Nuovo tabellare mensile', nuovoTab],
       [],
       ['Indicatore', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Variazione (€)', 'Var. (%)'],
-      ['Pensione — Tot. voci fisse annuo', pensione.a,   pensioneMC.a,   r2(pensioneMC.a   - pensione.a),   +(((pensioneMC.a   - pensione.a)   / pensione.a)   * 100).toFixed(2)],
-      ['Pensione — 13^ mensilità',         pensione.t,   pensioneMC.t,   r2(pensioneMC.t   - pensione.t),   +(((pensioneMC.t   - pensione.t)   / pensione.t)   * 100).toFixed(2)],
-      ['TFS — Quota Tabellare',            tfs.totTab,   tfsMC.totTab,   r2(tfsMC.totTab   - tfs.totTab),   +(((tfsMC.totTab   - tfs.totTab)   / tfs.totTab)   * 100).toFixed(2)],
-      ['TFS — Quota Ultimo Miglio',        tfs.totUM,    tfsMC.totUM,    r2(tfsMC.totUM    - tfs.totUM),    +(((tfsMC.totUM    - tfs.totUM)    / tfs.totUM)    * 100).toFixed(2)],
-      ['TFS — Totale Complessivo',         tfs.tot,      tfsMC.tot,      r2(tfsMC.tot      - tfs.tot),      +(((tfsMC.tot      - tfs.tot)      / tfs.tot)      * 100).toFixed(2)],
+      ['Pensione — Tot. voci fisse annuo', pensione.a,   pensioneMC.a,   r2(pensioneMC.a - pensione.a),   +(((pensioneMC.a - pensione.a) / pensione.a) * 100).toFixed(2)],
+      ['Pensione — 13^ mensilità',         pensione.t,   pensioneMC.t,   r2(pensioneMC.t - pensione.t),   +(((pensioneMC.t - pensione.t) / pensione.t) * 100).toFixed(2)],
+      ['TFS — Quota Tabellare (stipT+tredT)', tfs.totTab, tfsMC.totTab,  r2(tfsMC.totTab - tfs.totTab),   tfs.totTab > 0 ? +(((tfsMC.totTab - tfs.totTab) / tfs.totTab) * 100).toFixed(2) : 0],
+      ['TFS — Quota Ultimo Miglio (ria+asili+ind64+vig — invariata col MC)', tfs.totUM, tfsMC.totUM, r2(tfsMC.totUM - tfs.totUM), 0],
+      ['TFS — Totale Complessivo',         tfs.tot,      tfsMC.tot,      r2(tfsMC.tot - tfs.tot),         tfs.tot > 0 ? +(((tfsMC.tot - tfs.tot) / tfs.tot) * 100).toFixed(2) : 0],
     ];
-    const wsMC = XLSX.utils.aoa_to_sheet(wsMCData);
-    XLSX.utils.book_append_sheet(wb, wsMC, 'Miglioramento Contrattuale');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsMCData), 'Miglioramento Contrattuale');
   }
 
   XLSX.writeFile(wb, `UltimoMiglio_${ana.cf || 'export'}_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -246,7 +238,6 @@ function exportPDF(
   doc.setLineWidth(0.3);
   doc.line(14, 27, 196, 27);
 
-  // Anagrafica
   autoTable(doc, {
     startY: 30,
     head: [['Nominativo', 'CF', 'Data inizio', 'Motivo']],
@@ -257,7 +248,6 @@ function exportPDF(
 
   let y = (doc as any).lastAutoTable.finalY + 6;
 
-  // Pensione
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('PENSIONE — Ultimo Miglio', 14, y);
@@ -277,7 +267,6 @@ function exportPDF(
 
   y = (doc as any).lastAutoTable.finalY + 6;
 
-  // TFS
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
   doc.text('TFS PENSIONATI — Ultimo Miglio (Tabellare + Ultimo Miglio)', 14, y);
@@ -286,29 +275,26 @@ function exportPDF(
     startY: y,
     head: [['Componente', 'Sezione', 'Importo annuo (€)']],
     body: [
-      // Quota tabellare
       ['Stipendio tabellare TAB E (differenziali, assegni IIS, IVC)', 'Quota Tabellare', eur(tfs.stipT)],
-      ['Tredicesima mensilità',                                        'Quota Tabellare', eur(tfs.tredT)],
+      ['Tredicesima mensilità', 'Quota Tabellare', eur(tfs.tredT)],
       [
         { content: 'TOTALE QUOTA TABELLARE', styles: { fontStyle: 'bold' } },
-        { content: 'stipT + tredT',          styles: { fontStyle: 'bold', textColor: [30,64,175] } },
-        { content: '€ ' + eur(tfs.totTab),   styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+        { content: 'stipT + tredT', styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+        { content: '€ ' + eur(tfs.totTab), styles: { fontStyle: 'bold', textColor: [30,64,175] } },
       ],
-      // Quota ultimo miglio
-      ['R.I.A.',                                                       'Quota Ultimo Miglio', eur(tfs.ria)],
-      ['Indennità aggiuntive asili nido/scolastico',                   'Quota Ultimo Miglio', eur(tfs.asili)],
-      ['Indennità € 64,56 annue lorde',                                'Quota Ultimo Miglio', eur(tfs.ind64)],
-      ['Indennità di vigilanza',                                       'Quota Ultimo Miglio', eur(tfs.vig)],
+      ['R.I.A.', 'Quota Ultimo Miglio', eur(tfs.ria)],
+      ['Indennità aggiuntive asili nido/scolastico', 'Quota Ultimo Miglio', eur(tfs.asili)],
+      ['Indennità € 64,56 annue lorde', 'Quota Ultimo Miglio', eur(tfs.ind64)],
+      ['Indennità di vigilanza', 'Quota Ultimo Miglio', eur(tfs.vig)],
       [
         { content: 'TOTALE QUOTA ULTIMO MIGLIO', styles: { fontStyle: 'bold' } },
-        { content: 'ria + asili + ind64 + vig',  styles: { fontStyle: 'bold', textColor: [30,64,175] } },
-        { content: '€ ' + eur(tfs.totUM),        styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+        { content: 'ria + asili + ind64 + vig', styles: { fontStyle: 'bold', textColor: [30,64,175] } },
+        { content: '€ ' + eur(tfs.totUM), styles: { fontStyle: 'bold', textColor: [30,64,175] } },
       ],
-      // Totale finale
       [
         { content: 'TOTALE COMPLESSIVO TFS', styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
-        { content: '',                        styles: { fillColor: [30,41,59] } },
-        { content: '€ ' + eur(tfs.tot),      styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
+        { content: '', styles: { fillColor: [30,41,59] } },
+        { content: '€ ' + eur(tfs.tot), styles: { fontStyle: 'bold', fillColor: [30,41,59], textColor: [255,255,255] } },
       ],
     ],
     styles: { fontSize: 8 },
@@ -316,7 +302,6 @@ function exportPDF(
     columnStyles: { 2: { halign: 'right' } },
   });
 
-  // MC (opzionale)
   if (pensioneMC && tfsMC) {
     doc.addPage();
     doc.setFont('helvetica', 'bold');
@@ -329,16 +314,19 @@ function exportPDF(
       startY: 28,
       head: [['Indicatore', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Variazione']],
       body: [
-        ['Pensione — Tot. voci fisse annuo', '€ ' + eur(pensione.a),   '€ ' + eur(pensioneMC.a),   (pensioneMC.a   >= pensione.a   ? '+' : '') + '€ ' + eur(pensioneMC.a   - pensione.a)],
-        ['Pensione — 13^ mensilità',         '€ ' + eur(pensione.t),   '€ ' + eur(pensioneMC.t),   (pensioneMC.t   >= pensione.t   ? '+' : '') + '€ ' + eur(pensioneMC.t   - pensione.t)],
-        ['TFS — Quota Tabellare',            '€ ' + eur(tfs.totTab),   '€ ' + eur(tfsMC.totTab),   (tfsMC.totTab   >= tfs.totTab   ? '+' : '') + '€ ' + eur(tfsMC.totTab   - tfs.totTab)],
-        ['TFS — Quota Ultimo Miglio',        '€ ' + eur(tfs.totUM),    '€ ' + eur(tfsMC.totUM),    (tfsMC.totUM    >= tfs.totUM    ? '+' : '') + '€ ' + eur(tfsMC.totUM    - tfs.totUM)],
-        ['TFS — Totale Complessivo',         '€ ' + eur(tfs.tot),      '€ ' + eur(tfsMC.tot),      (tfsMC.tot      >= tfs.tot      ? '+' : '') + '€ ' + eur(tfsMC.tot      - tfs.tot)],
+        ['Pensione — Tot. voci fisse annuo', '€ ' + eur(pensione.a), '€ ' + eur(pensioneMC.a), (pensioneMC.a >= pensione.a ? '+' : '') + '€ ' + eur(pensioneMC.a - pensione.a)],
+        ['Pensione — 13^ mensilità',         '€ ' + eur(pensione.t), '€ ' + eur(pensioneMC.t), (pensioneMC.t >= pensione.t ? '+' : '') + '€ ' + eur(pensioneMC.t - pensione.t)],
+        ['TFS — Quota Tabellare',            '€ ' + eur(tfs.totTab), '€ ' + eur(tfsMC.totTab), (tfsMC.totTab >= tfs.totTab ? '+' : '') + '€ ' + eur(tfsMC.totTab - tfs.totTab)],
+        ['TFS — Quota Ultimo Miglio (*)',    '€ ' + eur(tfs.totUM),  '€ ' + eur(tfsMC.totUM),  '= invariata'],
+        ['TFS — Totale Complessivo',         '€ ' + eur(tfs.tot),    '€ ' + eur(tfsMC.tot),    (tfsMC.tot >= tfs.tot ? '+' : '') + '€ ' + eur(tfsMC.tot - tfs.tot)],
       ],
       styles: { fontSize: 8 },
       headStyles: { fillColor: [30, 41, 59] },
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
     });
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'italic');
+    doc.text('(*) R.I.A., indennità asili/vigilanza/64,56 non variano col miglioramento tabellare.', 14, (doc as any).lastAutoTable.finalY + 4);
   }
 
   doc.save(`UltimoMiglio_${ana.cf || 'export'}_${new Date().toISOString().slice(0,10)}.pdf`);
@@ -347,27 +335,20 @@ function exportPDF(
 // ─── Componente principale ────────────────────────────────────────────────────
 
 export default function CalcoloUnificatoUltimoMiglio() {
-  // Step
   const [step, setStep] = useState<StepId>('ana');
-
-  // Anagrafica
   const [ana, setAna] = useState<Anagrafica>({ nome:'', cf:'', data:'', motivo:'' });
-
-  // Voci retributive (stringhe per gli input)
   const [imp, setImp] = useState<Record<string, string>>({});
   const setVoce = (id: string, v: string) => setImp(p => ({ ...p, [id]: v }));
 
-  // Miglioramento contrattuale
   const [mcOn,  setMcOn]  = useState(false);
   const [mcPos, setMcPos] = useState('');
   const [mcDec, setMcDec] = useState<DecId>('2024');
 
-  // Stipendi ultimi 12 mesi (TFS)
   const base = r2(parseFloat(imp['01']) || 0);
   const [stips, setStips] = useState<string[]>(Array(12).fill(''));
   const [exc,   setExc]   = useState<boolean[]>(Array(12).fill(false));
 
-  const baseStr = String(base);
+  const baseStr  = String(base);
   const stipsEff = stips.map((s, i) => exc[i] ? s : baseStr);
 
   const stipEff = stipsEff.map(s => {
@@ -375,7 +356,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
     return { s: v, t: r2(v / 12) };
   });
 
-  // Calcoli
   const nuovoTab = useMemo(() => getNuovoTab(mcPos, mcDec), [mcPos, mcDec]);
 
   const resPensione = useMemo(() => calcPensione(imp), [imp]);
@@ -385,22 +365,25 @@ export default function CalcoloUnificatoUltimoMiglio() {
     () => mcOn && mcPos ? calcPensione(imp, nuovoTab) : null,
     [mcOn, mcPos, imp, nuovoTab],
   );
+
+  // FIX: usa idx come nome dell'indice nel map per evitare il bug _ vs i
   const resTFSMC = useMemo(
-    () => mcOn && mcPos ? calcTFS(
-      stipsEff.map((_, i) => {
-        const v = exc[i] ? r2(parseFloat(stipsEff[i]) || 0) : nuovoTab;
-        return { s: v, t: r2(v / 12) };
-      }),
-      { ...imp, '01': String(nuovoTab) },
-    ) : null,
+    () => mcOn && mcPos
+      ? calcTFS(
+          stipsEff.map((_s, idx) => {
+            const v = exc[idx] ? r2(parseFloat(stipsEff[idx]) || 0) : nuovoTab;
+            return { s: v, t: r2(v / 12) };
+          }),
+          { ...imp, '01': String(nuovoTab) },
+        )
+      : null,
     [mcOn, mcPos, nuovoTab, stipsEff, exc, imp],
   );
 
-  // Navigazione step
   const goTo = (s: StepId) => setStep(s);
   const stepIdx = STEPS.findIndex(s => s.id === step);
 
-  // ── Render step Anagrafica ─────────────────────────────────────────────────
+  // ── Render Anagrafica ──────────────────────────────────────────────────────
   const renderAna = () => (
     <div className="space-y-4 max-w-xl">
       <h2 className="text-lg font-semibold text-slate-800">Dati Anagrafici</h2>
@@ -427,21 +410,15 @@ export default function CalcoloUnificatoUltimoMiglio() {
     </div>
   );
 
-  // ── Render step Voci ───────────────────────────────────────────────────────
+  // ── Render Voci ────────────────────────────────────────────────────────────
   const renderVoci = () => (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-slate-800">Voci Retributive — Inserimento Unificato</h2>
       <p className="text-xs text-slate-500">Inserimento unico: i dati alimentano sia il calcolo Pensione che TFS</p>
 
-      {/* Miglioramento Contrattuale */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
         <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={mcOn}
-            onChange={e => setMcOn(e.target.checked)}
-            className="w-4 h-4 accent-amber-600"
-          />
+          <input type="checkbox" checked={mcOn} onChange={e => setMcOn(e.target.checked)} className="w-4 h-4 accent-amber-600" />
           <span className="text-sm font-medium text-amber-800">Applica Miglioramento Contrattuale CCNL 2022-2024</span>
         </label>
         <p className="text-xs text-amber-700 mt-1 ml-6">
@@ -451,11 +428,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
           <div className="mt-3 ml-6 flex flex-wrap gap-4">
             <div>
               <label className="block text-xs font-medium text-amber-700 mb-1">Posizione economica</label>
-              <select
-                value={mcPos}
-                onChange={e => setMcPos(e.target.value)}
-                className="border border-amber-300 rounded px-2 py-1 text-sm bg-white"
-              >
+              <select value={mcPos} onChange={e => setMcPos(e.target.value)} className="border border-amber-300 rounded px-2 py-1 text-sm bg-white">
                 <option value="">— seleziona —</option>
                 {TAB.map(t => (
                   <optgroup key={t.area} label={t.area}>
@@ -466,11 +439,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
             </div>
             <div>
               <label className="block text-xs font-medium text-amber-700 mb-1">Decorrenza</label>
-              <select
-                value={mcDec}
-                onChange={e => setMcDec(e.target.value as DecId)}
-                className="border border-amber-300 rounded px-2 py-1 text-sm bg-white"
-              >
+              <select value={mcDec} onChange={e => setMcDec(e.target.value as DecId)} className="border border-amber-300 rounded px-2 py-1 text-sm bg-white">
                 <option value="2024">01.01.2024</option>
                 <option value="2026">01.01.2026</option>
               </select>
@@ -478,10 +447,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
             {mcPos && (
               <div className="flex items-end pb-1">
                 <span className="text-sm font-semibold text-amber-800">
-                  <strong>{mcPos}</strong>
-                  {' '}· Nuovo tabellare mensile:{' '}
-                  <strong>€ {eur(nuovoTab)}</strong>
-                  {' '}· Impatto: <strong>Pensione + TFS</strong>
+                  <strong>{mcPos}</strong>{' '}· Nuovo tabellare: <strong>€ {eur(nuovoTab)}</strong>{' '}· Impatto: <strong>Pensione + TFS (quota tabellare)</strong>
                 </span>
               </div>
             )}
@@ -489,7 +455,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
         )}
       </div>
 
-      {/* Tabella voci */}
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-sm">
           <thead className="bg-slate-800 text-white">
@@ -512,27 +477,20 @@ export default function CalcoloUnificatoUltimoMiglio() {
                     <span className="text-slate-400 text-xs mr-1">#{v.id}</span>{v.n}
                   </td>
                   <td className="px-3 py-1.5 text-center">
-                    <span className="text-xs">
-                      {v.tfs ? <span className="text-blue-600 font-medium">P+TFS</span> : <span className="text-slate-400">Solo P</span>}
-                    </span>
+                    {v.tfs ? <span className="text-xs text-blue-600 font-medium">P+TFS</span> : <span className="text-xs text-slate-400">Solo P</span>}
                   </td>
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">{v.v13 ? 'SÌ' : '–'}</td>
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">×{v.x}</td>
                   <td className="px-3 py-1.5">
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="number" min="0" step="0.01"
                       value={imp[v.id] ?? ''}
                       onChange={e => setVoce(v.id, e.target.value)}
                       className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                       placeholder="0,00"
                     />
                   </td>
-                  <td
-                    className="px-3 py-1.5 text-right font-mono text-sm"
-                    style={{ color: a > 0 ? '#0f172a' : '#94a3b8' }}
-                  >
+                  <td className="px-3 py-1.5 text-right font-mono text-sm" style={{ color: a > 0 ? '#0f172a' : '#94a3b8' }}>
                     € {eur(a)}
                   </td>
                 </tr>
@@ -549,7 +507,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
     </div>
   );
 
-  // ── Render step Stipendi TFS ───────────────────────────────────────────────
+  // ── Render Stipendi TFS ────────────────────────────────────────────────────
   const renderStip = () => (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-slate-800">Stipendi Ultimi 12 Mesi (per calcolo TFS)</h2>
@@ -574,8 +532,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   <td className="px-3 py-1.5 text-slate-700">{m}</td>
                   <td className="px-3 py-1.5 text-center">
                     <input
-                      type="checkbox"
-                      checked={exc[i]}
+                      type="checkbox" checked={exc[i]}
                       onChange={e => {
                         const ne = [...exc]; ne[i] = e.target.checked; setExc(ne);
                         if (!e.target.checked) { const ns = [...stips]; ns[i] = base.toString(); setStips(ns); }
@@ -585,9 +542,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   </td>
                   <td className="px-3 py-1.5">
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="number" min="0" step="0.01"
                       disabled={!exc[i]}
                       value={exc[i] ? stips[i] : String(base)}
                       onChange={e => { const ns = [...stips]; ns[i] = e.target.value; setStips(ns); }}
@@ -613,7 +568,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
     </div>
   );
 
-  // ── Render step Risultato ──────────────────────────────────────────────────
+  // ── Render Risultato ───────────────────────────────────────────────────────
   const renderRis = () => (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -622,23 +577,18 @@ export default function CalcoloUnificatoUltimoMiglio() {
           <p className="text-xs text-slate-400 mt-0.5">Calcolato il {new Date().toLocaleString('it-IT')} — non modificabile</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
-          >
+          <button onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
             ↓ Excel
           </button>
-          <button
-            onClick={() => exportPDF(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-          >
+          <button onClick={() => exportPDF(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
             ↓ PDF
           </button>
           <button onClick={() => goTo('voci')} className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">← Modifica</button>
         </div>
       </div>
 
-      {/* Anagrafica riepilogo */}
       <div className="bg-slate-100 rounded-lg px-4 py-3 text-sm text-slate-700 flex flex-wrap gap-4">
         <span><strong>Nominativo:</strong> {ana.nome}</span>
         <span><strong>CF:</strong> {ana.cf}</span>
@@ -646,7 +596,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
         <span><strong>Motivo:</strong> {ana.motivo}</span>
       </div>
 
-      {/* Pannelli Pensione + TFS affiancati */}
+      {/* Pannelli Pensione + TFS */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
         {/* PENSIONE */}
@@ -688,7 +638,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
           </div>
         </div>
 
-        {/* TFS — con suddivisione tabellare / ultimo miglio */}
+        {/* TFS — suddivisione tabellare / ultimo miglio */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="bg-slate-800 text-white px-4 py-3">
             <h3 className="font-semibold text-sm">TFS PENSIONATI — Ultimo Miglio</h3>
@@ -702,11 +652,8 @@ export default function CalcoloUnificatoUltimoMiglio() {
                 </tr>
               </thead>
               <tbody>
-                {/* ── Sezione TABELLARE ── */}
                 <tr className="bg-slate-100">
-                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Quota Tabellare
-                  </td>
+                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Quota Tabellare</td>
                 </tr>
                 {resTFS.stipT > 0 && (
                   <tr className="bg-white">
@@ -725,11 +672,8 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.totTab)}</td>
                 </tr>
 
-                {/* ── Sezione ULTIMO MIGLIO ── */}
                 <tr className="bg-slate-100">
-                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Quota Ultimo Miglio
-                  </td>
+                  <td colSpan={2} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Quota Ultimo Miglio</td>
                 </tr>
                 {resTFS.ria > 0 && (
                   <tr className="bg-white">
@@ -760,8 +704,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.totUM)}</td>
                 </tr>
               </tbody>
-
-              {/* ── Totale finale ── */}
               <tfoot>
                 <tr className="bg-slate-800 text-white font-bold">
                   <td className="px-3 py-2.5">TOTALE COMPLESSIVO TFS</td>
@@ -774,65 +716,74 @@ export default function CalcoloUnificatoUltimoMiglio() {
       </div>
 
       {/* Miglioramento Contrattuale */}
-      {mcOn && mcPos && resPensioneMC && resTFSMC && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
-          <div className="bg-amber-700 text-white px-4 py-3">
-            <h3 className="font-semibold text-sm">
-              MIGLIORAMENTO CONTRATTUALE CCNL 2022-2024 — {mcPos} · Decorrenza: 01.01.{mcDec} · Nuovo tabellare mensile: € {eur(nuovoTab)}
-            </h3>
+      {mcOn && mcPos && resPensioneMC && resTFSMC && (() => {
+        // Righe MC: [label, base, mc, nota?]
+        type MCRow = { label: string; base: number; mc: number; nota?: string };
+        const rows: MCRow[] = [
+          { label: 'Pensione — Tot. voci fisse annuo', base: resPensione.a,   mc: resPensioneMC.a   },
+          { label: 'Pensione — 13^ mensilità',         base: resPensione.t,   mc: resPensioneMC.t   },
+          { label: 'TFS — Quota Tabellare',            base: resTFS.totTab,   mc: resTFSMC.totTab   },
+          { label: 'TFS — Quota Ultimo Miglio',        base: resTFS.totUM,    mc: resTFSMC.totUM,   nota: 'R.I.A. e indennità non variano col tabellare' },
+          { label: 'TFS — Totale Complessivo',         base: resTFS.tot,      mc: resTFSMC.tot      },
+        ];
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+            <div className="bg-amber-700 text-white px-4 py-3">
+              <h3 className="font-semibold text-sm">
+                MIGLIORAMENTO CONTRATTUALE CCNL 2022-2024 — {mcPos} · Decorrenza: 01.01.{mcDec} · Nuovo tabellare mensile: € {eur(nuovoTab)}
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-amber-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-amber-800">Indicatore</th>
+                    <th className="px-3 py-2 text-right text-amber-800">CCNL 2019-2021</th>
+                    <th className="px-3 py-2 text-right text-amber-800">CCNL 2022-2024</th>
+                    <th className="px-3 py-2 text-right text-amber-800">Variazione</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ label, base, mc, nota }, i) => {
+                    const delta = r2(mc - base);
+                    const pct   = base > 0 ? ((delta / base) * 100).toFixed(2) : null;
+                    const isZero = delta === 0;
+                    return (
+                      <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-amber-50/50'}>
+                        <td className="px-3 py-1.5 text-slate-700">
+                          {label}
+                          {nota && <span className="block text-xs text-slate-400 italic">{nota}</span>}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono">€ {eur(base)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono">€ {eur(mc)}</td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold"
+                          style={{ color: isZero ? '#64748b' : delta > 0 ? '#166534' : '#b91c1c' }}>
+                          {isZero
+                            ? <span className="text-slate-400 font-normal italic">= invariata</span>
+                            : <>{delta > 0 ? '+' : ''}€ {eur(delta)}{pct ? ` (${pct}%)` : ''}</>
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-amber-100">
-                <tr>
-                  <th className="px-3 py-2 text-left text-amber-800">Indicatore</th>
-                  <th className="px-3 py-2 text-right text-amber-800">CCNL 2019-2021</th>
-                  <th className="px-3 py-2 text-right text-amber-800">CCNL 2022-2024</th>
-                  <th className="px-3 py-2 text-right text-amber-800">Variazione</th>
-                </tr>
-              </thead>
-              <tbody>
-                {([
-                  ['Pensione — Tot. voci fisse annuo', resPensione.a,  resPensioneMC.a],
-                  ['Pensione — 13^ mensilità',         resPensione.t,  resPensioneMC.t],
-                  ['TFS — Quota Tabellare',            resTFS.totTab,  resTFSMC.totTab],
-                  ['TFS — Quota Ultimo Miglio',        resTFS.totUM,   resTFSMC.totUM],
-                  ['TFS — Totale Complessivo',         resTFS.tot,     resTFSMC.tot],
-                ] as [string, number, number][]).map(([l, base, mc], i) => {
-                  const delta = r2(mc - base);
-                  const pct   = base > 0 ? ((delta / base) * 100).toFixed(2) : '—';
-                  return (
-                    <tr key={l} className={i % 2 === 0 ? 'bg-white' : 'bg-amber-50/50'}>
-                      <td className="px-3 py-1.5 text-slate-700">{l}</td>
-                      <td className="px-3 py-1.5 text-right font-mono">€ {eur(base)}</td>
-                      <td className="px-3 py-1.5 text-right font-mono">€ {eur(mc)}</td>
-                      <td className="px-3 py-1.5 text-right font-mono font-semibold"
-                        style={{ color: delta >= 0 ? '#166534' : '#b91c1c' }}>
-                        {delta >= 0 ? '+' : ''}€ {eur(delta)} ({pct}%)
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 
   // ── Layout principale ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-900">
-      {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-white font-bold text-lg tracking-tight">
             Calcolo Unificato Ultimo Miglio — Pensione + TFS Pensionati
           </h1>
           <p className="text-slate-400 text-xs mt-0.5">CCNL Funzioni Locali · INPS PASSWEB · Immedia S.p.A.</p>
-
-          {/* Stepper */}
           <div className="flex items-center gap-1 mt-4">
             {STEPS.map((s, i) => (
               <button
@@ -853,8 +804,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
           </div>
         </div>
       </div>
-
-      {/* Body */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           {step === 'ana'  && renderAna()}
