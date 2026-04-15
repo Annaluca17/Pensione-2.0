@@ -566,7 +566,7 @@ export default function CalcoloUltimoMiglioPensione() {
                   <button className={styles.btnExport} onClick={() => exportPensioneToExcel(anagrafica, vociArricchite, totaleVociFisseAnnuo, totaleTredicesimaMensilita)}>
                     Esporta Excel
                   </button>
-                  <button className={styles.btnPdf} onClick={() => exportPensioneToPDF(anagrafica, vociArricchite, totaleVociFisseAnnuo, totaleTredicesimaMensilita)}>
+                  <button className={styles.btnPdf} onClick={() => exportPensioneToPDF(anagrafica, vociArricchite, totaleVociFisseAnnuo, totaleTredicesimaMensilita, miglioramentoContrattuale && posizioneSelezionata && vociArricchiteMC ? { attivo: true, mansione: mansioneMC, area: posizioneSelezionata.area, decorrenza: dataDecorrenzaMC, nuovoTabellare, vociArricchiteMC, totaleVociFisseAnnuoMC, totaleTredicesimaMensilita_MC } : undefined)}>
                     Esporta PDF
                   </button>
                 </div>
