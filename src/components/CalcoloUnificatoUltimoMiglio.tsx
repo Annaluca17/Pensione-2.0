@@ -475,17 +475,21 @@ function exportPDF(
       startY: 28,
       head: [['Campo', 'Scenario A — CCNL 2019-2021', 'Scenario B — CCNL 2022-2024', 'Δ (€)', 'Δ (%)']],
       body: [
-        row('Pensione — Tot. voci fisse annuo',                        pensione.a,  pensioneMC.a  ),
-        row('Pensione — 13^ mensilità',                                pensione.t,  pensioneMC.t  ),
-        ...[
-          ['TFS — Retribuzione Ind. Anzianità (R.I.A.)',               tfs.ria,     tfsMC.ria     ],
-          ['TFS — Tredicesima mensilità',                               tfs.tredT,   tfsMC.tredT   ],
-          ['TFS — Stipendio tabellare (TAB E)',                         tfs.stipT,   tfsMC.stipT   ],
-          ['TFS — Ind. aggiuntive asili nido',                         tfs.asili,   tfsMC.asili   ],
-          ['TFS — Ind. specifica ex art.4',                            tfs.ind64,   tfsMC.ind64   ],
-          ['TFS — Ind. vigilanza',                                      tfs.vig,     tfsMC.vig     ],
-        ].filter(r => (r[1] as number) > 0).map(r => row(r[0] as string, r[1] as number, r[2] as number)),
-        row('TFS — Totale complessivo',                                tfs.tot,     tfsMC.tot     ),
+        row('Pensione — Tot. voci fisse annuo', pensione.a, pensioneMC.a),
+        row('Pensione — 13^ mensilità',          pensione.t, pensioneMC.t),
+        ...(tfsMC ? [
+          ...[
+            ['TFS — Retribuzione Ind. Anzianità (R.I.A.)', tfs.ria,   tfsMC.ria  ],
+            ['TFS — Tredicesima mensilità',                 tfs.tredT, tfsMC.tredT],
+            ['TFS — Stipendio tabellare (TAB E)',           tfs.stipT, tfsMC.stipT],
+            ['TFS — Ind. aggiuntive asili nido',           tfs.asili, tfsMC.asili],
+            ['TFS — Ind. specifica ex art.4',              tfs.ind64, tfsMC.ind64],
+            ['TFS — Ind. vigilanza',                        tfs.vig,   tfsMC.vig  ],
+          ].filter(r => (r[1] as number) > 0).map(r => row(r[0] as string, r[1] as number, r[2] as number)),
+          row('TFS — Totale complessivo', tfs.tot, tfsMC.tot),
+        ] : [
+          [{ content: 'TFS — Confronto non applicabile (cessazione ante 01/01/2024)', colSpan: 5, styles: { fontStyle: 'italic', textColor: [120, 53, 15] } }],
+        ]),
       ],
       styles: { fontSize: 8 },
       headStyles: { fillColor: HDR_BASE },
