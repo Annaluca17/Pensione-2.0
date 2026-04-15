@@ -18,6 +18,7 @@ interface Anagrafica {
   nome: string;
   cf: string;
   data: string;
+  dataCessazione: string;
   motivo: string;
 }
 
@@ -49,6 +50,14 @@ interface RisultatoTFS {
   totUM: number;
   /** Totale complessivo TFS */
   tot: number;
+}
+
+interface MeseRif {
+  mese: string;
+  anno: number;
+  meseIdx: number;
+  /** true se il mese è >= 01/01/2024 */
+  isEligibilePerMC: boolean;
 }
 
 // ─── Costanti ────────────────────────────────────────────────────────────────
@@ -84,7 +93,6 @@ const VOCI: VocePensione[] = [
 const STEPS = [
   { id: 'ana',  lbl: 'Anagrafica' },
   { id: 'voci', lbl: 'Voci Retributive' },
-  { id: 'stip', lbl: 'Stipendi TFS' },
   { id: 'ris',  lbl: 'Risultato' },
 ] as const;
 
@@ -103,6 +111,29 @@ function getNuovoTab(pos: string, dec: DecId): number {
   const idx  = { D:0, C:1, B:2, A:3 }[ltr];
   if (idx == null) return 0;
   return dec === '2024' ? TAB[idx].t24 : TAB[idx].t26;
+}
+
+/**
+ * Computa la finestra di 12 mesi di riferimento PASSWEB.
+ * Inclusivo del mese di cessazione (standard PASSWEB).
+ * Esempio: cessazione 30/09/2024 → [Ott 2023 … Set 2024]
+ */
+function getUltimi12Mesi(dataCessazione: string): MeseRif[] {
+  if (!dataCessazione || dataCessazione.length < 7) return [];
+  const [y, m] = dataCessazione.split('-').map(Number);
+  const result: MeseRif[] = [];
+  for (let i = 11; i >= 0; i--) {
+    let mi = (m - 1) - i; // 0-based
+    let yi = y;
+    while (mi < 0) { mi += 12; yi--; }
+    result.push({
+      mese: MESI[mi],
+      anno: yi,
+      meseIdx: mi,
+      isEligibilePerMC: yi >= 2024,
+    });
+  }
+  return result;
 }
 
 // ─── Motore di calcolo ────────────────────────────────────────────────────────
@@ -168,7 +199,7 @@ function exportXLSX(
 
   const wsPensioneData = [
     ['ULTIMO MIGLIO PENSIONE'],
-    ['Nominativo', ana.nome, 'CF', ana.cf, 'Data inizio', ana.data, 'Motivo', ana.motivo],
+    ['Nominativo', ana.nome, 'CF', ana.cf, 'Data inizio', ana.data, 'Data cessazione', ana.dataCessazione, 'Motivo', ana.motivo],
     [],
     ['Voce Retributiva', '13^', 'Mensile (€)', 'Annuo (€)'],
     ...pensione.voci.filter(v => v.m > 0).map(v => [v.n, v.v13 ? 'SÌ' : 'NO', v.m, v.a]),
@@ -243,8 +274,8 @@ function exportPDF(
 
   autoTable(doc, {
     startY: 30,
-    head: [['Nominativo', 'CF', 'Data inizio', 'Motivo']],
-    body: [[ana.nome, ana.cf, ana.data, ana.motivo]],
+    head: [['Nominativo', 'CF', 'Data inizio', 'Data cessazione', 'Motivo']],
+    body: [[ana.nome, ana.cf, ana.data, ana.dataCessazione, ana.motivo]],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [30, 41, 59] },
   });
@@ -317,8 +348,8 @@ function exportPDF(
           ['TFS — Indennità di vigilanza per 12 mensilità',               tfs.vig,   tfsMC.vig  ],
         ].filter(r => (r[1] as number) > 0)
           .map(r => {
-            const b = r[1] as number; const m = r[2] as number;
-            return [r[0] as string, '€ ' + eur(b), '€ ' + eur(m), (m >= b ? '+' : '') + '€ ' + eur(r2(m - b))];
+            const b = r[1] as number; const mc = r[2] as number;
+            return [r[0] as string, '€ ' + eur(b), '€ ' + eur(mc), (mc >= b ? '+' : '') + '€ ' + eur(r2(mc - b))];
           }),
         ['TFS — Totale complessivo', '€ ' + eur(tfs.tot), '€ ' + eur(tfsMC.tot), (tfsMC.tot >= tfs.tot ? '+' : '') + '€ ' + eur(r2(tfsMC.tot - tfs.tot))],
       ],
@@ -335,7 +366,7 @@ function exportPDF(
 
 export default function CalcoloUnificatoUltimoMiglio() {
   const [step, setStep] = useState<StepId>('ana');
-  const [ana, setAna] = useState<Anagrafica>({ nome:'', cf:'', data:'', motivo:'' });
+  const [ana, setAna] = useState<Anagrafica>({ nome:'', cf:'', data:'', dataCessazione:'', motivo:'' });
   const [imp, setImp] = useState<Record<string, string>>({});
   const setVoce = (id: string, v: string) => setImp(p => ({ ...p, [id]: v }));
 
@@ -343,65 +374,111 @@ export default function CalcoloUnificatoUltimoMiglio() {
   const [mcPos, setMcPos] = useState('');
   const [mcDec, setMcDec] = useState<DecId>('2024');
 
-  const base = r2(parseFloat(imp['01']) || 0);
+  // Override manuali per casi eccezionali (part-time, assenze non retribuite, ecc.)
   const [stips, setStips] = useState<string[]>(Array(12).fill(''));
   const [exc,   setExc]   = useState<boolean[]>(Array(12).fill(false));
 
-  const baseStr  = String(base);
-  const stipsEff = stips.map((s, i) => exc[i] ? s : baseStr);
-
-  const stipEff = stipsEff.map(s => {
-    const v = r2(parseFloat(s) || 0);
-    return { s: v, t: r2(v / 12) };
-  });
-
+  const base     = r2(parseFloat(imp['01']) || 0);
   const nuovoTab = useMemo(() => getNuovoTab(mcPos, mcDec), [mcPos, mcDec]);
 
+  // Gate MC: abilitato solo se data cessazione >= 01/01/2024
+  const isMCEligibile = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2024-01-01';
+
+  // Finestra 12 mesi PASSWEB (inclusiva mese di cessazione)
+  const ultimi12 = useMemo(() => getUltimi12Mesi(ana.dataCessazione), [ana.dataCessazione]);
+
+  /**
+   * Tabellare base (CCNL 2019-2021): usa voce 01 per tutti i mesi, salvo override manuale.
+   * Alimenta resTFS (calcolo senza MC).
+   */
+  const stipsEffBase = useMemo(
+    () => ultimi12.map((_, i) => exc[i] ? stips[i] : String(base)),
+    [ultimi12, exc, stips, base],
+  );
+
+  /**
+   * Tabellare con MC (CCNL 2022-2024): per i mesi >= 01/01/2024 sostituisce il tabellare
+   * con nuovoTab se MC attivo e posizione selezionata; altrimenti usa base.
+   * Override manuale ha precedenza su entrambi gli scenari.
+   * Alimenta resTFSMC (calcolo con MC).
+   */
+  const stipsEffMC = useMemo(
+    () => ultimi12.map((m, i) =>
+      exc[i]
+        ? stips[i]
+        : (isMCEligibile && mcOn && mcPos && m.isEligibilePerMC ? String(nuovoTab) : String(base))
+    ),
+    [ultimi12, exc, stips, isMCEligibile, mcOn, mcPos, nuovoTab, base],
+  );
+
+  const stipEffBase = useMemo(
+    () => stipsEffBase.map(s => { const v = r2(parseFloat(s) || 0); return { s: v, t: r2(v / 12) }; }),
+    [stipsEffBase],
+  );
+
+  const stipEffMC = useMemo(
+    () => stipsEffMC.map(s => { const v = r2(parseFloat(s) || 0); return { s: v, t: r2(v / 12) }; }),
+    [stipsEffMC],
+  );
+
   const resPensione = useMemo(() => calcPensione(imp), [imp]);
-  const resTFS      = useMemo(() => calcTFS(stipEff, imp), [stipsEff, imp]);
+  const resTFS      = useMemo(() => calcTFS(stipEffBase, imp), [stipEffBase, imp]);
 
   const resPensioneMC = useMemo(
-    () => mcOn && mcPos ? calcPensione(imp, nuovoTab) : null,
-    [mcOn, mcPos, imp, nuovoTab],
+    () => isMCEligibile && mcOn && mcPos ? calcPensione(imp, nuovoTab) : null,
+    [isMCEligibile, mcOn, mcPos, imp, nuovoTab],
   );
 
-  // FIX: usa idx come nome dell'indice nel map per evitare il bug _ vs i
   const resTFSMC = useMemo(
-    () => mcOn && mcPos
-      ? calcTFS(
-          stipsEff.map((_s, idx) => {
-            const v = exc[idx] ? r2(parseFloat(stipsEff[idx]) || 0) : nuovoTab;
-            return { s: v, t: r2(v / 12) };
-          }),
-          { ...imp, '01': String(nuovoTab) },
-        )
+    () => isMCEligibile && mcOn && mcPos
+      ? calcTFS(stipEffMC, imp)
       : null,
-    [mcOn, mcPos, nuovoTab, stipsEff, exc, imp],
+    [isMCEligibile, mcOn, mcPos, stipEffMC, imp],
   );
 
-  const goTo = (s: StepId) => setStep(s);
+  const goTo    = (s: StepId) => setStep(s);
   const stepIdx = STEPS.findIndex(s => s.id === step);
+
+  // Visibilità colonna MC nella tabella 12 mesi
+  const showMCCol = isMCEligibile && mcOn && !!mcPos;
 
   // ── Render Anagrafica ──────────────────────────────────────────────────────
   const renderAna = () => (
     <div className="space-y-4 max-w-xl">
       <h2 className="text-lg font-semibold text-slate-800">Dati Anagrafici</h2>
-      {(['nome','cf','data','motivo'] as const).map(k => (
+
+      {([ 'nome', 'cf', 'data', 'dataCessazione', 'motivo' ] as const).map(k => (
         <div key={k}>
-          <label className="block text-sm font-medium text-slate-600 mb-1 capitalize">
-            {k === 'cf' ? 'Codice Fiscale' : k === 'data' ? 'Data inizio servizio' : k === 'motivo' ? 'Motivo cessazione' : 'Nominativo'}
+          <label className="block text-sm font-medium text-slate-600 mb-1">
+            {k === 'cf'              ? 'Codice Fiscale'
+            : k === 'data'           ? 'Data inizio servizio'
+            : k === 'dataCessazione' ? 'Data cessazione'
+            : k === 'motivo'         ? 'Motivo cessazione'
+            : 'Nominativo'}
           </label>
           <input
-            type={k === 'data' ? 'date' : 'text'}
+            type={k === 'data' || k === 'dataCessazione' ? 'date' : 'text'}
             value={ana[k]}
             onChange={e => setAna(p => ({ ...p, [k]: e.target.value }))}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       ))}
+
+      {/* Avviso preventivo se cessazione antecedente al 01/01/2024 */}
+      {ana.dataCessazione.length === 10 && !isMCEligibile && (
+        <div className="flex items-start gap-2 bg-slate-100 border border-slate-300 rounded-lg p-3 text-xs text-slate-600">
+          <span className="mt-0.5 shrink-0">ℹ️</span>
+          <span>
+            Data di cessazione antecedente al 01/01/2024 — il Miglioramento Contrattuale CCNL 2022-2024{' '}
+            <strong>non sarà applicabile</strong>. Verrà prodotto il solo calcolo Ultimo Miglio base (CCNL 2019-2021).
+          </span>
+        </div>
+      )}
+
       <button
         onClick={() => goTo('voci')}
-        disabled={!ana.nome || !ana.cf}
+        disabled={!ana.nome || !ana.cf || !ana.dataCessazione}
         className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
       >
         Avanti →
@@ -409,25 +486,56 @@ export default function CalcoloUnificatoUltimoMiglio() {
     </div>
   );
 
-  // ── Render Voci ────────────────────────────────────────────────────────────
+  // ── Render Voci + MC + Tabella 12 mesi ────────────────────────────────────
   const renderVoci = () => (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <h2 className="text-lg font-semibold text-slate-800">Voci Retributive — Inserimento Unificato</h2>
       <p className="text-xs text-slate-500">Inserimento unico: i dati alimentano sia il calcolo Pensione che TFS</p>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={mcOn} onChange={e => setMcOn(e.target.checked)} className="w-4 h-4 accent-amber-600" />
-          <span className="text-sm font-medium text-amber-800">Applica Miglioramento Contrattuale CCNL 2022-2024</span>
+      {/* ── Sezione Miglioramento Contrattuale ── */}
+      <div className={`border rounded-lg p-4 ${isMCEligibile ? 'bg-amber-50 border-amber-200' : 'bg-slate-100 border-slate-300'}`}>
+
+        {/* Banner bloccante se non eligibile */}
+        {!isMCEligibile && (
+          <div className="mb-3 flex items-start gap-2 rounded bg-slate-200 border border-slate-400 px-3 py-2 text-xs text-slate-700">
+            <span className="mt-0.5 shrink-0">⚠️</span>
+            <span>
+              <strong>Miglioramento Contrattuale non applicabile.</strong>{' '}
+              Data di cessazione ({ana.dataCessazione || '—'}) antecedente al 01/01/2024.
+              Il calcolo comparativo CCNL 2022-2024 è disabilitato.
+              Verrà prodotto il solo Ultimo Miglio base (CCNL 2019-2021).
+            </span>
+          </div>
+        )}
+
+        <label className={`flex items-center gap-2 ${isMCEligibile ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+          <input
+            type="checkbox"
+            checked={mcOn && isMCEligibile}
+            disabled={!isMCEligibile}
+            onChange={e => isMCEligibile && setMcOn(e.target.checked)}
+            className="w-4 h-4 accent-amber-600 disabled:opacity-40"
+          />
+          <span className={`text-sm font-medium ${isMCEligibile ? 'text-amber-800' : 'text-slate-400'}`}>
+            Applica Miglioramento Contrattuale CCNL 2022-2024
+          </span>
         </label>
-        <p className="text-xs text-amber-700 mt-1 ml-6">
-          Flag globale: sostituisce stipendio tabellare (Pensione) e importo base mensile TFS con nuovo Tab. G.
-        </p>
-        {mcOn && (
+
+        {isMCEligibile && (
+          <p className="mt-1 ml-6 text-xs text-amber-700">
+            Aggiorna automaticamente il tabellare mensile TFS per i mesi dal 01/01/2024 fino alla data di cessazione.
+          </p>
+        )}
+
+        {isMCEligibile && mcOn && (
           <div className="mt-3 ml-6 flex flex-wrap gap-4">
             <div>
               <label className="block text-xs font-medium text-amber-700 mb-1">Posizione economica</label>
-              <select value={mcPos} onChange={e => setMcPos(e.target.value)} className="border border-amber-300 rounded px-2 py-1 text-sm bg-white">
+              <select
+                value={mcPos}
+                onChange={e => setMcPos(e.target.value)}
+                className="border border-amber-300 rounded px-2 py-1 text-sm bg-white"
+              >
                 <option value="">— seleziona —</option>
                 {TAB.map(t => (
                   <optgroup key={t.area} label={t.area}>
@@ -438,7 +546,11 @@ export default function CalcoloUnificatoUltimoMiglio() {
             </div>
             <div>
               <label className="block text-xs font-medium text-amber-700 mb-1">Decorrenza</label>
-              <select value={mcDec} onChange={e => setMcDec(e.target.value as DecId)} className="border border-amber-300 rounded px-2 py-1 text-sm bg-white">
+              <select
+                value={mcDec}
+                onChange={e => setMcDec(e.target.value as DecId)}
+                className="border border-amber-300 rounded px-2 py-1 text-sm bg-white"
+              >
                 <option value="2024">01.01.2024</option>
                 <option value="2026">01.01.2026</option>
               </select>
@@ -454,6 +566,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
         )}
       </div>
 
+      {/* ── Tabella Voci Retributive ── */}
       <div className="overflow-x-auto rounded-lg border border-slate-200">
         <table className="w-full text-sm">
           <thead className="bg-slate-800 text-white">
@@ -476,7 +589,9 @@ export default function CalcoloUnificatoUltimoMiglio() {
                     <span className="text-slate-400 text-xs mr-1">#{v.id}</span>{v.n}
                   </td>
                   <td className="px-3 py-1.5 text-center">
-                    {v.tfs ? <span className="text-xs text-blue-600 font-medium">P+TFS</span> : <span className="text-xs text-slate-400">Solo P</span>}
+                    {v.tfs
+                      ? <span className="text-xs text-blue-600 font-medium">P+TFS</span>
+                      : <span className="text-xs text-slate-400">Solo P</span>}
                   </td>
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">{v.v13 ? 'SÌ' : '–'}</td>
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">×{v.x}</td>
@@ -499,69 +614,103 @@ export default function CalcoloUnificatoUltimoMiglio() {
         </table>
       </div>
 
+      {/* ── Tabella 12 mesi TFS (auto-popolata) ── */}
+      {ultimi12.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <h3 className="text-sm font-semibold text-slate-700">
+            Tabellare Ultimi 12 Mesi — TFS (riferimento PASSWEB)
+          </h3>
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5 text-xs text-blue-700">
+            <strong>Nota:</strong> I mesi ≥ 01/01/2024 con MC attivo vengono aggiornati automaticamente al nuovo tabellare.
+            Spunta <strong>Eccez.</strong> solo per mesi con importo effettivo difforme (part-time, assenze non retribuite, ecc.).
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-800 text-white">
+                <tr>
+                  <th className="px-3 py-2 text-left">Mese / Anno</th>
+                  <th className="px-3 py-2 text-center w-14">MC</th>
+                  <th className="px-3 py-2 text-right w-36">Tab. base (€)</th>
+                  {showMCCol && <th className="px-3 py-2 text-right w-36">Tab. MC (€)</th>}
+                  <th className="px-3 py-2 text-center w-16">Eccez.</th>
+                  <th className="px-3 py-2 text-right w-36">Override (€)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ultimi12.map((m, i) => {
+                  const baseVal = r2(parseFloat(stipsEffBase[i]) || 0);
+                  const mcVal   = showMCCol ? r2(parseFloat(stipsEffMC[i]) || 0) : null;
+                  // Riga evidenziata MC solo se il mese è eligibile, MC attivo, nessun override
+                  const isMCRow = m.isEligibilePerMC && showMCCol && !exc[i];
+                  return (
+                    <tr
+                      key={i}
+                      className={[
+                        i % 2 === 0 ? 'bg-white' : 'bg-slate-50',
+                        isMCRow ? 'ring-1 ring-inset ring-amber-300' : '',
+                      ].join(' ')}
+                    >
+                      <td className="px-3 py-1.5 font-medium text-slate-700">{m.mese} {m.anno}</td>
+                      <td className="px-3 py-1.5 text-center text-xs">
+                        {isMCRow
+                          ? <span className="font-semibold text-amber-600">✓ MC</span>
+                          : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-mono text-slate-600">
+                        € {eur(baseVal)}
+                      </td>
+                      {showMCCol && (
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold"
+                          style={{ color: isMCRow ? '#92400e' : '#94a3b8' }}>
+                          {mcVal != null ? `€ ${eur(mcVal)}` : '—'}
+                        </td>
+                      )}
+                      <td className="px-3 py-1.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={exc[i]}
+                          onChange={e => {
+                            const ne = [...exc]; ne[i] = e.target.checked; setExc(ne);
+                            if (!e.target.checked) { const ns = [...stips]; ns[i] = ''; setStips(ns); }
+                          }}
+                          className="w-4 h-4 accent-blue-600"
+                        />
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <input
+                          type="number" min="0" step="0.01"
+                          disabled={!exc[i]}
+                          value={exc[i] ? stips[i] : ''}
+                          placeholder={exc[i] ? '0,00' : '—'}
+                          onChange={e => { const ns = [...stips]; ns[i] = e.target.value; setStips(ns); }}
+                          className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-slate-800 text-white font-semibold text-xs">
+                <tr>
+                  <td className="px-3 py-2 text-slate-300" colSpan={2}>Σ Stipendio 12 mesi</td>
+                  <td className="px-3 py-2 text-right font-mono">
+                    € {eur(stipEffBase.reduce((s, v) => s + v.s, 0))}
+                  </td>
+                  {showMCCol && (
+                    <td className="px-3 py-2 text-right font-mono text-amber-300">
+                      MC: € {eur(stipEffMC.reduce((s, v) => s + v.s, 0))}
+                    </td>
+                  )}
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-3 pt-2">
         <button onClick={() => goTo('ana')} className="px-5 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">← Indietro</button>
-        <button onClick={() => goTo('stip')} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Avanti →</button>
-      </div>
-    </div>
-  );
-
-  // ── Render Stipendi TFS ────────────────────────────────────────────────────
-  const renderStip = () => (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-slate-800">Stipendi Ultimi 12 Mesi (per calcolo TFS)</h2>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
-        <strong>Nota TFS:</strong> Importo base auto-popolato dalla voce 01. Spunta &ldquo;Eccezione&rdquo; solo per mesi con importo effettivo diverso.
-      </div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-800 text-white">
-            <tr>
-              <th className="px-3 py-2 text-left">Mese</th>
-              <th className="px-3 py-2 text-center w-24">Eccezione</th>
-              <th className="px-3 py-2 text-right w-40">Stipendio mensile (€)</th>
-              <th className="px-3 py-2 text-right w-36">Quota 13^ (€)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {MESI.map((m, i) => {
-              const effV = r2(parseFloat(stipsEff[i]) || 0);
-              return (
-                <tr key={m} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                  <td className="px-3 py-1.5 text-slate-700">{m}</td>
-                  <td className="px-3 py-1.5 text-center">
-                    <input
-                      type="checkbox" checked={exc[i]}
-                      onChange={e => {
-                        const ne = [...exc]; ne[i] = e.target.checked; setExc(ne);
-                        if (!e.target.checked) { const ns = [...stips]; ns[i] = base.toString(); setStips(ns); }
-                      }}
-                      className="w-4 h-4 accent-blue-600"
-                    />
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <input
-                      type="number" min="0" step="0.01"
-                      disabled={!exc[i]}
-                      value={exc[i] ? stips[i] : String(base)}
-                      onChange={e => { const ns = [...stips]; ns[i] = e.target.value; setStips(ns); }}
-                      className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-slate-100 disabled:text-slate-400"
-                    />
-                  </td>
-                  <td className="px-3 py-1.5 text-right font-mono text-slate-600">€ {eur(r2(effV / 12))}</td>
-                </tr>
-              );
-            })}
-            <tr className="bg-slate-800 text-white font-semibold">
-              <td className="px-3 py-2" colSpan={2}>Totale 12 mesi:</td>
-              <td className="px-3 py-2 text-right font-mono">Stip: € {eur(stipEff.reduce((s, v) => s + v.s, 0))}</td>
-              <td className="px-3 py-2 text-right font-mono">13^: € {eur(stipEff.reduce((s, v) => s + r2(v.t), 0))}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div className="flex gap-3 pt-2">
-        <button onClick={() => goTo('voci')} className="px-5 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">← Indietro</button>
         <button onClick={() => goTo('ris')} className="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">Calcola Risultato →</button>
       </div>
     </div>
@@ -576,12 +725,16 @@ export default function CalcoloUnificatoUltimoMiglio() {
           <p className="text-xs text-slate-400 mt-0.5">Calcolato il {new Date().toLocaleString('it-IT')} — non modificabile</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+          <button
+            onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+          >
             ↓ Excel
           </button>
-          <button onClick={() => exportPDF(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
+          <button
+            onClick={() => exportPDF(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+          >
             ↓ PDF
           </button>
           <button onClick={() => goTo('voci')} className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">← Modifica</button>
@@ -592,10 +745,11 @@ export default function CalcoloUnificatoUltimoMiglio() {
         <span><strong>Nominativo:</strong> {ana.nome}</span>
         <span><strong>CF:</strong> {ana.cf}</span>
         <span><strong>Data inizio:</strong> {ana.data}</span>
+        <span><strong>Data cessazione:</strong> {ana.dataCessazione}</span>
         <span><strong>Motivo:</strong> {ana.motivo}</span>
       </div>
 
-      {/* Pannelli Pensione + TFS */}
+      {/* Pannelli Pensione + TFS affiancati */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
         {/* PENSIONE */}
@@ -637,7 +791,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
           </div>
         </div>
 
-        {/* TFS — solo quota tabellare (stipendio tabellare + tredicesima) */}
+        {/* TFS */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="bg-slate-800 text-white px-4 py-3">
             <h3 className="font-semibold text-sm">TFS PENSIONATI — Ultimo Miglio</h3>
@@ -678,10 +832,9 @@ export default function CalcoloUnificatoUltimoMiglio() {
         </div>
       </div>
 
-      {/* Miglioramento Contrattuale */}
-      {mcOn && mcPos && resPensioneMC && resTFSMC && (() => {
-        // Righe MC: [label, base, mc, nota?]
-        type MCRow = { label: string; base: number; mc: number; nota?: string };
+      {/* Miglioramento Contrattuale — visibile solo se eligibile + attivo + posizione selezionata */}
+      {isMCEligibile && mcOn && mcPos && resPensioneMC && resTFSMC && (() => {
+        type MCRow = { label: string; base: number; mc: number };
         const rows: MCRow[] = [
           { label: 'Pensione — Tot. voci fisse annuo',                                    base: resPensione.a,  mc: resPensioneMC.a  },
           { label: 'Pensione — 13^ mensilità',                                             base: resPensione.t,  mc: resPensioneMC.t  },
@@ -713,22 +866,19 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ label, base, mc, nota }, i) => {
-                    const delta = r2(mc - base);
-                    const pct   = base > 0 ? ((delta / base) * 100).toFixed(2) : null;
+                  {rows.map(({ label, base, mc }, i) => {
+                    const delta  = r2(mc - base);
+                    const pct    = base > 0 ? ((delta / base) * 100).toFixed(2) : null;
                     const isZero = delta === 0;
                     return (
                       <tr key={label} className={i % 2 === 0 ? 'bg-white' : 'bg-amber-50/50'}>
-                        <td className="px-3 py-1.5 text-slate-700">
-                          {label}
-                          {nota && <span className="block text-xs text-slate-400 italic">{nota}</span>}
-                        </td>
+                        <td className="px-3 py-1.5 text-slate-700">{label}</td>
                         <td className="px-3 py-1.5 text-right font-mono">€ {eur(base)}</td>
                         <td className="px-3 py-1.5 text-right font-mono">€ {eur(mc)}</td>
                         <td className="px-3 py-1.5 text-right font-mono font-semibold"
                           style={{ color: isZero ? '#64748b' : delta > 0 ? '#166534' : '#b91c1c' }}>
                           {isZero
-                            ? <span className="text-slate-400 font-normal italic">= invariata</span>
+                            ? <span className="font-normal italic text-slate-400">= invariata</span>
                             : <>{delta > 0 ? '+' : ''}€ {eur(delta)}{pct ? ` (${pct}%)` : ''}</>
                           }
                         </td>
@@ -777,7 +927,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           {step === 'ana'  && renderAna()}
           {step === 'voci' && renderVoci()}
-          {step === 'stip' && renderStip()}
           {step === 'ris'  && renderRis()}
         </div>
       </div>
