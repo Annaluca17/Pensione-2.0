@@ -205,7 +205,7 @@ function exportXLSX(
   // ── Helper: blocco PASSWEB per un singolo scenario ──
   const buildPASSWEBSheet = (
     p: CalcPensioneResult,
-    t: RisultatoTFS,
+    t: RisultatoTFS | null,
     label: string,
     tabellare: number,
   ) => [
@@ -224,32 +224,37 @@ function exportXLSX(
     ['', '13^ MENSILITÀ (→ campo "Tredicesima" PASSWEB)',                    '', '', p.t],
     [],
     // ── TFS PENSIONATI ────────────────────────────────────────────────────────
-    ['── TFS PENSIONATI — Ultimo Miglio ──'],
-    ['Campo PASSWEB', 'Componente', '', '', 'Importo annuo (€)'],
-    ['Retribuzione Ind. Anzianità',          'Retribuzione Ind. Anzianità (R.I.A.)',                        '', '', t.ria   ],
-    ['Tredicesima mensilità',                'Tredicesima mensilità',                                       '', '', t.tredT ],
-    ['Stipendio tabellare (Tab. E)',          `Stipendio tabellare (TAB E) — tabellare mensile: € ${tabellare.toFixed(2)}`, '', '', t.stipT ],
-    ...(t.asili > 0  ? [['Indennità aggiuntive asili nido', 'Indennità aggiuntive personale asili nido e scolastico',     '', '', t.asili ]] : []),
-    ...(t.ind64 > 0  ? [['Indennità specifica art.4',       'Indennità specifica ex art.4 comma 3 ccnl 1996',             '', '', t.ind64 ]] : []),
-    ...(t.vig   > 0  ? [['Indennità vigilanza',             'Indennità di vigilanza per 12 mensilità',                   '', '', t.vig   ]] : []),
-    [],
-    ['', 'TOTALE TFS PENSIONATI (→ campo "Trattamento Fine Servizio" PASSWEB)', '', '', t.tot],
+    ...(t ? [
+      ['── TFS PENSIONATI — Ultimo Miglio ──'],
+      ['Campo PASSWEB', 'Componente', '', '', 'Importo annuo (€)'],
+      ['Retribuzione Ind. Anzianità',         'Retribuzione Ind. Anzianità (R.I.A.)',                                               '', '', t.ria  ],
+      ['Tredicesima mensilità',               'Tredicesima mensilità',                                                              '', '', t.tredT],
+      ['Stipendio tabellare (Tab. E)',         `Stipendio tabellare (TAB E) — tabellare mensile: € ${tabellare.toFixed(2)}`,        '', '', t.stipT],
+      ...(t.asili > 0 ? [['Indennità aggiuntive asili nido', 'Indennità aggiuntive personale asili nido e scolastico', '', '', t.asili]] : []),
+      ...(t.ind64 > 0 ? [['Indennità specifica art.4',       'Indennità specifica ex art.4 comma 3 ccnl 1996',         '', '', t.ind64]] : []),
+      ...(t.vig   > 0 ? [['Indennità vigilanza',             'Indennità di vigilanza per 12 mensilità',                '', '', t.vig  ]] : []),
+      [],
+      ['', 'TOTALE TFS PENSIONATI (→ campo "Trattamento Fine Servizio" PASSWEB)', '', '', t.tot],
+    ] : [
+      ['── TFS PENSIONATI ──'],
+      ['NOTA', 'Cessazione antecedente al 01/01/2024 — il ricalcolo MC del TFS non è applicabile.', '', '', ''],
+      ['',     'Utilizzare i valori TFS del foglio "PASSWEB – Base" per la compilazione PASSWEB.',   '', '', ''],
+    ]),
   ];
 
   // ── Foglio 1: PASSWEB Base ────────────────────────────────────────────────
   const wsBase = XLSX.utils.aoa_to_sheet(
-    buildPASSWEBSheet(pensione, tfs, 'DATI PASSWEB — CCNL 2019-2021 (BASE)', r2(parseFloat('0') || 0))
+    buildPASSWEBSheet(pensione, tfs, 'DATI PASSWEB — CCNL 2019-2021 (BASE)', r2(pensione.voci.find(v => v.id === '01')?.m ?? 0))
   );
   XLSX.utils.book_append_sheet(wb, wsBase, 'PASSWEB – Base');
 
   // ── Foglio 2: PASSWEB MC ──────────────────────────────────────────────────
-  if (pensioneMC && tfsMC) {
+  if (pensioneMC) {
+    const labelMC = tfsMC
+      ? `DATI PASSWEB — CCNL 2022-2024 (MC dal 01.01.${mcDec} — ${mcPos} — Tab. € ${nuovoTab.toFixed(2)})`
+      : `DATI PASSWEB — CCNL 2022-2024 — SOLO PENSIONE (cessazione ante 01/01/2024 — ${mcPos})`;
     const wsMC = XLSX.utils.aoa_to_sheet(
-      buildPASSWEBSheet(
-        pensioneMC, tfsMC,
-        `DATI PASSWEB — CCNL 2022-2024 (MC dal 01.01.${mcDec} — ${mcPos} — Tab. € ${nuovoTab.toFixed(2)})`,
-        nuovoTab,
-      )
+      buildPASSWEBSheet(pensioneMC, tfsMC, labelMC, nuovoTab)
     );
     XLSX.utils.book_append_sheet(wb, wsMC, `PASSWEB – MC ${mcDec}`);
 
@@ -262,22 +267,24 @@ function exportXLSX(
       ['', 'Posizione', mcPos, 'Decorrenza', `01.01.${mcDec}`, 'Nuovo tabellare mensile', nuovoTab],
       [],
       ['Campo', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Δ (€)', 'Δ (%)'],
-      // Pensione
       ['Pensione — Tot. voci fisse annuo', pensione.a, pensioneMC.a, delta(pensione.a, pensioneMC.a), pct(pensione.a, pensioneMC.a)],
       ['Pensione — 13^ mensilità',         pensione.t, pensioneMC.t, delta(pensione.t, pensioneMC.t), pct(pensione.t, pensioneMC.t)],
-      // TFS
-      ...[
-        ['TFS — Retribuzione Ind. Anzianità (R.I.A.)',                   tfs.ria,   tfsMC.ria  ],
-        ['TFS — Tredicesima mensilità',                                   tfs.tredT, tfsMC.tredT],
-        ['TFS — Stipendio tabellare (TAB E)',                             tfs.stipT, tfsMC.stipT],
-        ['TFS — Indennità aggiuntive asili nido e scolastico',           tfs.asili, tfsMC.asili],
-        ['TFS — Indennità specifica ex art.4',                           tfs.ind64, tfsMC.ind64],
-        ['TFS — Indennità di vigilanza',                                  tfs.vig,   tfsMC.vig  ],
-      ].filter(r => (r[1] as number) > 0).map(r => {
-        const b = r[1] as number; const mc = r[2] as number;
-        return [r[0], b, mc, delta(b, mc), pct(b, mc)];
-      }),
-      ['TFS — Totale complessivo', tfs.tot, tfsMC.tot, delta(tfs.tot, tfsMC.tot), pct(tfs.tot, tfsMC.tot)],
+      ...(tfsMC ? [
+        ...[
+          ['TFS — Retribuzione Ind. Anzianità (R.I.A.)',        tfs.ria,   tfsMC.ria  ],
+          ['TFS — Tredicesima mensilità',                        tfs.tredT, tfsMC.tredT],
+          ['TFS — Stipendio tabellare (TAB E)',                  tfs.stipT, tfsMC.stipT],
+          ['TFS — Indennità aggiuntive asili nido e scolastico', tfs.asili, tfsMC.asili],
+          ['TFS — Indennità specifica ex art.4',                 tfs.ind64, tfsMC.ind64],
+          ['TFS — Indennità di vigilanza',                       tfs.vig,   tfsMC.vig  ],
+        ].filter(r => (r[1] as number) > 0).map(r => {
+          const b = r[1] as number; const mc = r[2] as number;
+          return [r[0], b, mc, delta(b, mc), pct(b, mc)];
+        }),
+        ['TFS — Totale complessivo', tfs.tot, tfsMC.tot, delta(tfs.tot, tfsMC.tot), pct(tfs.tot, tfsMC.tot)],
+      ] : [
+        ['NOTA TFS', 'Cessazione antecedente al 01/01/2024 — confronto MC TFS non applicabile', '', '', ''],
+      ]),
     ]);
     XLSX.utils.book_append_sheet(wb, wsConfronto, 'Confronto');
   }
@@ -309,7 +316,7 @@ function exportPDF(
   // ── Helper: stampa un blocco Pensione + TFS per uno scenario ──────────────
   const printScenario = (
     p: CalcPensioneResult,
-    t: RisultatoTFS,
+    t: RisultatoTFS | null,
     tabellare: number,
     hdrColor: [number,number,number],
     startY: number,
@@ -343,29 +350,38 @@ function exportPDF(
 
     let y2 = (doc as any).lastAutoTable.finalY + 5;
 
-    // TFS
-    const tfsBody: any[] = [
-      ['Retribuzione Ind. Anzianità',    'Retribuzione Ind. Anzianità (R.I.A.)', '€ ' + eur(t.ria)  ],
-      ['Tredicesima mensilità',          'Tredicesima mensilità',                '€ ' + eur(t.tredT) ],
-      ['Stipendio tabellare (Tab. E)',   `Stipendio tabellare (TAB E) — tab. mensile: € ${eur(tabellare)}`, '€ ' + eur(t.stipT) ],
-      ...(t.asili > 0 ? [['Ind. aggiuntive asili nido', 'Indennità aggiuntive personale asili nido e scolastico', '€ ' + eur(t.asili)]] : []),
-      ...(t.ind64 > 0 ? [['Ind. specifica art.4',       'Indennità specifica ex art.4 comma 3 ccnl 1996',         '€ ' + eur(t.ind64)]] : []),
-      ...(t.vig   > 0 ? [['Ind. vigilanza',              'Indennità di vigilanza per 12 mensilità',               '€ ' + eur(t.vig)  ]] : []),
-      [
-        { content: '→ TFS Pensionati PASSWEB', styles: { fontStyle: 'bold', fillColor: hdrColor, textColor: [255,255,255] } },
-        { content: 'TOTALE TFS PENSIONATI',    styles: { fontStyle: 'bold', fillColor: hdrColor, textColor: [255,255,255] } },
-        { content: '€ ' + eur(t.tot),          styles: { fontStyle: 'bold', fillColor: hdrColor, textColor: [255,255,255] } },
-      ],
-    ];
-
-    autoTable(doc, {
-      startY: y2,
-      head: [['Campo PASSWEB', 'Componente', 'Importo annuo (€)']],
-      body: tfsBody,
-      styles: { fontSize: 7.5 },
-      headStyles: { fillColor: hdrColor },
-      columnStyles: { 2: { halign: 'right' } },
-    });
+    // TFS — solo se disponibile (cessazione >= 01/01/2024 per scenario MC)
+    if (t) {
+      const tfsBody: any[] = [
+        ['Retribuzione Ind. Anzianità',   'Retribuzione Ind. Anzianità (R.I.A.)',                             '€ ' + eur(t.ria)  ],
+        ['Tredicesima mensilità',         'Tredicesima mensilità',                                            '€ ' + eur(t.tredT)],
+        ['Stipendio tabellare (Tab. E)',  `Stipendio tabellare (TAB E) — tab. mensile: € ${eur(tabellare)}`,  '€ ' + eur(t.stipT)],
+        ...(t.asili > 0 ? [['Ind. aggiuntive asili nido', 'Indennità aggiuntive personale asili nido e scolastico', '€ ' + eur(t.asili)]] : []),
+        ...(t.ind64 > 0 ? [['Ind. specifica art.4',       'Indennità specifica ex art.4 comma 3 ccnl 1996',         '€ ' + eur(t.ind64)]] : []),
+        ...(t.vig   > 0 ? [['Ind. vigilanza',             'Indennità di vigilanza per 12 mensilità',                '€ ' + eur(t.vig)  ]] : []),
+        [
+          { content: '→ TFS Pensionati PASSWEB', styles: { fontStyle: 'bold', fillColor: hdrColor, textColor: [255,255,255] } },
+          { content: 'TOTALE TFS PENSIONATI',    styles: { fontStyle: 'bold', fillColor: hdrColor, textColor: [255,255,255] } },
+          { content: '€ ' + eur(t.tot),          styles: { fontStyle: 'bold', fillColor: hdrColor, textColor: [255,255,255] } },
+        ],
+      ];
+      autoTable(doc, {
+        startY: y2,
+        head: [['Campo PASSWEB', 'Componente', 'Importo annuo (€)']],
+        body: tfsBody,
+        styles: { fontSize: 7.5 },
+        headStyles: { fillColor: hdrColor },
+        columnStyles: { 2: { halign: 'right' } },
+      });
+    } else {
+      autoTable(doc, {
+        startY: y2,
+        head: [['Nota TFS']],
+        body: [['Cessazione antecedente al 01/01/2024 — il ricalcolo MC del TFS non è applicabile.\nUtilizzare i valori TFS dello Scenario A per la compilazione PASSWEB.']],
+        styles: { fontSize: 7.5, textColor: [120, 53, 15] },
+        headStyles: { fillColor: hdrColor },
+      });
+    }
 
     return (doc as any).lastAutoTable.finalY;
   };
@@ -399,10 +415,10 @@ function exportPDF(
   doc.setTextColor(0, 0, 0);
   y += 4;
 
-  printScenario(pensione, tfs, r2(parseFloat('0') || 0), HDR_BASE, y);
+  printScenario(pensione, tfs, r2(pensione.voci.find(v => v.id === '01')?.m ?? 0), HDR_BASE, y);
 
   // ── Pagina 2: Scenario MC ─────────────────────────────────────────────────
-  if (pensioneMC && tfsMC) {
+  if (pensioneMC) {
     doc.addPage();
 
     doc.setFont('helvetica', 'bold');
@@ -506,8 +522,10 @@ export default function CalcoloUnificatoUltimoMiglio() {
   const base     = r2(parseFloat(imp['01']) || 0);
   const nuovoTab = useMemo(() => getNuovoTab(mcPos, mcDec), [mcPos, mcDec]);
 
-  // Gate MC: abilitato solo se data cessazione >= 01/01/2024
-  const isMCEligibile = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2024-01-01';
+  // Gate MC Pensione: cessazioni dal 01/01/2022 (CCNL 2022-2024 decorre da quella data)
+  const isMCEligibile    = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2022-01-01';
+  // Gate MC TFS: solo cessazioni dal 01/01/2024 (finestra 12 mesi tabellare rilevante)
+  const isMCTFSEligibile = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2024-01-01';
 
   // Finestra 12 mesi PASSWEB (inclusiva mese di cessazione)
   const ultimi12 = useMemo(() => getUltimi12Mesi(ana.dataCessazione), [ana.dataCessazione]);
@@ -555,10 +573,10 @@ export default function CalcoloUnificatoUltimoMiglio() {
   );
 
   const resTFSMC = useMemo(
-    () => isMCEligibile && mcOn && mcPos
+    () => isMCTFSEligibile && mcOn && mcPos
       ? calcTFS(stipEffMC, imp)
       : null,
-    [isMCEligibile, mcOn, mcPos, stipEffMC, imp],
+    [isMCTFSEligibile, mcOn, mcPos, stipEffMC, imp],
   );
 
   const goTo    = (s: StepId) => setStep(s);
@@ -590,13 +608,23 @@ export default function CalcoloUnificatoUltimoMiglio() {
         </div>
       ))}
 
-      {/* Avviso preventivo se cessazione antecedente al 01/01/2024 */}
       {ana.dataCessazione.length === 10 && !isMCEligibile && (
         <div className="flex items-start gap-2 bg-slate-100 border border-slate-300 rounded-lg p-3 text-xs text-slate-600">
           <span className="mt-0.5 shrink-0">ℹ️</span>
           <span>
-            Data di cessazione antecedente al 01/01/2024 — il Miglioramento Contrattuale CCNL 2022-2024{' '}
-            <strong>non sarà applicabile</strong>. Verrà prodotto il solo calcolo Ultimo Miglio base (CCNL 2019-2021).
+            Data di cessazione antecedente al 01/01/2022 — il Miglioramento Contrattuale CCNL 2022-2024{' '}
+            <strong>non è applicabile</strong>. Verrà prodotto il solo calcolo Ultimo Miglio base (CCNL 2019-2021).
+          </span>
+        </div>
+      )}
+      {ana.dataCessazione.length === 10 && isMCEligibile && !isMCTFSEligibile && (
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-700">
+          <span className="mt-0.5 shrink-0">ℹ️</span>
+          <span>
+            Data di cessazione compresa tra 01/01/2022 e 31/12/2023 — il Miglioramento Contrattuale
+            si applica alla <strong>sola Pensione Ultimo Miglio</strong>.
+            Il TFS viene calcolato esclusivamente sul tabellare CCNL 2019-2021
+            (finestra 12 mesi tabellare non include mesi ≥ 01/01/2024).
           </span>
         </div>
       )}
@@ -620,15 +648,27 @@ export default function CalcoloUnificatoUltimoMiglio() {
       {/* ── Sezione Miglioramento Contrattuale ── */}
       <div className={`border rounded-lg p-4 ${isMCEligibile ? 'bg-amber-50 border-amber-200' : 'bg-slate-100 border-slate-300'}`}>
 
-        {/* Banner bloccante se non eligibile */}
+        {/* Banner bloccante: cessazione antecedente al 01/01/2022 */}
         {!isMCEligibile && (
           <div className="mb-3 flex items-start gap-2 rounded bg-slate-200 border border-slate-400 px-3 py-2 text-xs text-slate-700">
             <span className="mt-0.5 shrink-0">⚠️</span>
             <span>
               <strong>Miglioramento Contrattuale non applicabile.</strong>{' '}
-              Data di cessazione ({ana.dataCessazione || '—'}) antecedente al 01/01/2024.
+              Data di cessazione ({ana.dataCessazione || '—'}) antecedente al 01/01/2022.
               Il calcolo comparativo CCNL 2022-2024 è disabilitato.
               Verrà prodotto il solo Ultimo Miglio base (CCNL 2019-2021).
+            </span>
+          </div>
+        )}
+        {/* Banner informativo: MC attivo ma solo per Pensione (cessazione 2022-2023) */}
+        {isMCEligibile && !isMCTFSEligibile && mcOn && (
+          <div className="mb-3 flex items-start gap-2 rounded bg-amber-50 border border-amber-300 px-3 py-2 text-xs text-amber-800">
+            <span className="mt-0.5 shrink-0">ℹ️</span>
+            <span>
+              <strong>Miglioramento Contrattuale applicato solo alla Pensione.</strong>{' '}
+              Cessazione ({ana.dataCessazione}) antecedente al 01/01/2024 —
+              il ricalcolo del TFS sui 12 mesi tabellari <strong>non è applicabile</strong>.
+              Il calcolo MC TFS verrà omesso dall'output.
             </span>
           </div>
         )}
@@ -648,7 +688,9 @@ export default function CalcoloUnificatoUltimoMiglio() {
 
         {isMCEligibile && (
           <p className="mt-1 ml-6 text-xs text-amber-700">
-            Aggiorna automaticamente il tabellare mensile TFS per i mesi dal 01/01/2024 fino alla data di cessazione.
+            {isMCTFSEligibile
+              ? 'Ricalcola Pensione Ultimo Miglio e aggiorna il tabellare mensile TFS per i mesi dal 01/01/2024 fino alla data di cessazione.'
+              : 'Ricalcola la sola Pensione Ultimo Miglio con il nuovo stipendio tabellare CCNL 2022-2024. TFS invariato (cessazione antecedente al 01/01/2024).'}
           </p>
         )}
 
@@ -958,26 +1000,33 @@ export default function CalcoloUnificatoUltimoMiglio() {
       </div>
 
       {/* Miglioramento Contrattuale — visibile solo se eligibile + attivo + posizione selezionata */}
-      {isMCEligibile && mcOn && mcPos && resPensioneMC && resTFSMC && (() => {
+      {isMCEligibile && mcOn && mcPos && resPensioneMC && (() => {
         type MCRow = { label: string; base: number; mc: number };
         const rows: MCRow[] = [
-          { label: 'Pensione — Tot. voci fisse annuo',                                    base: resPensione.a,  mc: resPensioneMC.a  },
-          { label: 'Pensione — 13^ mensilità',                                             base: resPensione.t,  mc: resPensioneMC.t  },
-          ...[
-            { label: 'TFS — Retribuzione Ind. Anzianità (R.I.A.)',                        base: resTFS.ria,     mc: resTFSMC.ria     },
-            { label: 'TFS — Tredicesima mensilità',                                        base: resTFS.tredT,   mc: resTFSMC.tredT   },
-            { label: 'TFS — Stipendio tabellare (TAB E)',                                  base: resTFS.stipT,   mc: resTFSMC.stipT   },
-            { label: 'TFS — Indennità aggiuntive personale asili nido e scolastico',      base: resTFS.asili,   mc: resTFSMC.asili   },
-            { label: 'TFS — Indennità specifica ex art.4 comma 3 ccnl 1996',             base: resTFS.ind64,   mc: resTFSMC.ind64   },
-            { label: 'TFS — Indennità di vigilanza per 12 mensilità',                    base: resTFS.vig,     mc: resTFSMC.vig     },
-          ].filter(r => r.base > 0),
-          { label: 'TFS — Totale complessivo',                                             base: resTFS.tot,     mc: resTFSMC.tot     },
+          { label: 'Pensione — Tot. voci fisse annuo', base: resPensione.a, mc: resPensioneMC.a },
+          { label: 'Pensione — 13^ mensilità',          base: resPensione.t, mc: resPensioneMC.t },
+          ...(resTFSMC ? [
+            ...[
+              { label: 'TFS — Retribuzione Ind. Anzianità (R.I.A.)',                   base: resTFS.ria,   mc: resTFSMC.ria   },
+              { label: 'TFS — Tredicesima mensilità',                                   base: resTFS.tredT, mc: resTFSMC.tredT },
+              { label: 'TFS — Stipendio tabellare (TAB E)',                             base: resTFS.stipT, mc: resTFSMC.stipT },
+              { label: 'TFS — Indennità aggiuntive personale asili nido e scolastico', base: resTFS.asili, mc: resTFSMC.asili },
+              { label: 'TFS — Indennità specifica ex art.4 comma 3 ccnl 1996',        base: resTFS.ind64, mc: resTFSMC.ind64 },
+              { label: 'TFS — Indennità di vigilanza per 12 mensilità',               base: resTFS.vig,   mc: resTFSMC.vig   },
+            ].filter(r => r.base > 0),
+            { label: 'TFS — Totale complessivo', base: resTFS.tot, mc: resTFSMC.tot },
+          ] : []),
         ];
         return (
           <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
             <div className="bg-amber-700 text-white px-4 py-3">
               <h3 className="font-semibold text-sm">
                 MIGLIORAMENTO CONTRATTUALE CCNL 2022-2024 — {mcPos} · Decorrenza: 01.01.{mcDec} · Nuovo tabellare mensile: € {eur(nuovoTab)}
+                {!isMCTFSEligibile && (
+                  <span className="ml-3 text-xs font-normal bg-amber-900/50 px-2 py-0.5 rounded">
+                    Solo Pensione — TFS non ricalcolato
+                  </span>
+                )}
               </h3>
             </div>
             <div className="overflow-x-auto">
