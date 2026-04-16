@@ -69,6 +69,14 @@ const TAB: TabellaArea[] = [
   { area: 'Operatori (Area A)',           t24: 1637.12, t26: 1646.09, pos: ['A1','A2','A3','A4','A5','A6'] },
 ];
 
+/** Differenziale storico (ex PEO) mensile per posizione economica — CCNL 2019-2021 / 2022-2024 */
+const PEO_TABLE: Record<string, number> = {
+  D7: 764.82, D6: 634.82, D5: 468.93, D4: 369.86, D3: 278.45, D2: 91.30, D1: 0,
+  C6: 271.84, C5: 216.41, C4: 146.52, C3:  89.74, C2:  41.14, C1:    0,
+  B8: 273.99, B7: 234.15, B6: 168.45, B5: 138.15, B4: 110.83, B3: 86.53, B2: 25.10, B1: 0,
+  A6: 136.05, A5: 108.38, A4:  77.02, A3:  50.74, A2:  19.91, A1:    0,
+};
+
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
               'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 
@@ -519,12 +527,24 @@ export default function CalcoloUnificatoUltimoMiglio() {
   const [mcPos, setMcPos] = useState('');
   const [mcDec, setMcDec] = useState<DecId>('2024');
 
+  // Differenziale storico (ex PEO) — auto-calc da tabella
+  const [peoOn,  setPeoOn]  = useState(false);
+  const [peoPos, setPeoPos] = useState('');
+
   // Override manuali per casi eccezionali (part-time, assenze non retribuite, ecc.)
   const [stips, setStips] = useState<string[]>(Array(12).fill(''));
   const [exc,   setExc]   = useState<boolean[]>(Array(12).fill(false));
 
   const base     = r2(parseFloat(imp['01']) || 0);
   const nuovoTab = useMemo(() => getNuovoTab(mcPos, mcDec), [mcPos, mcDec]);
+
+  /** imp effettivo: sostituisce voce '02' con valore tabellare PEO se auto attivo */
+  const effImp = useMemo(
+    () => peoOn && peoPos && PEO_TABLE[peoPos] != null
+      ? { ...imp, '02': String(PEO_TABLE[peoPos]) }
+      : imp,
+    [imp, peoOn, peoPos],
+  );
 
   // Gate MC Pensione: cessazioni dal 01/01/2022 (CCNL 2022-2024 decorre da quella data)
   const isMCEligibile    = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2022-01-01';
@@ -568,19 +588,19 @@ export default function CalcoloUnificatoUltimoMiglio() {
     [stipsEffMC],
   );
 
-  const resPensione = useMemo(() => calcPensione(imp), [imp]);
-  const resTFS      = useMemo(() => calcTFS(stipEffBase, imp), [stipEffBase, imp]);
+  const resPensione = useMemo(() => calcPensione(effImp), [effImp]);
+  const resTFS      = useMemo(() => calcTFS(stipEffBase, effImp), [stipEffBase, effImp]);
 
   const resPensioneMC = useMemo(
-    () => isMCEligibile && mcOn && mcPos ? calcPensione(imp, nuovoTab) : null,
-    [isMCEligibile, mcOn, mcPos, imp, nuovoTab],
+    () => isMCEligibile && mcOn && mcPos ? calcPensione(effImp, nuovoTab) : null,
+    [isMCEligibile, mcOn, mcPos, effImp, nuovoTab],
   );
 
   const resTFSMC = useMemo(
     () => isMCTFSEligibile && mcOn && mcPos
-      ? calcTFS(stipEffMC, imp)
+      ? calcTFS(stipEffMC, effImp)
       : null,
-    [isMCTFSEligibile, mcOn, mcPos, stipEffMC, imp],
+    [isMCTFSEligibile, mcOn, mcPos, stipEffMC, effImp],
   );
 
   const goTo    = (s: StepId) => setStep(s);
@@ -746,13 +766,17 @@ export default function CalcoloUnificatoUltimoMiglio() {
               <th className="px-3 py-2 text-center w-20">Impatto</th>
               <th className="px-3 py-2 text-center w-16">13^ P</th>
               <th className="px-3 py-2 text-center w-16">Molt.</th>
-              <th className="px-3 py-2 text-right w-36">Mensile (€)</th>
+              <th className="px-3 py-2 text-right w-48">Mensile (€)</th>
               <th className="px-3 py-2 text-right w-36">Annuo (€)</th>
             </tr>
           </thead>
           <tbody>
             {VOCI.map((v, i) => {
-              const m = r2(parseFloat(imp[v.id]) || 0);
+              const isPEO = v.id === '02';
+              const rawVal = isPEO && peoOn && peoPos
+                ? String(PEO_TABLE[peoPos] ?? 0)
+                : (imp[v.id] ?? '');
+              const m = r2(parseFloat(rawVal) || 0);
               const a = r2(m * v.x);
               return (
                 <tr key={v.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -767,13 +791,62 @@ export default function CalcoloUnificatoUltimoMiglio() {
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">{v.v13 ? 'SÌ' : '–'}</td>
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">×{v.x}</td>
                   <td className="px-3 py-1.5">
-                    <input
-                      type="number" min="0" step="0.01"
-                      value={imp[v.id] ?? ''}
-                      onChange={e => setVoce(v.id, e.target.value)}
-                      className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      placeholder="0,00"
-                    />
+                    {isPEO ? (
+                      <div className="flex flex-col gap-1.5">
+                        {/* Toggle auto-calcolo */}
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={peoOn}
+                            onChange={e => {
+                              setPeoOn(e.target.checked);
+                              if (!e.target.checked) setPeoPos('');
+                            }}
+                            className="w-3.5 h-3.5 accent-blue-600"
+                          />
+                          <span className="text-xs text-slate-500 select-none">Auto da posizione</span>
+                        </label>
+                        {/* Selector posizione + valore (auto attivo) */}
+                        {peoOn ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={peoPos}
+                              onChange={e => setPeoPos(e.target.value)}
+                              className="border border-blue-300 rounded px-1.5 py-0.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            >
+                              <option value="">— pos. —</option>
+                              {TAB.map(t => (
+                                <optgroup key={t.area} label={t.area}>
+                                  {t.pos.map(p => <option key={p} value={p}>{p}</option>)}
+                                </optgroup>
+                              ))}
+                            </select>
+                            {peoPos && (
+                              <span className="text-xs font-mono font-semibold text-blue-700">
+                                € {eur(PEO_TABLE[peoPos] ?? 0)}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          /* Input manuale (auto disattivo) */
+                          <input
+                            type="number" min="0" step="0.01"
+                            value={imp[v.id] ?? ''}
+                            onChange={e => setVoce(v.id, e.target.value)}
+                            className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            placeholder="0,00"
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <input
+                        type="number" min="0" step="0.01"
+                        value={imp[v.id] ?? ''}
+                        onChange={e => setVoce(v.id, e.target.value)}
+                        className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        placeholder="0,00"
+                      />
+                    )}
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono text-sm" style={{ color: a > 0 ? '#0f172a' : '#94a3b8' }}>
                     € {eur(a)}
