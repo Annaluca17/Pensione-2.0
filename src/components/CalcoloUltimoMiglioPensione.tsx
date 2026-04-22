@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import styles from './App.module.css';
+import styles from '../App.module.css';
 import { exportPensioneToExcel } from '../exportPensioneExcel';
 import { exportPensioneToPDF } from '../exportPensionePDF';
 import { POSIZIONI_TABELLARI } from '../data/tabellaStipendiCCNL';
