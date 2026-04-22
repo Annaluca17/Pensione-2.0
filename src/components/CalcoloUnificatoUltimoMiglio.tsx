@@ -141,6 +141,9 @@ type DecId  = '2024' | '2026';
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 
+/** Tailwind: rimuove le frecce spinner dagli input type="number" */
+const NO_SPIN = '[appearance:textfield] [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden';
+
 const r2  = (n: number): number => Math.round((n || 0) * 100) / 100;
 const eur = (n: number): string =>
   r2(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -544,12 +547,16 @@ export default function CalcoloUnificatoUltimoMiglio() {
    * Per 2024: nessun valore automatico (IVC 2024 inserita manualmente in PASSWEB).
    */
   const ivcEff = useMemo(
-    () => ultimi12.map((m, i) => {
-      if (ivcOvr[i] !== '') return r2(parseFloat(ivcOvr[i]) || 0);
-      if (mcPos && m.anno === 2023) return IVC_TABLE_2023[mcPos] ?? 0;
-      return 0;
-    }),
-    [ultimi12, ivcOvr, mcPos],
+    () => {
+      const ivc09 = r2(parseFloat(imp['09']) || 0);
+      return ultimi12.map((m, i) => {
+        if (ivcOvr[i] !== '') return r2(parseFloat(ivcOvr[i]) || 0);
+        if (mcPos && m.anno === 2023) return IVC_TABLE_2023[mcPos] ?? 0;
+        if (m.anno >= 2024) return ivc09;
+        return 0;
+      });
+    },
+    [ultimi12, ivcOvr, mcPos, imp],
   );
 
   const stipsEffBase = useMemo(
@@ -768,14 +775,14 @@ export default function CalcoloUnificatoUltimoMiglio() {
                         ) : (
                           <input type="number" min="0" step="0.01"
                             value={imp[v.id]??''} onChange={e => setVoce(v.id, e.target.value)}
-                            className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            className={`w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 ${NO_SPIN}`}
                             placeholder="0,00" />
                         )}
                       </div>
                     ) : (
                       <input type="number" min="0" step="0.01"
                         value={imp[v.id]??''} onChange={e => setVoce(v.id, e.target.value)}
-                        className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                        className={`w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 ${NO_SPIN}`}
                         placeholder="0,00" />
                     )}
                   </td>
@@ -844,7 +851,14 @@ export default function CalcoloUnificatoUltimoMiglio() {
                       <td className="px-3 py-1.5 text-right text-xs font-mono"
                         style={{color: ivcAuto>0 ? '#0f4c81' : '#94a3b8'}}>
                         {is2024
-                          ? <span className="italic text-amber-600">manuale</span>
+                          ? (
+                            <span title="Da voce #09 inserita in step 2">
+                              {ivcEff[i] > 0
+                                ? <span className="text-amber-700 font-semibold">€ {eur(ivcEff[i])}</span>
+                                : <span className="italic text-slate-400">0,00 (#09)</span>
+                              }
+                            </span>
+                          )
                           : (ivcAuto > 0 ? `€ ${eur(ivcAuto)}` : '—')
                         }
                       </td>
@@ -861,6 +875,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
                             is2024
                               ? 'border-amber-300 bg-amber-50 focus:ring-amber-400'
                               : 'border-slate-200 focus:ring-blue-400',
+                            NO_SPIN,
                           ].join(' ')} />
                       </td>
                       {/* Override tabellare */}
@@ -877,7 +892,7 @@ export default function CalcoloUnificatoUltimoMiglio() {
                           disabled={!exc[i]}
                           value={exc[i]?stips[i]:''} placeholder={exc[i]?'0,00':'—'}
                           onChange={e => { const ns=[...stips]; ns[i]=e.target.value; setStips(ns); }}
-                          className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed" />
+                          className={`w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed ${NO_SPIN}`} />
                       </td>
                     </tr>
                   );
