@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import styles from '../App.module.css';
+import styles from './App.module.css';
 import { exportTFSServizioToExcel } from '../exportTFSServizioExcel';
 import { exportTFSServizioToPDF } from '../exportTFSServizioPDF';
 import { round2 } from '../utils/math';
