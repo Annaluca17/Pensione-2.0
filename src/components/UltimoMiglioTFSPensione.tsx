@@ -4,7 +4,7 @@ import { VOCI_RETRIBUTIVE, MESI_LABELS, calcolaRisultato } from '../types';
 import { exportToExcel } from '../exportExcel';
 import { exportToPDF } from '../exportPDF';
 import { round2 } from '../utils/math';
-import styles from '../App.module.css';
+import styles from './App.module.css';
 
 const fmtEuro = (n: number) =>
   round2(n).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
