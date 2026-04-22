@@ -219,7 +219,10 @@ function calcTFS(
 
   const tabG        = r2(sS + sIVC);
   const ria         = r2(vm('06') * 12);
-  const tred        = r2(sT + vm('02') + vm('03') + vm('04') + vm('05') + vm('06'));
+  // Tredicesima: tutte le voci v13=true utili al TFS + IVC dell'ULTIMA mensilità
+  // (Enti Locali: si usa l'ultima retribuzione utile alla cessazione, non la media 12 mesi)
+  const ivcUltimo   = stipEff.length > 0 ? stipEff[stipEff.length - 1].ivc : 0;
+  const tred        = r2(sT + vm('02') + vm('03') + vm('04') + vm('05') + vm('06') + ivcUltimo);
   const assAss      = r2(vm('05') * 12);
   const asili       = r2((vm('12') + vm('13')) * 12);
   const assNonRiass = r2(vm('04') * 12);
