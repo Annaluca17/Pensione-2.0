@@ -16,8 +16,9 @@ const STEPS: { id: Step; label: string; num: number }[] = [
   { id: 'risultato', label: 'Risultato', num: 4 },
 ];
 
+// FIX: aggiunto motivoCessazione richiesto dall'interfaccia Anagrafica
 const emptyAnagrafica = (): Anagrafica => ({
-  cognomeNome: '', codiceFiscale: '', qualifica: '', dataPensione: '', ente: ''
+  cognomeNome: '', codiceFiscale: '', qualifica: '', dataPensione: '', ente: '', motivoCessazione: ''
 });
 
 const emptyVoci = (): VoceRetributiva[] =>
@@ -35,7 +36,6 @@ export default function UltimoMiglioTFSPensione() {
   const [calcolato, setCalcolato] = useState(false);
 
   const currentStepIdx = STEPS.findIndex(s => s.id === step);
-
   const go = (s: Step) => setStep(s);
 
   const applicaBase = useCallback(() => {
@@ -89,7 +89,7 @@ export default function UltimoMiglioTFSPensione() {
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
-          <span>Enti Locali – INPS</span>
+          <span>Enti Locali - INPS</span>
           <span>Pensionati in essere</span>
         </div>
       </aside>
@@ -105,16 +105,15 @@ export default function UltimoMiglioTFSPensione() {
             </h1>
             <p className={styles.pageDesc}>
               {step === 'anagrafica' && 'Inserire i dati identificativi del dipendente pensionato'}
-              {step === 'voci' && 'Inserire gli importi mensili per ciascuna voce retributiva (a tempo pieno, anche in caso di part-time)'}
+              {step === 'voci' && 'Inserire gli importi mensili per ciascuna voce retributiva'}
               {step === 'stipendi' && 'Definire gli stipendi effettivi degli ultimi 12 mesi'}
-              {step === 'risultato' && 'Risultato non modificabile – generato automaticamente dal calcolo'}
+              {step === 'risultato' && 'Risultato non modificabile - generato automaticamente dal calcolo'}
             </p>
           </div>
           <div className={styles.stepBadge}>Step {currentStepIdx + 1} / {STEPS.length}</div>
         </header>
 
         <div className={styles.content}>
-
           {step === 'anagrafica' && (
             <div className={styles.card}>
               <div className={styles.grid2}>
@@ -141,7 +140,7 @@ export default function UltimoMiglioTFSPensione() {
                 </FormField>
               </div>
               <div className={styles.actions}>
-                <button className={styles.btnPrimary} onClick={() => go('stipendi')}>Continua →</button>
+                <button className={styles.btnPrimary} onClick={() => go('stipendi')}>Continua</button>
               </div>
             </div>
           )}
@@ -151,30 +150,24 @@ export default function UltimoMiglioTFSPensione() {
               <div className={styles.baseImportoRow}>
                 <div className={styles.baseImportoLabel}>
                   <strong>Importo base mensile</strong>
-                  <span>Verrà applicato a tutti i mesi senza eccezione</span>
+                  <span>Verra applicato a tutti i mesi senza eccezione</span>
                 </div>
                 <div className="flex gap-4">
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Stipendio</label>
-                    <input
-                      className={styles.inputNumLarge}
-                      type="number" min={0} step="0.01"
+                    <input className={styles.inputNumLarge} type="number" min={0} step="0.01"
                       value={importoBaseStipendio || ''} placeholder="0,00"
                       onChange={e => {
                         const val = round2(parseFloat(e.target.value) || 0);
                         setImportoBaseStipendio(val);
-                        setImportoBaseTredicesima(round2(val / 12)); // FIX: round2
-                      }}
-                    />
+                        setImportoBaseTredicesima(round2(val / 12));
+                      }} />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">13^ mensilità</label>
-                    <input
-                      className={styles.inputNumLarge}
-                      type="number" min={0} step="0.01"
+                    <label className="block text-xs text-slate-500 mb-1">13^ mensilita</label>
+                    <input className={styles.inputNumLarge} type="number" min={0} step="0.01"
                       value={importoBaseTredicesima || ''} placeholder="0,00"
-                      onChange={e => setImportoBaseTredicesima(round2(parseFloat(e.target.value) || 0))}
-                    />
+                      onChange={e => setImportoBaseTredicesima(round2(parseFloat(e.target.value) || 0))} />
                   </div>
                 </div>
                 <button className={styles.btnApply} onClick={applicaBase}>Applica a tutti</button>
@@ -197,33 +190,23 @@ export default function UltimoMiglioTFSPensione() {
                     <div className="space-y-3 mt-3">
                       <div>
                         <label className="block text-xs text-slate-500 mb-1">Stipendio</label>
-                        <input
-                          className={styles.inputNum}
-                          type="number" min={0} step="0.01"
+                        <input className={styles.inputNum} type="number" min={0} step="0.01"
                           value={stipendiMensili[i]?.stipendio || ''} placeholder="0,00"
                           onChange={e => {
                             const val = round2(parseFloat(e.target.value) || 0);
-                            setStipendiMensili(prev => prev.map((x, j) => j === i ? { ...x, stipendio: val, tredicesima: round2(val / 12) } : x)); // FIX: round2
-                            if (!eccezioni[i]) {
-                              setEccezioni(prev => prev.map((x, j) => j === i ? true : x));
-                            }
-                          }}
-                        />
+                            setStipendiMensili(prev => prev.map((x, j) => j === i ? { ...x, stipendio: val, tredicesima: round2(val / 12) } : x));
+                            if (!eccezioni[i]) setEccezioni(prev => prev.map((x, j) => j === i ? true : x));
+                          }} />
                       </div>
                       <div>
-                        <label className="block text-xs text-slate-500 mb-1">13^ mensilità</label>
-                        <input
-                          className={styles.inputNum}
-                          type="number" min={0} step="0.01"
+                        <label className="block text-xs text-slate-500 mb-1">13^ mensilita</label>
+                        <input className={styles.inputNum} type="number" min={0} step="0.01"
                           value={stipendiMensili[i]?.tredicesima || ''} placeholder="0,00"
                           onChange={e => {
                             const val = round2(parseFloat(e.target.value) || 0);
                             setStipendiMensili(prev => prev.map((x, j) => j === i ? { ...x, tredicesima: val } : x));
-                            if (!eccezioni[i]) {
-                              setEccezioni(prev => prev.map((x, j) => j === i ? true : x));
-                            }
-                          }}
-                        />
+                            if (!eccezioni[i]) setEccezioni(prev => prev.map((x, j) => j === i ? true : x));
+                          }} />
                       </div>
                     </div>
                   </div>
@@ -232,14 +215,13 @@ export default function UltimoMiglioTFSPensione() {
 
               <div className={styles.totaleMesiRow}>
                 <span>Totale Stipendi 12 mesi:</span>
-                <strong>€ {fmtEuro(stipendiMensili.reduce((s, v) => s + v.stipendio, 0))}</strong>
-                <span style={{ marginLeft: 24 }}>Totale 13^ mensilità:</span>
-                <strong>€ {fmtEuro(stipendiMensili.reduce((s, v) => s + v.tredicesima, 0))}</strong>
+                <strong>{fmtEuro(stipendiMensili.reduce((s, v) => s + v.stipendio, 0))}</strong>
+                <span style={{ marginLeft: 24 }}>Totale 13^ mensilita:</span>
+                <strong>{fmtEuro(stipendiMensili.reduce((s, v) => s + v.tredicesima, 0))}</strong>
               </div>
-
               <div className={styles.actions}>
-                <button className={styles.btnSecondary} onClick={() => go('anagrafica')}>← Indietro</button>
-                <button className={styles.btnPrimary} onClick={() => go('voci')}>Continua →</button>
+                <button className={styles.btnSecondary} onClick={() => go('anagrafica')}>Indietro</button>
+                <button className={styles.btnPrimary} onClick={() => go('voci')}>Continua</button>
               </div>
             </div>
           )}
@@ -252,8 +234,8 @@ export default function UltimoMiglioTFSPensione() {
                     <tr>
                       <th style={{ width: '45%' }}>Voce Retributiva</th>
                       <th style={{ width: '10%', textAlign: 'center' }}>Valido 13^</th>
-                      <th style={{ width: '25%' }}>Importo Mensile (€)</th>
-                      <th style={{ width: '20%' }}>Importo Annuo (€)</th>
+                      <th style={{ width: '25%' }}>Importo Mensile</th>
+                      <th style={{ width: '20%' }}>Importo Annuo</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -264,28 +246,22 @@ export default function UltimoMiglioTFSPensione() {
                         : v.id === 'tredicesima'
                         ? round2(stipendiMensili.reduce((s, val) => s + val.tredicesima, 0))
                         : round2(v.importoMensile * 12);
-
                       return (
                         <tr key={v.id} className={i % 2 === 0 ? styles.rowEven : ''}>
                           <td className={styles.tdLabel}>{v.label}</td>
                           <td className={styles.tdCenter}>
-                            <span className={v.valido13 ? styles.badgeSi : styles.badgeNo}>
-                              {v.valido13 ? 'SI' : 'NO'}
-                            </span>
+                            <span className={v.valido13 ? styles.badgeSi : styles.badgeNo}>{v.valido13 ? 'SI' : 'NO'}</span>
                           </td>
                           <td>
                             {isReadOnly ? (
                               <div className="text-slate-400 text-sm italic text-center">Calcolato da 12 mesi</div>
                             ) : (
-                              <input
-                                className={styles.inputNum}
-                                type="number" min={0} step="0.01"
+                              <input className={styles.inputNum} type="number" min={0} step="0.01"
                                 value={v.importoMensile || ''} placeholder="0,00"
                                 onChange={e => {
                                   const val = round2(parseFloat(e.target.value) || 0);
                                   setVoci(prev => prev.map((x, j) => j === i ? { ...x, importoMensile: val } : x));
-                                }}
-                              />
+                                }} />
                             )}
                           </td>
                           <td className={styles.tdAnnuo}>{fmtEuro(annuo)}</td>
@@ -296,13 +272,12 @@ export default function UltimoMiglioTFSPensione() {
                 </table>
               </div>
               <div className={styles.infoBox}>
-                <span className={styles.infoIcon}>ℹ</span>
-                Gli importi devono essere <strong>annualizzati e a tempo pieno</strong>, anche in caso di dipendente part-time.
-                Le voci <em>Stipendio tabellare</em> e <em>13^ Mensilità</em> vengono calcolate automaticamente dagli stipendi degli ultimi 12 mesi.
+                <span className={styles.infoIcon}>i</span>
+                Gli importi devono essere annualizzati e a tempo pieno.
               </div>
               <div className={styles.actions}>
-                <button className={styles.btnSecondary} onClick={() => go('stipendi')}>← Indietro</button>
-                <button className={styles.btnCalcola} onClick={calcola}>🧮 Calcola Risultato</button>
+                <button className={styles.btnSecondary} onClick={() => go('stipendi')}>Indietro</button>
+                <button className={styles.btnCalcola} onClick={calcola}>Calcola Risultato</button>
               </div>
             </div>
           )}
@@ -311,36 +286,29 @@ export default function UltimoMiglioTFSPensione() {
             <div>
               <div className={styles.risultatoLock}>
                 <span className={styles.lockIcon}>🔒</span>
-                Risultato calcolato il {new Date().toLocaleString('it-IT')} – non modificabile
+                Risultato calcolato il {new Date().toLocaleString('it-IT')} - non modificabile
               </div>
-
               <div className={styles.card} style={{ marginBottom: 16 }}>
                 <div className={styles.anagraficaRiepilogo}>
-                  <div><label>Nominativo</label><span>{anagrafica.cognomeNome || '–'}</span></div>
-                  <div><label>Codice Fiscale</label><span>{anagrafica.codiceFiscale || '–'}</span></div>
-                  <div><label>Qualifica</label><span>{anagrafica.qualifica || '–'}</span></div>
-                  <div><label>Pensionamento</label><span>{anagrafica.dataPensione || '–'}</span></div>
-                  <div><label>Ente</label><span>{anagrafica.ente || '–'}</span></div>
+                  <div><label>Nominativo</label><span>{anagrafica.cognomeNome || '-'}</span></div>
+                  <div><label>Codice Fiscale</label><span>{anagrafica.codiceFiscale || '-'}</span></div>
+                  <div><label>Qualifica</label><span>{anagrafica.qualifica || '-'}</span></div>
+                  <div><label>Pensionamento</label><span>{anagrafica.dataPensione || '-'}</span></div>
+                  <div><label>Ente</label><span>{anagrafica.ente || '-'}</span></div>
                 </div>
               </div>
-
               <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Ultimo Miglio TFS</h2>
                 <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Componente</th>
-                      <th style={{ textAlign: 'right' }}>Importo (€)</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th>Componente</th><th style={{ textAlign: 'right' }}>Importo</th></tr></thead>
                   <tbody>
                     {[
-                      { label: 'Retribuzione Ind. di Anzianità (R.I.A.)', val: risultato.ria },
-                      { label: 'Tredicesima mensilità', val: risultato.tredicesima },
-                      { label: 'Stipendio tabellare TAB E (compreso Differenziali, Ass. IIS non riass., Ass. riassorbibile per prog. verticale, IVC)', val: risultato.stipTabellare },
-                      { label: 'Indennità Aggiuntive personale asili nido e scolastico (voce 72 + voce 78)', val: risultato.indAsili },
-                      { label: 'Indennità di EUR 64,56 annue lorde (ex 3^ e 4^ Qualifica)', val: risultato.ind6456 },
-                      { label: 'Indennità di vigilanza', val: risultato.indVigilanza },
+                      { label: 'Retribuzione Ind. di Anzianita (R.I.A.)', val: risultato.ria },
+                      { label: 'Tredicesima mensilita', val: risultato.tredicesima },
+                      { label: 'Stipendio tabellare TAB E', val: risultato.stipTabellare },
+                      { label: 'Indennita Aggiuntive asili nido (voce 72 + 78)', val: risultato.indAsili },
+                      { label: 'Indennita di EUR 64,56 annue lorde (ex 3^ e 4^ Qualifica)', val: risultato.ind6456 },
+                      { label: 'Indennita di vigilanza', val: risultato.indVigilanza },
                     ].map((r, i) => (
                       <tr key={i} className={i % 2 === 0 ? styles.rowEven : ''}>
                         <td className={styles.tdLabel}>{r.label}</td>
@@ -354,41 +322,10 @@ export default function UltimoMiglioTFSPensione() {
                   </tbody>
                 </table>
               </div>
-
-              <div className={styles.card} style={{ marginTop: 16 }}>
-                <h2 className={styles.sectionTitle}>Dettaglio Voci Retributive</h2>
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '45%' }}>Voce</th>
-                        <th style={{ width: '10%', textAlign: 'center' }}>13^</th>
-                        <th style={{ width: '25%', textAlign: 'right' }}>Mensile (€)</th>
-                        <th style={{ width: '20%', textAlign: 'right' }}>Annuo (€)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {risultato.vociAnnualizzate.map((v, i) => (
-                        <tr key={v.id} className={i % 2 === 0 ? styles.rowEven : ''}>
-                          <td className={styles.tdLabel} style={{ whiteSpace: 'normal', wordWrap: 'break-word' }}>{v.label}</td>
-                          <td className={styles.tdCenter}>
-                            <span className={v.valido13 ? styles.badgeSi : styles.badgeNo}>
-                              {v.valido13 ? 'SI' : 'NO'}
-                            </span>
-                          </td>
-                          <td className={styles.tdRight}>{fmtEuro(v.importoMensile)}</td>
-                          <td className={styles.tdRight}>{fmtEuro(v.importoAnnuo ?? 0)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
               <div className={styles.actions} style={{ marginTop: 24 }}>
-                <button className={styles.btnSecondary} onClick={reset}>↺ Nuovo Calcolo</button>
-                <button className={styles.btnExport} onClick={() => exportToExcel(anagrafica, risultato)}>📊 Esporta Excel</button>
-                <button className={styles.btnPdf} onClick={() => exportToPDF(anagrafica, risultato)}>📄 Stampa / PDF</button>
+                <button className={styles.btnSecondary} onClick={reset}>Nuovo Calcolo</button>
+                <button className={styles.btnExport} onClick={() => exportToExcel(anagrafica, risultato)}>Esporta Excel</button>
+                <button className={styles.btnPdf} onClick={() => exportToPDF(anagrafica, risultato)}>Stampa / PDF</button>
               </div>
             </div>
           )}
@@ -403,9 +340,7 @@ function FormField({ label, children, required, wide }: {
 }) {
   return (
     <div className={wide ? styles.fieldWide : styles.field}>
-      <label className={styles.label}>
-        {label} {required && <span className={styles.required}>*</span>}
-      </label>
+      <label className={styles.label}>{label} {required && <span className={styles.required}>*</span>}</label>
       {children}
     </div>
   );
