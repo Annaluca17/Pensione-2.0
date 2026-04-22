@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calculator, ArrowRight, Save } from 'lucide-react';
+import { Calculator } from 'lucide-react';
 import AnticipoDMATempoPieno from './AnticipoDMATempoPieno';
 import AnticipoDMAPartTime from './AnticipoDMAPartTime';
 
@@ -17,13 +17,12 @@ export default function AnticipoDMA() {
         <div>
           <h2 className="text-2xl font-semibold text-slate-800">Anticipo DMA</h2>
           <p className="text-slate-500 text-sm mt-1">
-            Seleziona la tipologia di dipendente per procedere con l'analisi.
+            Seleziona la tipologia di dipendente per procedere con l&apos;analisi.
           </p>
         </div>
       </div>
 
       <div className="space-y-8">
-        {/* Selezione Tipologia */}
         <section>
           <h3 className="text-lg font-medium text-slate-800 mb-4">Tipologia Dipendente</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -61,7 +60,6 @@ export default function AnticipoDMA() {
           </div>
         </section>
 
-        {/* Dettagli aggiuntivi (mostrati solo dopo la selezione) */}
         {tipoDipendente === 'tempo_pieno' && (
           <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <AnticipoDMATempoPieno />
