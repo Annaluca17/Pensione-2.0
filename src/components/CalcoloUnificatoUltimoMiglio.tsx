@@ -475,7 +475,7 @@ function exportPDF(
               ...TFS_ROWS.map(r => row('TFS — '+r.label, tfs[r.key] as number, tfsMC[r.key] as number)),
               row('TFS — Totale complessivo', tfs.tot, tfsMC.tot),
             ]
-          : [[{ content:'TFS — Confronto non applicabile (cessazione ante 01/01/2024)', colSpan:5, styles:{fontStyle:'italic',textColor:[120,53,15] as number []} }]]),
+          : [[{ content:'TFS — Confronto non applicabile (cessazione ante 01/01/2024)', colSpan:5, styles:{fontStyle:'italic' as const,textColor:[120,53,15] as number []} }]]),
       ],
       styles:{fontSize:7.5},
       headStyles:{fillColor:SL},
