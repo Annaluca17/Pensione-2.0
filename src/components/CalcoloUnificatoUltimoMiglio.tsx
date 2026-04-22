@@ -37,16 +37,35 @@ interface TabellaArea {
   pos: string[];
 }
 
+/**
+ * RisultatoTFS — 9 campi PASSWEB (struttura da Excel di riferimento)
+ *
+ * Logica di composizione:
+ *   tabG       = Σ12(tabellare_i + ivc_i)                         [TAB G compreso IVC]
+ *   ria        = vm('06') × 12                                    [R.I.A. annuo]
+ *   tred       = sT + vm('02')+vm('03')+vm('04')+vm('05')+vm('06') [Tredicesima, IVC esclusa]
+ *   assAss     = vm('05') × 12                                    [Ass. assorbibile annuo]
+ *   asili      = (vm('12')+vm('13')) × 12
+ *   assNonRiass = vm('04') × 12
+ *   ind64      = vm('08') × 12                                    [Ind. specifica 64,56]
+ *   vig        = vm('11') × 12
+ *   diff       = (vm('02')+vm('03')) × 12                         [Differenziali stipendiali]
+ *   tot        = somma di tutti e 9
+ *
+ * Nota: gli item v13=true (02,03,04,05,06) contribuiscono ×1 a tred E ×12 al proprio campo
+ * → totale per ciascuno = ×13 (corretto per voci "per 13 mensilità")
+ */
 interface RisultatoTFS {
-  stipT: number;
-  tredT: number;
-  ria: number;
-  asili: number;
-  ind64: number;
-  vig: number;
-  totTab: number;
-  totUM: number;
-  tot: number;
+  tabG:        number;   // Stipendio tabellare TAB G compreso IVC
+  ria:         number;   // Retribuzione Ind. di Anzianità (R.I.A.)
+  tred:        number;   // Tredicesima mensilità
+  assAss:      number;   // Assegno ad personam assorbibile prog. verticale (annuo)
+  asili:       number;   // Indennità aggiuntive asili nido e scolastico
+  assNonRiass: number;   // Assegno personale non riassorbibile art. 29 CCNL 2004 (annuo)
+  ind64:       number;   // Indennità EUR 64,56 (ex 3^/4^ qualifica)
+  vig:         number;   // Indennità di vigilanza
+  diff:        number;   // Differenziali stipendiali (voce 02 + 03)
+  tot:         number;
 }
 
 interface MeseRif {
@@ -66,14 +85,28 @@ const TAB: TabellaArea[] = [
 ];
 
 /**
+ * IVC mensile dal 01/01/2023 per posizione economica.
+ * Fonte: FUNZIONI LOCALI — IVC 2022-2023, colonna "dal 1° gennaio 2023 — 0,50% stipendi tabellari
+ * (comprensivi elemento perequativo conglobato ex art. 76 c.3 CCNL 2019-2021)".
+ * Applicazione: mesi dell'anno 2023 nella finestra PASSWEB degli ultimi 12 mesi.
+ * Mesi 2024: inserimento manuale (voce IVC 2024 non ancora tabulata nel CCNL 2022-2024).
+ */
+const IVC_TABLE_2023: Record<string, number> = {
+  D7: 13.50, D6: 12.85, D5: 12.02, D4: 11.52, D3: 11.06, D2: 10.13, D1: 9.67,
+  C6: 10.27, C5: 10.00, C4:  9.65, C3:  9.36, C2:  9.12, C1:  8.91,
+  B8:  9.30, B7:  9.10, B6:  8.77, B5:  8.62, B4:  8.49, B3:  8.36, B2:  8.06, B1: 7.93,
+  A6:  8.20, A5:  8.06, A4:  7.90, A3:  7.77, A2:  7.62, A1:  7.52,
+};
+
+/**
  * Differenziale storico (ex PEO) mensile per posizione economica.
- * Fonte: CCNL 2019-2021 / 2022-2024 — valore identico per entrambe le decorrenze.
+ * Fonte: CCNL 2019-2021 / 2022-2024.
  */
 const PEO_TABLE: Record<string, number> = {
   D7: 764.82, D6: 634.82, D5: 468.93, D4: 369.86, D3: 278.45, D2: 91.30, D1: 0,
-  C6: 271.84, C5: 216.41, C4: 146.52, C3:  89.74, C2:  41.14, C1:    0,
+  C6: 271.84, C5: 216.41, C4: 146.52, C3:  89.74, C2:  41.14, C1:   0,
   B8: 273.99, B7: 234.15, B6: 168.45, B5: 138.15, B4: 110.83, B3: 86.53, B2: 25.10, B1: 0,
-  A6: 136.05, A5: 108.38, A4:  77.02, A3:  50.74, A2:  19.91, A1:    0,
+  A6: 136.05, A5: 108.38, A4:  77.02, A3:  50.74, A2:  19.91, A1:   0,
 };
 
 const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
@@ -83,12 +116,12 @@ const VOCI: VocePensione[] = [
   { id:'01', n:'Stipendio tabellare',                                v13:true,  x:12, tfs:false },
   { id:'02', n:'Differenziale storico (ex PEO)',                     v13:true,  x:12, tfs:true  },
   { id:'03', n:'Differenziale stipendiale CCNL 2019-2021',           v13:true,  x:12, tfs:true  },
-  { id:'04', n:'Assegno ad personam non riassorbibile IIS',          v13:true,  x:12, tfs:true  },
-  { id:'05', n:'Assegno ad personam riassorbibile prog. verticale',  v13:true,  x:12, tfs:true  },
+  { id:'04', n:'Assegno ad personam non riassorbibile IIS (art. 29 c.4 CCNL 2004)', v13:true, x:12, tfs:true },
+  { id:'05', n:'Assegno ad personam assorbibile prog. verticale',    v13:true,  x:12, tfs:true  },
   { id:'06', n:'Salario Individuale di Anzianità (ex R.I.A.)',       v13:true,  x:12, tfs:true  },
   { id:'07', n:'Retribuzione di Posizione',                          v13:true,  x:12, tfs:false },
   { id:'08', n:'Indennità specifica ex art.4 CCNL (€ 5,38/mese)',   v13:false, x:12, tfs:true  },
-  { id:'09', n:'Indennità di Vacanza Contrattuale (IVC)',            v13:true,  x:12, tfs:true  },
+  { id:'09', n:'Indennità di Vacanza Contrattuale (IVC)',            v13:true,  x:12, tfs:false },
   { id:'10', n:'Indennità di Comparto',                              v13:false, x:12, tfs:false },
   { id:'11', n:'Indennità di vigilanza',                             v13:false, x:12, tfs:true  },
   { id:'12', n:'Ind. Professionale asili nido (€ 55,40/mese)',      v13:false, x:12, tfs:true  },
@@ -104,7 +137,7 @@ const STEPS = [
 ] as const;
 
 type StepId = typeof STEPS[number]['id'];
-type DecId = '2024' | '2026';
+type DecId  = '2024' | '2026';
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 
@@ -120,6 +153,10 @@ function getNuovoTab(pos: string, dec: DecId): number {
   return dec === '2024' ? TAB[idx].t24 : TAB[idx].t26;
 }
 
+/**
+ * Finestra PASSWEB: 12 mesi inclusivi del mese di cessazione.
+ * Esempio: cessazione 30/09/2024 → [Ott 2023 … Set 2024]
+ */
 function getUltimi12Mesi(dataCessazione: string): MeseRif[] {
   if (!dataCessazione || dataCessazione.length < 7) return [];
   const [y, m] = dataCessazione.split('-').map(Number);
@@ -133,7 +170,7 @@ function getUltimi12Mesi(dataCessazione: string): MeseRif[] {
   return result;
 }
 
-// ─── Motore di calcolo ────────────────────────────────────────────────────────
+// ─── Motori di calcolo ────────────────────────────────────────────────────────
 
 interface CalcPensioneResult {
   a: number;
@@ -155,44 +192,79 @@ function calcPensione(imp: Record<string, string>, overrideTab?: number): CalcPe
   };
 }
 
-function calcTFS(stipEff: Array<{ s: number; t: number }>, imp: Record<string, string>): RisultatoTFS {
-  const vm    = (id: string) => r2(parseFloat(imp[id]) || 0);
-  const sS    = r2(stipEff.reduce((s, v) => s + v.s, 0));
-  const sT    = r2(stipEff.reduce((s, v) => s + v.t, 0));
-  const stipT = r2(sS + (vm('02') + vm('03') + vm('04') + vm('05') + vm('09')) * 12);
-  const tredT = r2(sT + vm('02') + vm('03') + vm('04') + vm('05') + vm('09') + vm('06'));
-  const ria   = r2(vm('06') * 12);
-  const asili = r2((vm('12') + vm('13')) * 12);
-  const ind64 = r2(vm('08') * 12);
-  const vig   = r2(vm('11') * 12);
-  const totTab = r2(stipT + tredT);
-  const totUM  = r2(ria + asili + ind64 + vig);
-  return { stipT, tredT, ria, asili, ind64, vig, totTab, totUM, tot: r2(totTab + totUM) };
+/**
+ * calcTFS — nuova struttura a 9 campi PASSWEB
+ *
+ * stipEff: array 12 mesi con { s: tabellare mensile, t: tabellare/12, ivc: IVC mensile }
+ * imp: voci retributive inserite dall'utente
+ *
+ * Struttura matematica verificata sull'Excel di riferimento:
+ *   - TAB G compreso IVC = Σ12(tab_i + ivc_i)
+ *   - Tredicesima = sT + PEO + diff + assNonRiass + assAss + RIA  (IVC esclusa: già in TAB G)
+ *   - Differenziali = (PEO + diff) × 12
+ *   - assAss/assNonRiass = voce × 12 (quota annua; +1 in tredicesima = tot ×13)
+ *   - RIA = voce × 12 (quota annua; +1 in tredicesima = tot ×13)
+ */
+function calcTFS(
+  stipEff: Array<{ s: number; t: number; ivc: number }>,
+  imp: Record<string, string>,
+): RisultatoTFS {
+  const vm   = (id: string) => r2(parseFloat(imp[id]) || 0);
+  const sS   = r2(stipEff.reduce((acc, v) => acc + v.s,   0));
+  const sT   = r2(stipEff.reduce((acc, v) => acc + v.t,   0));
+  const sIVC = r2(stipEff.reduce((acc, v) => acc + v.ivc, 0));
+
+  const tabG        = r2(sS + sIVC);
+  const ria         = r2(vm('06') * 12);
+  const tred        = r2(sT + vm('02') + vm('03') + vm('04') + vm('05') + vm('06'));
+  const assAss      = r2(vm('05') * 12);
+  const asili       = r2((vm('12') + vm('13')) * 12);
+  const assNonRiass = r2(vm('04') * 12);
+  const ind64       = r2(vm('08') * 12);
+  const vig         = r2(vm('11') * 12);
+  const diff        = r2((vm('02') + vm('03')) * 12);
+  const tot         = r2(tabG + ria + tred + assAss + asili + assNonRiass + ind64 + vig + diff);
+
+  return { tabG, ria, tred, assAss, asili, assNonRiass, ind64, vig, diff, tot };
 }
+
+// ─── Helper etichette PASSWEB ─────────────────────────────────────────────────
+
+const TFS_ROWS: Array<{ key: keyof RisultatoTFS; label: string; passweb: string }> = [
+  { key:'tabG',        label:'Stipendio tabellare nuove Aree TAB G (compreso IVC)',                 passweb:'Tab. G (TAB E PASSWEB)'      },
+  { key:'ria',         label:'Retribuzione Ind. di Anzianità (R.I.A.)',                             passweb:'R.I.A.'                      },
+  { key:'tred',        label:'Tredicesima mensilità',                                               passweb:'13^ Mensilità'               },
+  { key:'assAss',      label:'Assegno ad personam assorbibile progressione verticale',              passweb:'Ass. assorbibile (annuo)'    },
+  { key:'asili',       label:'Indennità Aggiuntive personale asili nido e scolastico',              passweb:'Ind. asili nido'             },
+  { key:'assNonRiass', label:'Assegno personale non riassorbibile IIS Cat. B e D (art. 29 c.4)',   passweb:'Ass. non riassorbibile (annuo)' },
+  { key:'ind64',       label:'Indennità EUR 64,56 lorde annue (ex 3^/4^ Qualifica) × 12 mesi',    passweb:'Ind. specifica 64,56'        },
+  { key:'vig',         label:'Indennità di vigilanza × 12 mensilità',                              passweb:'Ind. vigilanza'              },
+  { key:'diff',        label:'Differenziali stipendiali (voce 02 + voce 03)',                      passweb:'Differenziali'               },
+];
 
 // ─── Export Excel ─────────────────────────────────────────────────────────────
 
 function exportXLSX(
-  ana: Anagrafica,
-  pensione: CalcPensioneResult,
-  tfs: RisultatoTFS,
+  ana:        Anagrafica,
+  pensione:   CalcPensioneResult,
+  tfs:        RisultatoTFS,
   pensioneMC: CalcPensioneResult | null,
-  tfsMC: RisultatoTFS | null,
-  mcPos: string,
-  mcDec: DecId,
-  nuovoTab: number,
-  peoDiff: number,
+  tfsMC:      RisultatoTFS | null,
+  mcPos:      string,
+  mcDec:      DecId,
+  nuovoTab:   number,
+  peoDiff:    number,
 ): void {
   const wb = XLSX.utils.book_new();
-  const ANA_HDR = ['Nominativo', ana.nome, '', 'CF', ana.cf, '', 'Data inizio', ana.data,
-                   '', 'Data cessazione', ana.dataCessazione, '', 'Motivo', ana.motivo];
+  const ANA = ['Nominativo', ana.nome, '', 'CF', ana.cf, '', 'Data inizio', ana.data,
+               '', 'Data cessazione', ana.dataCessazione, '', 'Motivo', ana.motivo];
 
-  const buildSheet = (p: CalcPensioneResult, t: RisultatoTFS | null, label: string, tabellare: number) => [
+  const buildSheet = (p: CalcPensioneResult, t: RisultatoTFS | null, label: string, tabMensile: number) => [
     [label],
-    ANA_HDR,
+    ANA,
     [],
     ['── PENSIONE — Ultimo Miglio ──'],
-    ['Campo PASSWEB', 'Voce Retributiva', '13^', 'Mensile (€)', 'Annuo (€)'],
+    ['Campo PASSWEB', 'Voce Retributiva', '13^ P', 'Mensile (€)', 'Annuo (€)'],
     ...p.voci.filter(v => v.m > 0).map(v => [
       v.id === '01' ? 'Stipendio tabellare (Tab. G)' : '',
       v.n, v.v13 ? 'SÌ' : 'NO', v.m, v.a,
@@ -204,65 +276,56 @@ function exportXLSX(
     ...(t ? [
       ['── TFS PENSIONATI — Ultimo Miglio ──'],
       ['Campo PASSWEB', 'Componente', '', '', 'Importo annuo (€)'],
-      ['Retribuzione Ind. Anzianità',  'Retribuzione Ind. Anzianità (R.I.A.)',                                        '', '', t.ria  ],
-      ['Tredicesima mensilità',        'Tredicesima mensilità',                                                       '', '', t.tredT],
-      ['Stipendio tabellare (Tab. E)', `Stipendio tabellare (TAB E) — tab. mensile: € ${tabellare.toFixed(2)}`,       '', '', t.stipT],
-      ...(t.asili > 0 ? [['Ind. aggiuntive asili nido', 'Indennità aggiuntive personale asili nido e scolastico',    '', '', t.asili]] : []),
-      ...(t.ind64 > 0 ? [['Ind. specifica art.4',       'Indennità specifica ex art.4 comma 3 ccnl 1996',            '', '', t.ind64]] : []),
-      ...(t.vig   > 0 ? [['Ind. vigilanza',             'Indennità di vigilanza per 12 mensilità',                   '', '', t.vig  ]] : []),
+      ...TFS_ROWS.map(r => [r.passweb, r.label, '', '', t[r.key]]),
       [],
       ['', 'TOTALE TFS PENSIONATI (→ "Trattamento Fine Servizio" PASSWEB)', '', '', t.tot],
     ] : [
       ['── TFS PENSIONATI ──'],
-      ['NOTA', 'Cessazione ante 01/01/2024 — ricalcolo MC TFS non applicabile.',              '', '', ''],
-      ['',     'Utilizzare i valori TFS del foglio "PASSWEB – Base" per PASSWEB.',            '', '', ''],
+      ['NOTA', 'Cessazione ante 01/01/2024 — ricalcolo MC TFS non applicabile.', '', '', ''],
     ]),
   ];
 
   XLSX.utils.book_append_sheet(wb,
-    XLSX.utils.aoa_to_sheet(buildSheet(pensione, tfs, 'DATI PASSWEB — CCNL 2019-2021 (BASE)',
-      r2(pensione.voci.find(v => v.id === '01')?.m ?? 0))),
+    XLSX.utils.aoa_to_sheet(buildSheet(
+      pensione, tfs,
+      'DATI PASSWEB — CCNL 2019-2021 (BASE)',
+      r2(pensione.voci.find(v => v.id === '01')?.m ?? 0),
+    )),
     'PASSWEB – Base');
 
   if (pensioneMC) {
-    const breakdown = peoDiff > 0
-      ? `tab. € ${nuovoTab.toFixed(2)} + diff. storico € ${peoDiff.toFixed(2)} = € ${(nuovoTab + peoDiff).toFixed(2)}`
+    const bd = peoDiff > 0
+      ? `tab. € ${nuovoTab.toFixed(2)} + diff. € ${peoDiff.toFixed(2)} = € ${(nuovoTab+peoDiff).toFixed(2)}`
       : `tab. € ${nuovoTab.toFixed(2)}`;
-    const labelMC = tfsMC
-      ? `DATI PASSWEB — CCNL 2022-2024 (MC dal 01.01.${mcDec} — ${mcPos} — ${breakdown})`
-      : `DATI PASSWEB — CCNL 2022-2024 — SOLO PENSIONE (cessazione ante 01/01/2024 — ${mcPos})`;
     XLSX.utils.book_append_sheet(wb,
-      XLSX.utils.aoa_to_sheet(buildSheet(pensioneMC, tfsMC, labelMC, nuovoTab)),
+      XLSX.utils.aoa_to_sheet(buildSheet(
+        pensioneMC, tfsMC,
+        `DATI PASSWEB — CCNL 2022-2024 (MC dal 01.01.${mcDec} — ${mcPos} — ${bd})`,
+        nuovoTab,
+      )),
       `PASSWEB – MC ${mcDec}`);
 
-    const delta = (b: number, mc: number) => r2(mc - b);
-    const pct   = (b: number, mc: number) => b > 0 ? +((delta(b,mc)/b)*100).toFixed(2) : 0;
+    const d = (b: number, mc: number) => r2(mc - b);
+    const p = (b: number, mc: number) => b > 0 ? +((d(b,mc)/b)*100).toFixed(2) : 0;
+
     XLSX.utils.book_append_sheet(wb,
       XLSX.utils.aoa_to_sheet([
         ['CONFRONTO SCENARI — CCNL 2019-2021 vs CCNL 2022-2024'],
-        ANA_HDR,
-        ['', 'Posizione', mcPos, 'Decorrenza', `01.01.${mcDec}`,
-          'Tab. MC', nuovoTab, 'Diff. storico', peoDiff, 'Totale MC', nuovoTab + peoDiff],
+        ANA,
+        ['', 'Posizione', mcPos, 'Decorrenza', `01.01.${mcDec}`, 'Tab. MC', nuovoTab, 'Diff. storico', peoDiff],
         [],
         ['Campo', 'CCNL 2019-2021', 'CCNL 2022-2024', 'Δ (€)', 'Δ (%)'],
-        ['Pensione — Tot. voci fisse annuo', pensione.a, pensioneMC.a, delta(pensione.a, pensioneMC.a), pct(pensione.a, pensioneMC.a)],
-        ['Pensione — 13^ mensilità',         pensione.t, pensioneMC.t, delta(pensione.t, pensioneMC.t), pct(pensione.t, pensioneMC.t)],
-        ...(tfsMC ? [
-          ...[
-            ['TFS — Retribuzione Ind. Anzianità (R.I.A.)',        tfs.ria,   tfsMC.ria  ],
-            ['TFS — Tredicesima mensilità',                        tfs.tredT, tfsMC.tredT],
-            ['TFS — Stipendio tabellare (TAB E)',                  tfs.stipT, tfsMC.stipT],
-            ['TFS — Ind. aggiuntive asili nido e scolastico',      tfs.asili, tfsMC.asili],
-            ['TFS — Ind. specifica ex art.4',                      tfs.ind64, tfsMC.ind64],
-            ['TFS — Ind. vigilanza',                               tfs.vig,   tfsMC.vig  ],
-          ].filter(r => (r[1] as number) > 0).map(r => {
-            const b = r[1] as number, mc = r[2] as number;
-            return [r[0], b, mc, delta(b,mc), pct(b,mc)];
-          }),
-          ['TFS — Totale complessivo', tfs.tot, tfsMC.tot, delta(tfs.tot,tfsMC.tot), pct(tfs.tot,tfsMC.tot)],
-        ] : [
-          ['NOTA TFS', 'Cessazione ante 01/01/2024 — confronto MC TFS non applicabile', '', '', ''],
-        ]),
+        ['Pensione — Tot. voci fisse annuo', pensione.a, pensioneMC.a, d(pensione.a,pensioneMC.a), p(pensione.a,pensioneMC.a)],
+        ['Pensione — 13^ mensilità',         pensione.t, pensioneMC.t, d(pensione.t,pensioneMC.t), p(pensione.t,pensioneMC.t)],
+        ...(tfsMC
+          ? TFS_ROWS.map(r => [
+              'TFS — ' + r.label,
+              tfs[r.key], tfsMC[r.key],
+              d(tfs[r.key] as number, tfsMC[r.key] as number),
+              p(tfs[r.key] as number, tfsMC[r.key] as number),
+            ])
+          : [['NOTA TFS', 'Cessazione ante 01/01/2024 — confronto MC TFS non applicabile', '', '', '']]),
+        ...(tfsMC ? [['TFS — Totale complessivo', tfs.tot, tfsMC.tot, d(tfs.tot,tfsMC.tot), p(tfs.tot,tfsMC.tot)]] : []),
       ]),
       'Confronto');
   }
@@ -273,24 +336,27 @@ function exportXLSX(
 // ─── Export PDF ───────────────────────────────────────────────────────────────
 
 function exportPDF(
-  ana: Anagrafica,
-  pensione: CalcPensioneResult,
-  tfs: RisultatoTFS,
+  ana:        Anagrafica,
+  pensione:   CalcPensioneResult,
+  tfs:        RisultatoTFS,
   pensioneMC: CalcPensioneResult | null,
-  tfsMC: RisultatoTFS | null,
-  mcPos: string,
-  mcDec: DecId,
-  nuovoTab: number,
-  peoDiff: number,
+  tfsMC:      RisultatoTFS | null,
+  mcPos:      string,
+  mcDec:      DecId,
+  nuovoTab:   number,
+  peoDiff:    number,
 ): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const ts  = new Date().toLocaleString('it-IT');
-  const HDR_BASE = [30, 41, 59] as [number,number,number];
-  const HDR_MC   = [120, 53, 15] as [number,number,number];
+  const SL  = [30, 41, 59] as [number,number,number];   // slate-800
+  const AM  = [120, 53, 15] as [number,number,number];  // amber-900
 
   const printScenario = (
-    p: CalcPensioneResult, t: RisultatoTFS | null,
-    tabellare: number, hdrColor: [number,number,number], startY: number,
+    p: CalcPensioneResult,
+    t: RisultatoTFS | null,
+    tabMensile: number,
+    hdr: [number,number,number],
+    startY: number,
   ): number => {
     autoTable(doc, {
       startY,
@@ -300,50 +366,48 @@ function exportPDF(
           v.id === '01' ? 'Tab. G — Stipendio' : '',
           v.n, v.v13 ? 'SÌ' : 'NO', eur(v.m), eur(v.a),
         ]),
-        [{ content: '→ Retribuzione annua PASSWEB', styles:{fontStyle:'bold'} },
-         { content: 'TOTALE VOCI FISSE ANNUO',      styles:{fontStyle:'bold'} }, '', '',
-         { content: '€ '+eur(p.a),                  styles:{fontStyle:'bold'} }],
-        [{ content: '→ Tredicesima PASSWEB',         styles:{fontStyle:'bold'} },
-         { content: '13^ MENSILITÀ',                 styles:{fontStyle:'bold'} }, '', '',
-         { content: '€ '+eur(p.t),                   styles:{fontStyle:'bold'} }],
+        [{ content:'→ Retribuzione annua PASSWEB', styles:{fontStyle:'bold'} },
+         { content:'TOTALE VOCI FISSE ANNUO',      styles:{fontStyle:'bold'} }, '', '',
+         { content:'€ '+eur(p.a), styles:{fontStyle:'bold'} }],
+        [{ content:'→ Tredicesima PASSWEB',         styles:{fontStyle:'bold'} },
+         { content:'13^ MENSILITÀ',                 styles:{fontStyle:'bold'} }, '', '',
+         { content:'€ '+eur(p.t), styles:{fontStyle:'bold'} }],
       ],
-      styles: { fontSize: 7.5 },
-      headStyles: { fillColor: hdrColor },
-      columnStyles: { 3: { halign:'right' }, 4: { halign:'right' } },
+      styles: { fontSize:7.5 },
+      headStyles: { fillColor: hdr },
+      columnStyles: { 3:{halign:'right'}, 4:{halign:'right'} },
     });
     let y2 = (doc as any).lastAutoTable.finalY + 5;
+
     if (t) {
       autoTable(doc, {
         startY: y2,
-        head: [['Campo PASSWEB', 'Componente', 'Importo annuo (€)']],
+        head: [['Campo PASSWEB', 'Componente TFS', 'Importo annuo (€)']],
         body: [
-          ['Retribuzione Ind. Anzianità',  'Retribuzione Ind. Anzianità (R.I.A.)',                            '€ '+eur(t.ria)  ],
-          ['Tredicesima mensilità',        'Tredicesima mensilità',                                           '€ '+eur(t.tredT)],
-          ['Stipendio tabellare (Tab. E)', `Stipendio tabellare (TAB E) — tab. mensile: € ${eur(tabellare)}`, '€ '+eur(t.stipT)],
-          ...(t.asili > 0 ? [['Ind. aggiuntive asili nido', 'Ind. aggiuntive pers. asili nido e scolastico', '€ '+eur(t.asili)]] : []),
-          ...(t.ind64 > 0 ? [['Ind. specifica art.4',       'Ind. specifica ex art.4 comma 3 ccnl 1996',     '€ '+eur(t.ind64)]] : []),
-          ...(t.vig   > 0 ? [['Ind. vigilanza',             'Ind. di vigilanza per 12 mensilità',            '€ '+eur(t.vig)  ]] : []),
-          [{ content:'→ TFS Pensionati PASSWEB', styles:{fontStyle:'bold',fillColor:hdrColor,textColor:[255,255,255]} },
-           { content:'TOTALE TFS PENSIONATI',    styles:{fontStyle:'bold',fillColor:hdrColor,textColor:[255,255,255]} },
-           { content:'€ '+eur(t.tot),            styles:{fontStyle:'bold',fillColor:hdrColor,textColor:[255,255,255]} }],
+          ...TFS_ROWS.map(r => [r.passweb, r.label, '€ '+eur(t[r.key] as number)]),
+          [
+            { content:'→ TFS Pensionati PASSWEB', styles:{fontStyle:'bold',fillColor:hdr,textColor:[255,255,255]} },
+            { content:'TOTALE TFS PENSIONATI',    styles:{fontStyle:'bold',fillColor:hdr,textColor:[255,255,255]} },
+            { content:'€ '+eur(t.tot),            styles:{fontStyle:'bold',fillColor:hdr,textColor:[255,255,255]} },
+          ],
         ],
-        styles: { fontSize: 7.5 },
-        headStyles: { fillColor: hdrColor },
-        columnStyles: { 2: { halign:'right' } },
+        styles: { fontSize:7.5 },
+        headStyles: { fillColor: hdr },
+        columnStyles: { 2:{halign:'right'} },
       });
     } else {
       autoTable(doc, {
         startY: y2,
         head: [['Nota TFS']],
         body: [['Cessazione ante 01/01/2024 — ricalcolo MC TFS non applicabile.\nUsare valori TFS Scenario A per PASSWEB.']],
-        styles: { fontSize: 7.5, textColor: [120,53,15] },
-        headStyles: { fillColor: hdrColor },
+        styles: { fontSize:7.5, textColor:[120,53,15] },
+        headStyles: { fillColor: hdr },
       });
     }
     return (doc as any).lastAutoTable.finalY;
   };
 
-  // Pag. 1 — Scenario BASE
+  // Pagina 1 — Scenario BASE
   doc.setFont('helvetica','bold'); doc.setFontSize(13);
   doc.text('CALCOLO UNIFICATO ULTIMO MIGLIO — INPS PASSWEB', 14, 18);
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
@@ -353,40 +417,40 @@ function exportPDF(
     startY: 30,
     head: [['Nominativo','CF','Data inizio','Data cessazione','Motivo']],
     body: [[ana.nome, ana.cf, ana.data, ana.dataCessazione, ana.motivo]],
-    styles: { fontSize:8 }, headStyles: { fillColor: HDR_BASE },
+    styles:{fontSize:8}, headStyles:{fillColor:SL},
   });
   let y = (doc as any).lastAutoTable.finalY + 6;
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(30,41,59);
   doc.text('SCENARIO A — CCNL 2019-2021 (Base pre-aggiornamento tabellare)', 14, y);
   doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); y += 4;
-  printScenario(pensione, tfs, r2(pensione.voci.find(v=>v.id==='01')?.m ?? 0), HDR_BASE, y);
+  printScenario(pensione, tfs, r2(pensione.voci.find(v=>v.id==='01')?.m??0), SL, y);
 
-  // Pag. 2 — Scenario MC
   if (pensioneMC) {
+    // Pagina 2 — Scenario MC
     doc.addPage();
     doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(120,53,15);
     doc.text('CALCOLO UNIFICATO ULTIMO MIGLIO — INPS PASSWEB', 14, 18);
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
     doc.text(`Immedia S.p.A. — CCNL Funzioni Locali — Generato: ${ts}`, 14, 24);
-    doc.setTextColor(0,0,0); doc.setLineWidth(0.3); doc.line(14, 27, 196, 27);
+    doc.setTextColor(0,0,0); doc.setLineWidth(0.3); doc.line(14,27,196,27);
     autoTable(doc, {
       startY: 30,
       head: [['Nominativo','CF','Data inizio','Data cessazione','Motivo']],
       body: [[ana.nome, ana.cf, ana.data, ana.dataCessazione, ana.motivo]],
-      styles: { fontSize:8 }, headStyles: { fillColor: HDR_MC },
+      styles:{fontSize:8}, headStyles:{fillColor:AM},
     });
     y = (doc as any).lastAutoTable.finalY + 6;
-    const breakdownPDF = peoDiff > 0
-      ? `Tab. € ${eur(nuovoTab)} + Diff. storico € ${eur(peoDiff)} = € ${eur(nuovoTab+peoDiff)}`
+    const bd = peoDiff > 0
+      ? `Tab. € ${eur(nuovoTab)} + Diff. € ${eur(peoDiff)} = € ${eur(nuovoTab+peoDiff)}`
       : `Tab. mensile: € ${eur(nuovoTab)}`;
     doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(120,53,15);
-    doc.text(`SCENARIO B — CCNL 2022-2024 (MC dal 01.01.${mcDec} — ${mcPos} — ${breakdownPDF})`, 14, y);
+    doc.text(`SCENARIO B — CCNL 2022-2024 (MC dal 01.01.${mcDec} — ${mcPos} — ${bd})`, 14, y);
     doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); y += 4;
-    printScenario(pensioneMC, tfsMC, nuovoTab, HDR_MC, y);
+    printScenario(pensioneMC, tfsMC, nuovoTab, AM, y);
 
-    // Pag. 3 — Confronto
+    // Pagina 3 — Confronto
     doc.addPage();
-    const tabBase = r2(parseFloat(pensione.voci.find(v=>v.id==='01')?.m?.toString() || '0'));
+    const tabBase = r2(pensione.voci.find(v=>v.id==='01')?.m??0);
     doc.setFont('helvetica','bold'); doc.setFontSize(11);
     doc.text(`CONFRONTO SCENARI A vs B — ${mcPos} · dal 01.01.${mcDec}`, 14, 18);
     doc.setFont('helvetica','normal'); doc.setFontSize(8);
@@ -397,8 +461,7 @@ function exportPDF(
 
     const row = (lbl: string, b: number, mc: number) => {
       const d = r2(mc-b);
-      return [lbl, '€ '+eur(b), '€ '+eur(mc), (d>=0?'+':'')+'€ '+eur(d),
-              b > 0 ? ((d/b)*100).toFixed(2)+' %' : '—'];
+      return [lbl, '€ '+eur(b), '€ '+eur(mc), (d>=0?'+':'')+'€ '+eur(d), b>0?((d/b)*100).toFixed(2)+' %':'—'];
     };
     autoTable(doc, {
       startY: 28,
@@ -406,24 +469,16 @@ function exportPDF(
       body: [
         row('Pensione — Tot. voci fisse annuo', pensione.a, pensioneMC.a),
         row('Pensione — 13^ mensilità',          pensione.t, pensioneMC.t),
-        ...(tfsMC ? [
-          ...[
-            ['TFS — Retribuzione Ind. Anzianità (R.I.A.)', tfs.ria,   tfsMC.ria  ],
-            ['TFS — Tredicesima mensilità',                 tfs.tredT, tfsMC.tredT],
-            ['TFS — Stipendio tabellare (TAB E)',           tfs.stipT, tfsMC.stipT],
-            ['TFS — Ind. aggiuntive asili nido',            tfs.asili, tfsMC.asili],
-            ['TFS — Ind. specifica ex art.4',               tfs.ind64, tfsMC.ind64],
-            ['TFS — Ind. vigilanza',                        tfs.vig,   tfsMC.vig  ],
-          ].filter(r => (r[1] as number) > 0).map(r => row(r[0] as string, r[1] as number, r[2] as number)),
-          row('TFS — Totale complessivo', tfs.tot, tfsMC.tot),
-        ] : [
-          [{ content:'TFS — Confronto non applicabile (cessazione ante 01/01/2024)',
-             colSpan:5, styles:{fontStyle:'italic',textColor:[120,53,15]} }],
-        ]),
+        ...(tfsMC
+          ? [
+              ...TFS_ROWS.map(r => row('TFS — '+r.label, tfs[r.key] as number, tfsMC[r.key] as number)),
+              row('TFS — Totale complessivo', tfs.tot, tfsMC.tot),
+            ]
+          : [[{ content:'TFS — Confronto non applicabile (cessazione ante 01/01/2024)', colSpan:5, styles:{fontStyle:'italic',textColor:[120,53,15]} }]]),
       ],
-      styles: { fontSize:8 },
-      headStyles: { fillColor: HDR_BASE },
-      columnStyles: { 1:{halign:'right'}, 2:{halign:'right'}, 3:{halign:'right'}, 4:{halign:'right'} },
+      styles:{fontSize:7.5},
+      headStyles:{fillColor:SL},
+      columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'},4:{halign:'right'}},
       didParseCell: (data) => {
         if (data.section==='body' && data.column.index===3) {
           const v = data.cell.raw as string;
@@ -441,62 +496,61 @@ function exportPDF(
 
 export default function CalcoloUnificatoUltimoMiglio() {
   const [step, setStep] = useState<StepId>('ana');
-  const [ana, setAna]   = useState<Anagrafica>({ nome:'', cf:'', data:'', dataCessazione:'', motivo:'' });
-  const [imp, setImp]   = useState<Record<string, string>>({});
+  const [ana,  setAna]  = useState<Anagrafica>({ nome:'', cf:'', data:'', dataCessazione:'', motivo:'' });
+  const [imp,  setImp]  = useState<Record<string, string>>({});
   const setVoce = (id: string, v: string) => setImp(p => ({ ...p, [id]: v }));
 
   const [mcOn,  setMcOn]  = useState(false);
   const [mcPos, setMcPos] = useState('');
   const [mcDec, setMcDec] = useState<DecId>('2024');
 
-  /**
-   * peoInBase: include il differenziale storico (PEO) anche nello Scenario BASE
-   * per consentire la verifica dell'inserimento storico in PASSWEB.
-   * Default OFF: il PEO è calcolato esclusivamente per il Miglioramento Contrattuale.
-   */
   const [peoInBase, setPeoInBase] = useState(false);
 
+  // Override tabellare per mesi eccezionali (part-time, assenze, ecc.)
   const [stips, setStips] = useState<string[]>(Array(12).fill(''));
   const [exc,   setExc]   = useState<boolean[]>(Array(12).fill(false));
+
+  // Override IVC per mese: '' = usa valore automatico; altrimenti valore manuale
+  const [ivcOvr, setIvcOvr] = useState<string[]>(Array(12).fill(''));
 
   const base     = r2(parseFloat(imp['01']) || 0);
   const nuovoTab = useMemo(() => getNuovoTab(mcPos, mcDec), [mcPos, mcDec]);
 
-  /** Differenziale storico mensile per la posizione MC selezionata */
   const peoDiff = useMemo(
     () => mcOn && mcPos ? (PEO_TABLE[mcPos] ?? 0) : 0,
     [mcOn, mcPos],
   );
 
-  /**
-   * effImpBase: imp per lo Scenario BASE (CCNL 2019-2021).
-   * - peoInBase OFF: usa imp['02'] manuale (cedolino storico as-is).
-   * - peoInBase ON:  sostituisce '02' con PEO_TABLE[mcPos] per verifica storica.
-   */
   const effImpBase = useMemo(
-    () => peoInBase && mcOn && mcPos
-      ? { ...imp, '02': String(peoDiff) }
-      : imp,
+    () => peoInBase && mcOn && mcPos ? { ...imp, '02': String(peoDiff) } : imp,
     [imp, peoInBase, mcOn, mcPos, peoDiff],
   );
 
-  /**
-   * effImpMC: imp per lo Scenario MC (CCNL 2022-2024).
-   * Voce '02' sempre = PEO_TABLE[mcPos] quando MC attivo + posizione selezionata.
-   * Voce '01' viene sovrascritta da overrideTab=nuovoTab nella calcPensione;
-   * effImpMC['02']=peoDiff garantisce la corretta alimentazione del TFS.
-   */
   const effImpMC = useMemo(
-    () => mcOn && mcPos
-      ? { ...imp, '02': String(peoDiff) }
-      : imp,
+    () => mcOn && mcPos ? { ...imp, '02': String(peoDiff) } : imp,
     [imp, mcOn, mcPos, peoDiff],
   );
 
+  // Gate eligibilità MC: Pensione (>= 01/01/2022), TFS (>= 01/01/2024)
   const isMCEligibile    = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2022-01-01';
   const isMCTFSEligibile = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2024-01-01';
 
   const ultimi12 = useMemo(() => getUltimi12Mesi(ana.dataCessazione), [ana.dataCessazione]);
+
+  /**
+   * IVC effettiva per mese: auto dalla tabella 2023, manuale per 2024.
+   * Override ha priorità assoluta.
+   * Auto: se mcPos selezionata e anno=2023 → IVC_TABLE_2023[mcPos]
+   * Per 2024: nessun valore automatico (IVC 2024 inserita manualmente in PASSWEB).
+   */
+  const ivcEff = useMemo(
+    () => ultimi12.map((m, i) => {
+      if (ivcOvr[i] !== '') return r2(parseFloat(ivcOvr[i]) || 0);
+      if (mcPos && m.anno === 2023) return IVC_TABLE_2023[mcPos] ?? 0;
+      return 0;
+    }),
+    [ultimi12, ivcOvr, mcPos],
+  );
 
   const stipsEffBase = useMemo(
     () => ultimi12.map((_, i) => exc[i] ? stips[i] : String(base)),
@@ -507,26 +561,35 @@ export default function CalcoloUnificatoUltimoMiglio() {
     () => ultimi12.map((m, i) =>
       exc[i]
         ? stips[i]
-        : (isMCEligibile && mcOn && mcPos && m.isEligibilePerMC ? String(nuovoTab) : String(base))
+        : (isMCTFSEligibile && mcOn && mcPos && m.isEligibilePerMC ? String(nuovoTab) : String(base))
     ),
-    [ultimi12, exc, stips, isMCEligibile, mcOn, mcPos, nuovoTab, base],
+    [ultimi12, exc, stips, isMCTFSEligibile, mcOn, mcPos, nuovoTab, base],
   );
 
   const stipEffBase = useMemo(
-    () => stipsEffBase.map(s => { const v = r2(parseFloat(s)||0); return { s:v, t:r2(v/12) }; }),
-    [stipsEffBase],
+    () => stipsEffBase.map((s, i) => {
+      const v = r2(parseFloat(s) || 0);
+      return { s: v, t: r2(v / 12), ivc: ivcEff[i] };
+    }),
+    [stipsEffBase, ivcEff],
   );
+
   const stipEffMC = useMemo(
-    () => stipsEffMC.map(s => { const v = r2(parseFloat(s)||0); return { s:v, t:r2(v/12) }; }),
-    [stipsEffMC],
+    () => stipsEffMC.map((s, i) => {
+      const v = r2(parseFloat(s) || 0);
+      return { s: v, t: r2(v / 12), ivc: ivcEff[i] };
+    }),
+    [stipsEffMC, ivcEff],
   );
 
   const resPensione   = useMemo(() => calcPensione(effImpBase), [effImpBase]);
   const resTFS        = useMemo(() => calcTFS(stipEffBase, effImpBase), [stipEffBase, effImpBase]);
+
   const resPensioneMC = useMemo(
     () => isMCEligibile && mcOn && mcPos ? calcPensione(effImpMC, nuovoTab) : null,
     [isMCEligibile, mcOn, mcPos, effImpMC, nuovoTab],
   );
+
   const resTFSMC = useMemo(
     () => isMCTFSEligibile && mcOn && mcPos ? calcTFS(stipEffMC, effImpMC) : null,
     [isMCTFSEligibile, mcOn, mcPos, stipEffMC, effImpMC],
@@ -536,6 +599,10 @@ export default function CalcoloUnificatoUltimoMiglio() {
   const stepIdx = STEPS.findIndex(s => s.id === step);
   const showMCCol = isMCEligibile && mcOn && !!mcPos;
 
+  // IVC auto corrente per mese (per visualizzazione nella tabella)
+  const ivcAutoVal = (m: MeseRif) =>
+    mcPos && m.anno === 2023 ? (IVC_TABLE_2023[mcPos] ?? 0) : 0;
+
   // ── Render Anagrafica ──────────────────────────────────────────────────────
   const renderAna = () => (
     <div className="space-y-4 max-w-xl">
@@ -543,11 +610,10 @@ export default function CalcoloUnificatoUltimoMiglio() {
       {(['nome','cf','data','dataCessazione','motivo'] as const).map(k => (
         <div key={k}>
           <label className="block text-sm font-medium text-slate-600 mb-1">
-            {k==='cf' ? 'Codice Fiscale' : k==='data' ? 'Data inizio servizio'
-              : k==='dataCessazione' ? 'Data cessazione' : k==='motivo' ? 'Motivo cessazione' : 'Nominativo'}
+            {k==='cf'?'Codice Fiscale':k==='data'?'Data inizio servizio':k==='dataCessazione'?'Data cessazione':k==='motivo'?'Motivo cessazione':'Nominativo'}
           </label>
           <input
-            type={k==='data'||k==='dataCessazione' ? 'date' : 'text'}
+            type={k==='data'||k==='dataCessazione'?'date':'text'}
             value={ana[k]}
             onChange={e => setAna(p => ({ ...p, [k]: e.target.value }))}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -557,13 +623,13 @@ export default function CalcoloUnificatoUltimoMiglio() {
       {ana.dataCessazione.length===10 && !isMCEligibile && (
         <div className="flex items-start gap-2 bg-slate-100 border border-slate-300 rounded-lg p-3 text-xs text-slate-600">
           <span className="mt-0.5 shrink-0">ℹ️</span>
-          <span>Cessazione antecedente al 01/01/2022 — MC CCNL 2022-2024 <strong>non applicabile</strong>.</span>
+          <span>Cessazione ante 01/01/2022 — MC CCNL 2022-2024 <strong>non applicabile</strong>.</span>
         </div>
       )}
       {ana.dataCessazione.length===10 && isMCEligibile && !isMCTFSEligibile && (
         <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg p-3 text-xs text-amber-700">
           <span className="mt-0.5 shrink-0">ℹ️</span>
-          <span>Cessazione 01/01/2022–31/12/2023 — MC si applica alla <strong>sola Pensione</strong>. TFS su tabellare CCNL 2019-2021.</span>
+          <span>Cessazione 01/01/2022–31/12/2023 — MC si applica alla <strong>sola Pensione</strong>. TFS calcolato su CCNL 2019-2021.</span>
         </div>
       )}
       <button
@@ -574,11 +640,11 @@ export default function CalcoloUnificatoUltimoMiglio() {
     </div>
   );
 
-  // ── Render Voci ────────────────────────────────────────────────────────────
+  // ── Render Voci + MC + Tabella 12 mesi ────────────────────────────────────
   const renderVoci = () => (
     <div className="space-y-5">
       <h2 className="text-lg font-semibold text-slate-800">Voci Retributive — Inserimento Unificato</h2>
-      <p className="text-xs text-slate-500">Inserimento unico: i dati alimentano sia il calcolo Pensione che TFS</p>
+      <p className="text-xs text-slate-500">Inserimento unico: i dati alimentano sia il calcolo Pensione che TFS.</p>
 
       {/* ── Sezione MC ── */}
       <div className={`border rounded-lg p-4 ${isMCEligibile ? 'bg-amber-50 border-amber-200' : 'bg-slate-100 border-slate-300'}`}>
@@ -594,16 +660,14 @@ export default function CalcoloUnificatoUltimoMiglio() {
             <span><strong>MC applicato solo alla Pensione.</strong> Cessazione ante 01/01/2024 — TFS non ricalcolato.</span>
           </div>
         )}
-
-        <label className={`flex items-center gap-2 ${isMCEligibile ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+        <label className={`flex items-center gap-2 ${isMCEligibile?'cursor-pointer':'cursor-not-allowed'}`}>
           <input type="checkbox" checked={mcOn && isMCEligibile} disabled={!isMCEligibile}
             onChange={e => isMCEligibile && setMcOn(e.target.checked)}
             className="w-4 h-4 accent-amber-600 disabled:opacity-40" />
-          <span className={`text-sm font-medium ${isMCEligibile ? 'text-amber-800' : 'text-slate-400'}`}>
+          <span className={`text-sm font-medium ${isMCEligibile?'text-amber-800':'text-slate-400'}`}>
             Applica Miglioramento Contrattuale CCNL 2022-2024
           </span>
         </label>
-
         {isMCEligibile && mcOn && (
           <div className="mt-3 ml-6 flex flex-wrap gap-4">
             <div>
@@ -626,23 +690,22 @@ export default function CalcoloUnificatoUltimoMiglio() {
                 <option value="2026">01.01.2026</option>
               </select>
             </div>
-            {/* Breakdown tabellare + differenziale storico → totale */}
             {mcPos && (
-              <div className="flex items-end pb-1">
-                <div className="text-sm text-amber-800 space-x-1">
-                  <strong>{mcPos}</strong>
-                  <span>·</span>
-                  <span className="font-mono">Tab. € {eur(nuovoTab)}</span>
-                  {peoDiff > 0 && (
-                    <>
-                      <span className="text-amber-600">+</span>
-                      <span className="font-mono">Diff. storico € {eur(peoDiff)}</span>
-                      <span className="text-amber-600">=</span>
-                      <strong className="font-mono text-amber-900">€ {eur(nuovoTab + peoDiff)}</strong>
-                    </>
-                  )}
-                  <span>· Impatto: <strong>Pensione + TFS</strong></span>
-                </div>
+              <div className="flex items-end pb-1 text-sm text-amber-800 space-x-1">
+                <strong>{mcPos}</strong>
+                <span>·</span>
+                <span className="font-mono">Tab. € {eur(nuovoTab)}</span>
+                {peoDiff > 0 && (
+                  <>
+                    <span className="text-amber-600">+</span>
+                    <span className="font-mono">Diff. € {eur(peoDiff)}</span>
+                    <span className="text-amber-600">=</span>
+                    <strong className="font-mono text-amber-900">€ {eur(nuovoTab+peoDiff)}</strong>
+                  </>
+                )}
+                {mcPos && (IVC_TABLE_2023[mcPos] ?? 0) > 0 && (
+                  <span className="text-amber-600 ml-1">· IVC 2023 auto: € {eur(IVC_TABLE_2023[mcPos])}/mese</span>
+                )}
               </div>
             )}
           </div>
@@ -665,74 +728,58 @@ export default function CalcoloUnificatoUltimoMiglio() {
           <tbody>
             {VOCI.map((v, i) => {
               const isPEO = v.id === '02';
-              const baseDisplayVal = isPEO && peoInBase && mcOn && mcPos
-                ? peoDiff
-                : r2(parseFloat(imp[v.id] ?? '') || 0);
+              const baseDisplayVal = isPEO && peoInBase && mcOn && mcPos ? peoDiff : r2(parseFloat(imp[v.id]??'')||0);
               const a = r2(baseDisplayVal * v.x);
-
               return (
-                <tr key={v.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                <tr key={v.id} className={i%2===0?'bg-white':'bg-slate-50'}>
                   <td className="px-3 py-1.5 text-slate-700">
                     <span className="text-slate-400 text-xs mr-1">#{v.id}</span>{v.n}
+                    {v.id==='09' && (
+                      <span className="ml-1 text-xs text-slate-400">(Pensione; TFS usa IVC tabella)</span>
+                    )}
                   </td>
                   <td className="px-3 py-1.5 text-center">
-                    {v.tfs
-                      ? <span className="text-xs text-blue-600 font-medium">P+TFS</span>
-                      : <span className="text-xs text-slate-400">Solo P</span>}
+                    {v.tfs ? <span className="text-xs text-blue-600 font-medium">P+TFS</span>
+                           : <span className="text-xs text-slate-400">Solo P</span>}
                   </td>
-                  <td className="px-3 py-1.5 text-center text-slate-500 text-xs">{v.v13 ? 'SÌ' : '–'}</td>
+                  <td className="px-3 py-1.5 text-center text-slate-500 text-xs">{v.v13?'SÌ':'–'}</td>
                   <td className="px-3 py-1.5 text-center text-slate-500 text-xs">×{v.x}</td>
-
                   <td className="px-3 py-1.5">
                     {isPEO ? (
                       <div className="flex flex-col gap-1.5">
-
-                        {/* Etichetta valore auto MC */}
                         {mcOn && mcPos && (
                           <div className="flex items-center justify-between rounded bg-amber-50 border border-amber-200 px-2 py-1">
                             <span className="text-xs text-amber-600">MC auto ({mcPos}):</span>
-                            <span className="text-xs font-mono font-semibold text-amber-800">
-                              € {eur(peoDiff)}
-                            </span>
+                            <span className="text-xs font-mono font-semibold text-amber-800">€ {eur(peoDiff)}</span>
                           </div>
                         )}
-
-                        {/* Toggle: includi PEO nel calcolo BASE per verifica storica */}
                         <label className="flex items-center gap-1.5 cursor-pointer select-none">
                           <input type="checkbox" checked={peoInBase}
                             onChange={e => setPeoInBase(e.target.checked)}
                             className="w-3.5 h-3.5 accent-blue-600" />
                           <span className="text-xs text-slate-500">
-                            Includi nel BASE{' '}
-                            <span className="text-slate-400">(verifica storica PASSWEB)</span>
+                            Includi nel BASE <span className="text-slate-400">(verifica storica PASSWEB)</span>
                           </span>
                         </label>
-
-                        {/* Input/display BASE */}
                         {peoInBase && mcOn && mcPos ? (
                           <div className="text-right rounded border border-blue-200 bg-blue-50 px-2 py-1 text-sm font-mono font-semibold text-blue-700">
-                            € {eur(peoDiff)}
-                            <span className="ml-1 text-xs font-normal text-blue-400">(= MC)</span>
+                            € {eur(peoDiff)} <span className="ml-1 text-xs font-normal text-blue-400">(= MC)</span>
                           </div>
                         ) : (
                           <input type="number" min="0" step="0.01"
-                            value={imp[v.id] ?? ''}
-                            onChange={e => setVoce(v.id, e.target.value)}
+                            value={imp[v.id]??''} onChange={e => setVoce(v.id, e.target.value)}
                             className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                             placeholder="0,00" />
                         )}
                       </div>
                     ) : (
                       <input type="number" min="0" step="0.01"
-                        value={imp[v.id] ?? ''}
-                        onChange={e => setVoce(v.id, e.target.value)}
+                        value={imp[v.id]??''} onChange={e => setVoce(v.id, e.target.value)}
                         className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
                         placeholder="0,00" />
                     )}
                   </td>
-
-                  <td className="px-3 py-1.5 text-right font-mono text-sm"
-                    style={{ color: a > 0 ? '#0f172a' : '#94a3b8' }}>
+                  <td className="px-3 py-1.5 text-right font-mono text-sm" style={{color:a>0?'#0f172a':'#94a3b8'}}>
                     € {eur(a)}
                   </td>
                 </tr>
@@ -745,10 +792,14 @@ export default function CalcoloUnificatoUltimoMiglio() {
       {/* ── Tabella 12 mesi TFS ── */}
       {ultimi12.length > 0 && (
         <div className="space-y-2 pt-1">
-          <h3 className="text-sm font-semibold text-slate-700">Tabellare Ultimi 12 Mesi — TFS (riferimento PASSWEB)</h3>
+          <h3 className="text-sm font-semibold text-slate-700">
+            Tabellare + IVC — Ultimi 12 Mesi TFS (riferimento PASSWEB)
+          </h3>
           <div className="rounded-lg bg-blue-50 border border-blue-200 p-2.5 text-xs text-blue-700">
-            <strong>Nota:</strong> I mesi ≥ 01/01/2024 con MC attivo vengono aggiornati al nuovo tabellare.
-            Spunta <strong>Eccez.</strong> per mesi con importo difforme (part-time, assenze non retribuite, ecc.).
+            <strong>IVC 2023:</strong> auto dalla tabella CCNL per la posizione selezionata.{' '}
+            <strong>IVC 2024:</strong> inserimento manuale (CCNL 2022-2024 non ancora tabulato).{' '}
+            Colonna <strong>IVC ovr.</strong> sovrascrive il valore automatico.{' '}
+            Colonna <strong>Eccez. tab.</strong> sovrascrive il tabellare del mese.
           </div>
           <div className="overflow-x-auto rounded-lg border border-slate-200">
             <table className="w-full text-sm">
@@ -756,30 +807,63 @@ export default function CalcoloUnificatoUltimoMiglio() {
                 <tr>
                   <th className="px-3 py-2 text-left">Mese / Anno</th>
                   <th className="px-3 py-2 text-center w-14">MC</th>
-                  <th className="px-3 py-2 text-right w-36">Tab. base (€)</th>
-                  {showMCCol && <th className="px-3 py-2 text-right w-36">Tab. MC (€)</th>}
-                  <th className="px-3 py-2 text-center w-16">Eccez.</th>
-                  <th className="px-3 py-2 text-right w-36">Override (€)</th>
+                  <th className="px-3 py-2 text-right w-32">Tab. base (€)</th>
+                  {showMCCol && <th className="px-3 py-2 text-right w-32">Tab. MC (€)</th>}
+                  <th className="px-3 py-2 text-right w-28">IVC auto (€)</th>
+                  <th className="px-3 py-2 text-right w-28">IVC ovr. (€)</th>
+                  <th className="px-3 py-2 text-center w-14">Eccez. tab.</th>
+                  <th className="px-3 py-2 text-right w-28">Tab. ovr. (€)</th>
                 </tr>
               </thead>
               <tbody>
                 {ultimi12.map((m, i) => {
-                  const baseVal = r2(parseFloat(stipsEffBase[i])||0);
-                  const mcVal   = showMCCol ? r2(parseFloat(stipsEffMC[i])||0) : null;
-                  const isMCRow = m.isEligibilePerMC && showMCCol && !exc[i];
+                  const baseVal  = r2(parseFloat(stipsEffBase[i])||0);
+                  const mcVal    = showMCCol ? r2(parseFloat(stipsEffMC[i])||0) : null;
+                  const ivcAuto  = ivcAutoVal(m);
+                  const ivcFinal = ivcEff[i];
+                  const isMCRow  = m.isEligibilePerMC && showMCCol && !exc[i];
+                  const is2024   = m.anno >= 2024;
                   return (
-                    <tr key={i} className={[i%2===0?'bg-white':'bg-slate-50', isMCRow?'ring-1 ring-inset ring-amber-300':''].join(' ')}>
+                    <tr key={i} className={[
+                      i%2===0?'bg-white':'bg-slate-50',
+                      isMCRow?'ring-1 ring-inset ring-amber-300':'',
+                    ].join(' ')}>
                       <td className="px-3 py-1.5 font-medium text-slate-700">{m.mese} {m.anno}</td>
                       <td className="px-3 py-1.5 text-center text-xs">
-                        {isMCRow ? <span className="font-semibold text-amber-600">✓ MC</span> : <span className="text-slate-300">—</span>}
+                        {isMCRow ? <span className="font-semibold text-amber-600">✓ MC</span>
+                                 : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-3 py-1.5 text-right font-mono text-slate-600">€ {eur(baseVal)}</td>
                       {showMCCol && (
                         <td className="px-3 py-1.5 text-right font-mono font-semibold"
-                          style={{ color: isMCRow ? '#92400e' : '#94a3b8' }}>
-                          {mcVal != null ? `€ ${eur(mcVal)}` : '—'}
+                          style={{color:isMCRow?'#92400e':'#94a3b8'}}>
+                          {mcVal!=null ? `€ ${eur(mcVal)}` : '—'}
                         </td>
                       )}
+                      {/* IVC auto */}
+                      <td className="px-3 py-1.5 text-right text-xs font-mono"
+                        style={{color: ivcAuto>0 ? '#0f4c81' : '#94a3b8'}}>
+                        {is2024
+                          ? <span className="italic text-amber-600">manuale</span>
+                          : (ivcAuto > 0 ? `€ ${eur(ivcAuto)}` : '—')
+                        }
+                      </td>
+                      {/* IVC override */}
+                      <td className="px-3 py-1.5">
+                        <input type="number" min="0" step="0.01"
+                          value={ivcOvr[i]}
+                          placeholder={is2024 ? '0,00' : (ivcAuto > 0 ? eur(ivcAuto) : '0,00')}
+                          onChange={e => {
+                            const nv = [...ivcOvr]; nv[i] = e.target.value; setIvcOvr(nv);
+                          }}
+                          className={[
+                            'w-full text-right border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1',
+                            is2024
+                              ? 'border-amber-300 bg-amber-50 focus:ring-amber-400'
+                              : 'border-slate-200 focus:ring-blue-400',
+                          ].join(' ')} />
+                      </td>
+                      {/* Override tabellare */}
                       <td className="px-3 py-1.5 text-center">
                         <input type="checkbox" checked={exc[i]}
                           onChange={e => {
@@ -789,8 +873,9 @@ export default function CalcoloUnificatoUltimoMiglio() {
                           className="w-4 h-4 accent-blue-600" />
                       </td>
                       <td className="px-3 py-1.5">
-                        <input type="number" min="0" step="0.01" disabled={!exc[i]}
-                          value={exc[i] ? stips[i] : ''} placeholder={exc[i] ? '0,00' : '—'}
+                        <input type="number" min="0" step="0.01"
+                          disabled={!exc[i]}
+                          value={exc[i]?stips[i]:''} placeholder={exc[i]?'0,00':'—'}
                           onChange={e => { const ns=[...stips]; ns[i]=e.target.value; setStips(ns); }}
                           className="w-full text-right border border-slate-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-300 disabled:cursor-not-allowed" />
                       </td>
@@ -800,9 +885,12 @@ export default function CalcoloUnificatoUltimoMiglio() {
               </tbody>
               <tfoot className="bg-slate-800 text-white font-semibold text-xs">
                 <tr>
-                  <td className="px-3 py-2 text-slate-300" colSpan={2}>Σ Stipendio 12 mesi</td>
+                  <td className="px-3 py-2 text-slate-300" colSpan={2}>Σ 12 mesi</td>
                   <td className="px-3 py-2 text-right font-mono">€ {eur(stipEffBase.reduce((s,v)=>s+v.s,0))}</td>
                   {showMCCol && <td className="px-3 py-2 text-right font-mono text-amber-300">MC: € {eur(stipEffMC.reduce((s,v)=>s+v.s,0))}</td>}
+                  <td className="px-3 py-2 text-right font-mono text-blue-300" colSpan={2}>
+                    IVC: € {eur(stipEffBase.reduce((s,v)=>s+v.ivc,0))}
+                  </td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>
@@ -819,210 +907,200 @@ export default function CalcoloUnificatoUltimoMiglio() {
   );
 
   // ── Render Risultato ───────────────────────────────────────────────────────
-  const renderRis = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-800">Risultato Calcolo Unificato — PASSWEB</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Calcolato il {new Date().toLocaleString('it-IT')} — non modificabile</p>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab, peoDiff)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
-            ↓ Excel
-          </button>
-          <button onClick={() => exportPDF(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab, peoDiff)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
-            ↓ PDF
-          </button>
-          <button onClick={() => goTo('voci')} className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">← Modifica</button>
-        </div>
-      </div>
+  const renderRis = () => {
+    const tfsRows = (t: RisultatoTFS) =>
+      TFS_ROWS.map(r => ({ label: r.label, val: t[r.key] as number }));
 
-      <div className="bg-slate-100 rounded-lg px-4 py-3 text-sm text-slate-700 flex flex-wrap gap-4">
-        <span><strong>Nominativo:</strong> {ana.nome}</span>
-        <span><strong>CF:</strong> {ana.cf}</span>
-        <span><strong>Data inizio:</strong> {ana.data}</span>
-        <span><strong>Data cessazione:</strong> {ana.dataCessazione}</span>
-        <span><strong>Motivo:</strong> {ana.motivo}</span>
-      </div>
-
-      {/* Banner PEO scope */}
-      {isMCEligibile && mcOn && mcPos && !peoInBase && (
-        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
-          <span className="mt-0.5 shrink-0">ℹ️</span>
-          <span>
-            Differenziale storico (ex PEO) escluso dal calcolo BASE — applicato esclusivamente allo{' '}
-            <strong>Scenario MC</strong>. Per includerlo nel BASE a fini di verifica storica,
-            attivare il toggle nella voce <strong>#02</strong>.
-          </span>
-        </div>
-      )}
-
-      {/* Pannelli BASE affiancati */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-
-        {/* PENSIONE BASE */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-slate-800 text-white px-4 py-3 flex items-center gap-2">
-            <h3 className="font-semibold text-sm">PENSIONE — Ultimo Miglio</h3>
-            {isMCEligibile && mcOn && mcPos && (
-              <span className={`text-xs font-normal px-2 py-0.5 rounded ${peoInBase ? 'bg-blue-500' : 'bg-slate-600'}`}>
-                {peoInBase ? 'BASE con PEO (verifica)' : 'BASE senza PEO'}
-              </span>
-            )}
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800">Risultato Calcolo Unificato — PASSWEB</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Calcolato il {new Date().toLocaleString('it-IT')} — non modificabile</p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-slate-600">Voce</th>
-                  <th className="px-3 py-2 text-center text-slate-600">13^</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Mensile (€)</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Annuo (€)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resPensione.voci.filter(v => v.m > 0).map((v, i) => (
-                  <tr key={v.id} className={i%2===0?'bg-white':'bg-slate-50'}>
-                    <td className="px-3 py-1.5 text-slate-700">{v.n}</td>
-                    <td className="px-3 py-1.5 text-center text-xs text-slate-500">{v.v13?'SÌ':'NO'}</td>
-                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(v.m)}</td>
-                    <td className="px-3 py-1.5 text-right font-mono">€ {eur(v.a)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-blue-50 font-semibold">
-                <tr>
-                  <td colSpan={3} className="px-3 py-2 text-slate-700">TOTALE VOCI FISSE ANNUO</td>
-                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resPensione.a)}</td>
-                </tr>
-                <tr className="border-t border-blue-200">
-                  <td colSpan={3} className="px-3 py-2 text-slate-700">13^ MENSILITÀ</td>
-                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resPensione.t)}</td>
-                </tr>
-              </tfoot>
-            </table>
+          <div className="flex gap-2">
+            <button
+              onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab, peoDiff)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
+              ↓ Excel
+            </button>
+            <button
+              onClick={() => exportPDF(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab, peoDiff)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
+              ↓ PDF
+            </button>
+            <button onClick={() => goTo('voci')} className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">← Modifica</button>
           </div>
         </div>
 
-        {/* TFS BASE */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="bg-slate-800 text-white px-4 py-3">
-            <h3 className="font-semibold text-sm">TFS PENSIONATI — Ultimo Miglio</h3>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-slate-600">Componente</th>
-                  <th className="px-3 py-2 text-right text-slate-600">Importo annuo (€)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {([
-                  { label:'Retribuzione Ind. Anzianità (R.I.A.)',                   val:resTFS.ria   },
-                  { label:'Tredicesima mensilità',                                  val:resTFS.tredT },
-                  { label:'Stipendio tabellare (TAB E)',                             val:resTFS.stipT },
-                  { label:'Indennità aggiuntive personale asili nido e scolastico', val:resTFS.asili },
-                  { label:'Indennità specifica ex art.4 comma 3 ccnl 1996',        val:resTFS.ind64 },
-                  { label:'Indennità di vigilanza per 12 mensilità',               val:resTFS.vig   },
-                ] as {label:string;val:number}[]).map(({label,val},i) =>
-                  val > 0 ? (
-                    <tr key={label} className={i%2===0?'bg-white':'bg-slate-50'}>
-                      <td className="px-3 py-1.5 text-slate-700">{label}</td>
-                      <td className="px-3 py-1.5 text-right font-mono">€ {eur(val)}</td>
-                    </tr>
-                  ) : null
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="bg-blue-50 font-semibold border-t border-blue-200">
-                  <td className="px-3 py-2 text-blue-800">TOTALE TFS PENSIONATI</td>
-                  <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.tot)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+        <div className="bg-slate-100 rounded-lg px-4 py-3 text-sm text-slate-700 flex flex-wrap gap-4">
+          <span><strong>Nominativo:</strong> {ana.nome}</span>
+          <span><strong>CF:</strong> {ana.cf}</span>
+          <span><strong>Data inizio:</strong> {ana.data}</span>
+          <span><strong>Data cessazione:</strong> {ana.dataCessazione}</span>
+          <span><strong>Motivo:</strong> {ana.motivo}</span>
         </div>
-      </div>
 
-      {/* ── Pannello MC ── */}
-      {isMCEligibile && mcOn && mcPos && resPensioneMC && (() => {
-        type MCRow = { label:string; base:number; mc:number };
-        const rows: MCRow[] = [
-          { label:'Pensione — Tot. voci fisse annuo', base:resPensione.a, mc:resPensioneMC.a },
-          { label:'Pensione — 13^ mensilità',          base:resPensione.t, mc:resPensioneMC.t },
-          ...(resTFSMC ? [
-            ...[
-              { label:'TFS — Retribuzione Ind. Anzianità (R.I.A.)',                   base:resTFS.ria,   mc:resTFSMC.ria   },
-              { label:'TFS — Tredicesima mensilità',                                   base:resTFS.tredT, mc:resTFSMC.tredT },
-              { label:'TFS — Stipendio tabellare (TAB E)',                             base:resTFS.stipT, mc:resTFSMC.stipT },
-              { label:'TFS — Indennità aggiuntive personale asili nido e scolastico', base:resTFS.asili, mc:resTFSMC.asili },
-              { label:'TFS — Indennità specifica ex art.4 comma 3 ccnl 1996',        base:resTFS.ind64, mc:resTFSMC.ind64 },
-              { label:'TFS — Indennità di vigilanza per 12 mensilità',               base:resTFS.vig,   mc:resTFSMC.vig   },
-            ].filter(r => r.base > 0 || r.mc > 0),
-            { label:'TFS — Totale complessivo', base:resTFS.tot, mc:resTFSMC.tot },
-          ] : []),
-        ];
-        return (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
-            <div className="bg-amber-700 text-white px-4 py-3">
-              <h3 className="font-semibold text-sm">
-                MIGLIORAMENTO CONTRATTUALE CCNL 2022-2024 — {mcPos} · Decorrenza: 01.01.{mcDec}
-              </h3>
-              {/* Breakdown tabellare + differenziale → totale */}
-              <p className="text-xs font-normal mt-1 text-amber-200">
-                Tab. mensile: € {eur(nuovoTab)}
-                {peoDiff > 0 && (
-                  <> + Diff. storico (ex PEO): € {eur(peoDiff)} ={' '}
-                    <strong className="text-white">€ {eur(nuovoTab + peoDiff)}</strong>
-                  </>
-                )}
-                {!isMCTFSEligibile && (
-                  <span className="ml-3 bg-amber-900/50 px-2 py-0.5 rounded">Solo Pensione — TFS non ricalcolato</span>
-                )}
-              </p>
+        {/* Pannelli BASE affiancati */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+          {/* PENSIONE */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 text-white px-4 py-3 flex items-center gap-2">
+              <h3 className="font-semibold text-sm">PENSIONE — Ultimo Miglio</h3>
+              {isMCEligibile && mcOn && mcPos && (
+                <span className={`text-xs font-normal px-2 py-0.5 rounded ${peoInBase?'bg-blue-500':'bg-slate-600'}`}>
+                  {peoInBase?'BASE con PEO (verifica)':'BASE senza PEO'}
+                </span>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-amber-100">
+                <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-amber-800">Indicatore</th>
-                    <th className="px-3 py-2 text-right text-amber-800">CCNL 2019-2021</th>
-                    <th className="px-3 py-2 text-right text-amber-800">CCNL 2022-2024</th>
-                    <th className="px-3 py-2 text-right text-amber-800">Variazione</th>
+                    <th className="px-3 py-2 text-left text-slate-600">Voce</th>
+                    <th className="px-3 py-2 text-center text-slate-600">13^</th>
+                    <th className="px-3 py-2 text-right text-slate-600">Mensile (€)</th>
+                    <th className="px-3 py-2 text-right text-slate-600">Annuo (€)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(({ label, base, mc }, i) => {
-                    const delta  = r2(mc - base);
-                    const pct    = base > 0 ? ((delta/base)*100).toFixed(2) : null;
-                    const isZero = delta === 0;
-                    return (
-                      <tr key={label} className={i%2===0?'bg-white':'bg-amber-50/50'}>
-                        <td className="px-3 py-1.5 text-slate-700">{label}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">€ {eur(base)}</td>
-                        <td className="px-3 py-1.5 text-right font-mono">€ {eur(mc)}</td>
-                        <td className="px-3 py-1.5 text-right font-mono font-semibold"
-                          style={{ color: isZero ? '#64748b' : delta > 0 ? '#166534' : '#b91c1c' }}>
-                          {isZero
-                            ? <span className="font-normal italic text-slate-400">= invariata</span>
-                            : <>{delta>0?'+':''}€ {eur(delta)}{pct?` (${pct}%)`:''}</>}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {resPensione.voci.filter(v => v.m > 0).map((v, i) => (
+                    <tr key={v.id} className={i%2===0?'bg-white':'bg-slate-50'}>
+                      <td className="px-3 py-1.5 text-slate-700">{v.n}</td>
+                      <td className="px-3 py-1.5 text-center text-xs text-slate-500">{v.v13?'SÌ':'NO'}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">€ {eur(v.m)}</td>
+                      <td className="px-3 py-1.5 text-right font-mono">€ {eur(v.a)}</td>
+                    </tr>
+                  ))}
                 </tbody>
+                <tfoot className="bg-blue-50 font-semibold">
+                  <tr>
+                    <td colSpan={3} className="px-3 py-2 text-slate-700">TOTALE VOCI FISSE ANNUO</td>
+                    <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resPensione.a)}</td>
+                  </tr>
+                  <tr className="border-t border-blue-200">
+                    <td colSpan={3} className="px-3 py-2 text-slate-700">13^ MENSILITÀ</td>
+                    <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resPensione.t)}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
-        );
-      })()}
-    </div>
-  );
 
-  // ── Layout ─────────────────────────────────────────────────────────────────
+          {/* TFS PENSIONATI — 9 campi PASSWEB */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-slate-800 text-white px-4 py-3">
+              <h3 className="font-semibold text-sm">TFS PENSIONATI — Ultimo Miglio (9 campi PASSWEB)</h3>
+              {mcPos && stipEffBase.some(s => s.ivc > 0) && (
+                <p className="text-xs text-slate-400 mt-0.5">
+                  IVC 2023 auto: € {eur(IVC_TABLE_2023[mcPos]??0)}/mese · Σ IVC: € {eur(stipEffBase.reduce((s,v)=>s+v.ivc,0))}
+                </p>
+              )}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-slate-600">Campo PASSWEB</th>
+                    <th className="px-3 py-2 text-right text-slate-600">Importo annuo (€)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tfsRows(resTFS).map(({ label, val }, i) => (
+                    <tr key={label} className={i%2===0?'bg-white':'bg-slate-50'}>
+                      <td className="px-3 py-1.5 text-slate-700 text-xs">{label}</td>
+                      <td className={`px-3 py-1.5 text-right font-mono ${val===0?'text-slate-300':''}`}>
+                        € {eur(val)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-blue-50 font-semibold border-t border-blue-200">
+                    <td className="px-3 py-2 text-blue-800">TOTALE TFS PENSIONATI</td>
+                    <td className="px-3 py-2 text-right font-mono text-blue-800">€ {eur(resTFS.tot)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Pannello MC ── */}
+        {isMCEligibile && mcOn && mcPos && resPensioneMC && (() => {
+          type MCRow = { label: string; base: number; mc: number };
+          const rows: MCRow[] = [
+            { label:'Pensione — Tot. voci fisse annuo', base:resPensione.a, mc:resPensioneMC.a },
+            { label:'Pensione — 13^ mensilità',          base:resPensione.t, mc:resPensioneMC.t },
+            ...(resTFSMC ? [
+              ...TFS_ROWS.map(r => ({
+                label: 'TFS — ' + r.label,
+                base: resTFS[r.key] as number,
+                mc:   resTFSMC![r.key] as number,
+              })).filter(r => r.base > 0 || r.mc > 0),
+              { label:'TFS — Totale complessivo', base:resTFS.tot, mc:resTFSMC.tot },
+            ] : []),
+          ];
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl overflow-hidden">
+              <div className="bg-amber-700 text-white px-4 py-3">
+                <h3 className="font-semibold text-sm">
+                  MIGLIORAMENTO CONTRATTUALE CCNL 2022-2024 — {mcPos} · Decorrenza: 01.01.{mcDec}
+                </h3>
+                <p className="text-xs font-normal mt-1 text-amber-200">
+                  Tab. mensile: € {eur(nuovoTab)}
+                  {peoDiff > 0 && (
+                    <> + Diff. storico: € {eur(peoDiff)} = <strong className="text-white">€ {eur(nuovoTab+peoDiff)}</strong></>
+                  )}
+                  {mcPos && (IVC_TABLE_2023[mcPos]??0) > 0 && (
+                    <> · IVC 2023: € {eur(IVC_TABLE_2023[mcPos])}/mese</>
+                  )}
+                  {!isMCTFSEligibile && (
+                    <span className="ml-3 bg-amber-900/50 px-2 py-0.5 rounded">Solo Pensione — TFS non ricalcolato</span>
+                  )}
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-amber-100">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-amber-800">Indicatore</th>
+                      <th className="px-3 py-2 text-right text-amber-800">CCNL 2019-2021</th>
+                      <th className="px-3 py-2 text-right text-amber-800">CCNL 2022-2024</th>
+                      <th className="px-3 py-2 text-right text-amber-800">Variazione</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(({ label, base, mc }, i) => {
+                      const delta = r2(mc - base);
+                      const pct   = base > 0 ? ((delta/base)*100).toFixed(2) : null;
+                      const isZ   = delta === 0;
+                      return (
+                        <tr key={label} className={i%2===0?'bg-white':'bg-amber-50/50'}>
+                          <td className="px-3 py-1.5 text-slate-700 text-xs">{label}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">€ {eur(base)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">€ {eur(mc)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono font-semibold"
+                            style={{color:isZ?'#64748b':delta>0?'#166534':'#b91c1c'}}>
+                            {isZ
+                              ? <span className="font-normal italic text-slate-400">= invariata</span>
+                              : <>{delta>0?'+':''}€ {eur(delta)}{pct?` (${pct}%)`:''}</>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  };
+
+  // ── Layout principale ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-900">
       <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
