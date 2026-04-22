@@ -4,7 +4,7 @@ import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
 import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
 import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
 import AnticipoDMA from './components/AnticipoDMA';
-import CalcoloUnificatoUltimoMiglio from './components/CalcoloUnificatoUltimoMiglio';
+import ProjectShell from './components/ProjectShell';
 
 type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | 'unificato' | null;
 
@@ -18,7 +18,7 @@ export default function App() {
       case 'tfs_servizio': return 'Ultimo miglio TFS In Servizio';
       case 'lettere': return 'Modelli Lettere';
       case 'anticipo_dma': return 'Anticipo DMA';
-      case 'unificato': return 'Calcolo Unificato Ultimo Miglio';
+      case 'unificato': return 'Gestione Progetti PASSWEB';
       default: return '';
     }
   };
@@ -72,7 +72,7 @@ export default function App() {
       />
       <ServiceCard
         title="Calcolo Unificato Ultimo Miglio"
-        description="Tool unificato Pensione + TFS Pensionati. Inserimento unico, export Excel e PDF PASSWEB."
+        description="Gestione progetti per Ente/Comune. Conteggi PASSWEB con export lettera INPS Art. 57 c.2 CCNL 2022/2024."
         icon={<Layers className="w-8 h-8 text-blue-600" />}
         onClick={() => setActiveService('unificato')}
       />
@@ -120,7 +120,7 @@ export default function App() {
       return (
         <>
           <BackButton darkMode />
-          <CalcoloUnificatoUltimoMiglio />
+          <ProjectShell />
         </>
       );
     }
