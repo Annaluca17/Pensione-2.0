@@ -12,6 +12,16 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// ─── Props (integrazione ProjectShell) ───────────────────────────────────────
+
+interface CalcoloUnificatoProps {
+  /**
+   * Callback opzionale iniettata da ProjectShell.
+   * Se presente, compare il pulsante "Salva nel Progetto" nella schermata Risultato.
+   */
+  onSaveToProject?: (d: { nome: string; cf: string; dataCessazione: string }) => void;
+}
+
 // ─── Tipi ────────────────────────────────────────────────────────────────────
 
 interface Anagrafica {
@@ -197,16 +207,6 @@ function calcPensione(imp: Record<string, string>, overrideTab?: number): CalcPe
 
 /**
  * calcTFS — nuova struttura a 9 campi PASSWEB
- *
- * stipEff: array 12 mesi con { s: tabellare mensile, t: tabellare/12, ivc: IVC mensile }
- * imp: voci retributive inserite dall'utente
- *
- * Struttura matematica verificata sull'Excel di riferimento:
- *   - TAB G compreso IVC = Σ12(tab_i + ivc_i)
- *   - Tredicesima = sT + PEO + diff + assNonRiass + assAss + RIA  (IVC esclusa: già in TAB G)
- *   - Differenziali = (PEO + diff) × 12
- *   - assAss/assNonRiass = voce × 12 (quota annua; +1 in tredicesima = tot ×13)
- *   - RIA = voce × 12 (quota annua; +1 in tredicesima = tot ×13)
  */
 function calcTFS(
   stipEff: Array<{ s: number; t: number; ivc: number }>,
@@ -219,8 +219,6 @@ function calcTFS(
 
   const tabG        = r2(sS + sIVC);
   const ria         = r2(vm('06') * 12);
-  // Tredicesima: tutte le voci v13=true utili al TFS + IVC dell'ULTIMA mensilità
-  // (Enti Locali: si usa l'ultima retribuzione utile alla cessazione, non la media 12 mesi)
   const ivcUltimo   = stipEff.length > 0 ? stipEff[stipEff.length - 1].ivc : 0;
   const tred        = r2(sT + vm('02') + vm('03') + vm('04') + vm('05') + vm('06') + ivcUltimo);
   const assAss      = r2(vm('05') * 12);
@@ -354,8 +352,8 @@ function exportPDF(
 ): void {
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const ts  = new Date().toLocaleString('it-IT');
-  const SL  = [30, 41, 59] as [number,number,number];   // slate-800
-  const AM  = [120, 53, 15] as [number,number,number];  // amber-900
+  const SL  = [30, 41, 59] as [number,number,number];
+  const AM  = [120, 53, 15] as [number,number,number];
 
   const printScenario = (
     p: CalcPensioneResult,
@@ -413,7 +411,6 @@ function exportPDF(
     return (doc as any).lastAutoTable.finalY;
   };
 
-  // Pagina 1 — Scenario BASE
   doc.setFont('helvetica','bold'); doc.setFontSize(13);
   doc.text('CALCOLO UNIFICATO ULTIMO MIGLIO — INPS PASSWEB', 14, 18);
   doc.setFont('helvetica','normal'); doc.setFontSize(9);
@@ -432,7 +429,6 @@ function exportPDF(
   printScenario(pensione, tfs, r2(pensione.voci.find(v=>v.id==='01')?.m??0), SL, y);
 
   if (pensioneMC) {
-    // Pagina 2 — Scenario MC
     doc.addPage();
     doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.setTextColor(120,53,15);
     doc.text('CALCOLO UNIFICATO ULTIMO MIGLIO — INPS PASSWEB', 14, 18);
@@ -454,7 +450,6 @@ function exportPDF(
     doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); y += 4;
     printScenario(pensioneMC, tfsMC, nuovoTab, AM, y);
 
-    // Pagina 3 — Confronto
     doc.addPage();
     const tabBase = r2(pensione.voci.find(v=>v.id==='01')?.m??0);
     doc.setFont('helvetica','bold'); doc.setFontSize(11);
@@ -500,7 +495,7 @@ function exportPDF(
 
 // ─── Componente principale ────────────────────────────────────────────────────
 
-export default function CalcoloUnificatoUltimoMiglio() {
+export default function CalcoloUnificatoUltimoMiglio({ onSaveToProject }: CalcoloUnificatoProps = {}) {
   const [step, setStep] = useState<StepId>('ana');
   const [ana,  setAna]  = useState<Anagrafica>({ nome:'', cf:'', data:'', dataCessazione:'', motivo:'' });
   const [imp,  setImp]  = useState<Record<string, string>>({});
@@ -512,11 +507,8 @@ export default function CalcoloUnificatoUltimoMiglio() {
 
   const [peoInBase, setPeoInBase] = useState(false);
 
-  // Override tabellare per mesi eccezionali (part-time, assenze, ecc.)
   const [stips, setStips] = useState<string[]>(Array(12).fill(''));
   const [exc,   setExc]   = useState<boolean[]>(Array(12).fill(false));
-
-  // Override IVC per mese: '' = usa valore automatico; altrimenti valore manuale
   const [ivcOvr, setIvcOvr] = useState<string[]>(Array(12).fill(''));
 
   const base     = r2(parseFloat(imp['01']) || 0);
@@ -537,18 +529,11 @@ export default function CalcoloUnificatoUltimoMiglio() {
     [imp, mcOn, mcPos, peoDiff],
   );
 
-  // Gate eligibilità MC: Pensione (>= 01/01/2022), TFS (>= 01/01/2024)
   const isMCEligibile    = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2022-01-01';
   const isMCTFSEligibile = ana.dataCessazione.length === 10 && ana.dataCessazione >= '2024-01-01';
 
   const ultimi12 = useMemo(() => getUltimi12Mesi(ana.dataCessazione), [ana.dataCessazione]);
 
-  /**
-   * IVC effettiva per mese: auto dalla tabella 2023, manuale per 2024.
-   * Override ha priorità assoluta.
-   * Auto: se mcPos selezionata e anno=2023 → IVC_TABLE_2023[mcPos]
-   * Per 2024: nessun valore automatico (IVC 2024 inserita manualmente in PASSWEB).
-   */
   const ivcEff = useMemo(
     () => {
       const ivc09 = r2(parseFloat(imp['09']) || 0);
@@ -609,7 +594,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
   const stepIdx = STEPS.findIndex(s => s.id === step);
   const showMCCol = isMCEligibile && mcOn && !!mcPos;
 
-  // IVC auto corrente per mese (per visualizzazione nella tabella)
   const ivcAutoVal = (m: MeseRif) =>
     mcPos && m.anno === 2023 ? (IVC_TABLE_2023[mcPos] ?? 0) : 0;
 
@@ -850,7 +834,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
                           {mcVal!=null ? `€ ${eur(mcVal)}` : '—'}
                         </td>
                       )}
-                      {/* IVC auto */}
                       <td className="px-3 py-1.5 text-right text-xs font-mono"
                         style={{color: ivcAuto>0 ? '#0f4c81' : '#94a3b8'}}>
                         {is2024
@@ -865,7 +848,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
                           : (ivcAuto > 0 ? `€ ${eur(ivcAuto)}` : '—')
                         }
                       </td>
-                      {/* IVC override */}
                       <td className="px-3 py-1.5">
                         <input type="number" min="0" step="0.01"
                           value={ivcOvr[i]}
@@ -881,7 +863,6 @@ export default function CalcoloUnificatoUltimoMiglio() {
                             NO_SPIN,
                           ].join(' ')} />
                       </td>
-                      {/* Override tabellare */}
                       <td className="px-3 py-1.5 text-center">
                         <input type="checkbox" checked={exc[i]}
                           onChange={e => {
@@ -936,7 +917,18 @@ export default function CalcoloUnificatoUltimoMiglio() {
             <h2 className="text-lg font-semibold text-slate-800">Risultato Calcolo Unificato — PASSWEB</h2>
             <p className="text-xs text-slate-400 mt-0.5">Calcolato il {new Date().toLocaleString('it-IT')} — non modificabile</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {/* ── PATCH 3: Pulsante Salva nel Progetto ── */}
+            {onSaveToProject && (
+              <button
+                onClick={() => onSaveToProject({ nome: ana.nome, cf: ana.cf, dataCessazione: ana.dataCessazione })}
+                disabled={!ana.cf || !ana.dataCessazione}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-900 disabled:opacity-50 transition-colors"
+                title="Salva anagrafica nel progetto PASSWEB attivo"
+              >
+                💾 Salva nel Progetto
+              </button>
+            )}
             <button
               onClick={() => exportXLSX(ana, resPensione, resTFS, resPensioneMC, resTFSMC, mcPos, mcDec, nuovoTab, peoDiff)}
               className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">
