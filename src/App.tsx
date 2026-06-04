@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock, Layers } from 'lucide-react';
+import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock, Layers, Banknote } from 'lucide-react';
 import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
 import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
 import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
 import AnticipoDMA from './components/AnticipoDMA';
 import ProjectShell from './components/ProjectShell';
+import UltimoMiglioTFRShell from './components/tfr/UltimoMiglioTFRShell';
 
-type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | 'unificato' | null;
+type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | 'unificato' | 'tfr' | null;
 
 export default function App() {
   const [activeService, setActiveService] = useState<ServiceType>(null);
@@ -19,6 +20,7 @@ export default function App() {
       case 'lettere': return 'Modelli Lettere';
       case 'anticipo_dma': return 'Anticipo DMA';
       case 'unificato': return 'Gestione Progetti PASSWEB';
+      case 'tfr': return 'Calcolo Ultimo Miglio TFR';
       default: return '';
     }
   };
@@ -76,6 +78,12 @@ export default function App() {
         icon={<Layers className="w-8 h-8 text-blue-600" />}
         onClick={() => setActiveService('unificato')}
       />
+      <ServiceCard
+        title="Calcolo Ultimo Miglio TFR"
+        description="Gestione e calcolo ultimo miglio TFR (pensione, mobilità, fine T.D.). Progetti per Comune, schede PASSWEB e lettera INPS."
+        icon={<Banknote className="w-8 h-8 text-blue-600" />}
+        onClick={() => setActiveService('tfr')}
+      />
     </div>
   );
 
@@ -121,6 +129,15 @@ export default function App() {
         <>
           <BackButton darkMode />
           <ProjectShell />
+        </>
+      );
+    }
+
+    if (activeService === 'tfr') {
+      return (
+        <>
+          <BackButton darkMode />
+          <UltimoMiglioTFRShell />
         </>
       );
     }
