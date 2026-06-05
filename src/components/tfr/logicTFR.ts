@@ -152,7 +152,10 @@ export function calcolaTFR(input: InputTFR): RisultatoTFR {
     const giorniTot  = input.giorniTotaliMaturazione ?? 0;
     const giorniUlt  = input.giorniUltimoMese ?? giornoDelMese(input.dataCessazione);
     const valutabili = input.emolumentiValutabili ?? 0;
-    const quota = giorniTot > 0 ? (tredAnnua / giorniTot) * giorniUlt : 0;
+    // Quota giorno = Tredicesima totale / Giorni lavorati anno.
+    // Dato da inserire = Quota giorno × (giorni lavorati anno − giorni lavorati ultimo mese).
+    const quotaGiorno = giorniTot > 0 ? tredAnnua / giorniTot : 0;
+    const quota = quotaGiorno * (giorniTot - giorniUlt);
     tredicesimaEmolumentiCassa = round2(quota + valutabili);
     inputs.tredicesimaAnnua          = tredAnnua;
     inputs.giorniTotaliMaturazione   = giorniTot;

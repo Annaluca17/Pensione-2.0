@@ -450,14 +450,14 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                 <h4 className="text-sm font-semibold text-slate-700">Mese iniziale — rateo 13^ teorica primo anno</h4>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Retribuzione virtuale TFR (PASSWEB) del 1° mese pieno
+                    Retribuzione valutabile TFR (PASSWEB) del 1° mese pieno
                   </label>
                   <input type="number" min="0" step="0.01" value={retrPrimoMesePieno}
                     onChange={e => setRetrPrimoMesePieno(e.target.value)} placeholder="0,00"
                     className={`w-full max-w-xs text-right border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${NO_SPIN}`} />
                 </div>
                 <NotaGuida>
-                  Inserire il valore della retribuzione virtuale ai fini TFR così come esposto su PASSWEB nel
+                  Inserire il valore della retribuzione valutabile ai fini TFR così come esposto su PASSWEB nel
                   primo mese intero di servizio. Usando il dato PASSWEB si evita il calcolo da cedolino
                   (imponibile / 13 × 1,25 riproporzionato al part-time): il valore PASSWEB è già al netto della riproporzione.
                 </NotaGuida>
@@ -489,7 +489,7 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                 <h4 className="text-sm font-semibold text-slate-700">Mese finale — rateo 13^ teorica cessazione (≥ 15 gg)</h4>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Retribuzione virtuale TFR (PASSWEB) dell’ultimo mese pieno
+                    Retribuzione valutabile TFR (PASSWEB) dell’ultimo mese pieno
                   </label>
                   <input type="number" min="0" step="0.01" value={retrUltimoMesePieno}
                     onChange={e => setRetrUltimoMesePieno(e.target.value)} placeholder="0,00"
@@ -545,7 +545,7 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                   <p className="text-xs text-slate-500 mb-1">Tredicesima ed emolumenti valutabili arretrati per cassa</p>
                   <span className="text-lg font-bold text-blue-700 font-mono">{eur(r.tredicesimaEmolumentiCassa)}</span>
                   <p className="text-xs text-slate-400 mt-1">
-                    = (Tredicesima annua / Giorni totali maturazione) × {giornoCess} giorni + emolumenti valutabili
+                    = (Tredicesima annua / Giorni lavorati anno) × (Giorni lavorati anno − {giornoCess}) + emolumenti valutabili
                   </p>
                 </div>
               </div>
