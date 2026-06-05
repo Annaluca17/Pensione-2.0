@@ -19,6 +19,7 @@ import {
 } from './logicTFR';
 import { buildPasswebGuide } from './passwebGuide';
 import {
+  AVVISO_VERIFICHE,
   CHECKLIST_VOCI, checklistCompleta, emptyChecklist,
   LS_KEY_TFR_BOZZE,
   type ChecklistTFR, type DipendenteTFR, type VoceInfo,
@@ -385,10 +386,15 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
           ))}
         </div>
 
+        <div className="bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-xs text-red-800 flex gap-2">
+          <span className="shrink-0">⚠️</span>
+          <span><strong>Attenzione:</strong> {AVVISO_VERIFICHE}</span>
+        </div>
+
         {!completa && (
           <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-800 flex gap-2">
             <span className="shrink-0">ℹ️</span>
-            <span>Lo Step 3 (analisi e output PASSWEB) è accessibile solo dopo aver spuntato <strong>tutte e 7</strong> le voci.</span>
+            <span>Lo Step 3 (analisi e output PASSWEB) è accessibile solo dopo aver spuntato <strong>tutte e {CHECKLIST_VOCI.length}</strong> le voci.</span>
           </div>
         )}
 
@@ -729,6 +735,10 @@ function InfoModal({ voce, onClose }: { voce: InfoAperta; onClose: () => void })
                 : <p className="text-sm text-slate-400 italic">Contenuto in preparazione.</p>}
             </div>
           ))}
+          <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 flex gap-2">
+            <span className="shrink-0">⚠️</span>
+            <span><strong>Attenzione:</strong> {AVVISO_VERIFICHE}</span>
+          </div>
         </div>
       </div>
     </div>

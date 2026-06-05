@@ -14,13 +14,12 @@ export const LS_KEY_TFR = 'xdesk_tfr_progetti_v1';
 export const LS_KEY_TFR_BOZZE = 'xdesk_tfr_bozze_v1';
 
 export interface ChecklistTFR {
-  dateEsatte: boolean;                // Verifica delle date esatte
-  tipoImpiego: boolean;               // Verifica tipo impiego esatto
-  assenzaVuotiContributivi: boolean;  // Verifica assenza vuoti contributivi
-  interoPeriodoTFR: boolean;          // Verifica se intero periodo TFR
-  codiceCessazione: boolean;          // Verifica codice cessazione
-  nonAccavallamento: boolean;         // Verifica non accavallamento date assunzione/cessazione
-  congruitaImponibili: boolean;       // Verifica congruità imponibili tra i mesi
+  dateEsatte: boolean;                // 1. Verifica delle date esatte (incl. non accavallamento con altri Enti)
+  tipoImpiego: boolean;               // 2. Verifica tipo impiego esatto
+  codiceCessazione: boolean;          // 3. Verifica codice cessazione
+  assenzaVuotiContributivi: boolean;  // 4. Verifica assenza vuoti contributivi
+  congruitaImponibili: boolean;       // 5. Verifica congruità imponibili tra i mesi
+  interoPeriodoTFR: boolean;          // 6. Verifica se intero periodo TFR
 }
 
 export interface DipendenteTFR {
@@ -46,23 +45,20 @@ export interface ProgettoTFR {
 export const emptyChecklist = (): ChecklistTFR => ({
   dateEsatte: false,
   tipoImpiego: false,
-  assenzaVuotiContributivi: false,
-  interoPeriodoTFR: false,
   codiceCessazione: false,
-  nonAccavallamento: false,
+  assenzaVuotiContributivi: false,
   congruitaImponibili: false,
+  interoPeriodoTFR: false,
 });
 
 /**
  * Contenuto della scheda informativa (popup "i") di una voce di verifica.
- * Spiega COSA controllare, COME farlo e DOVE trovarlo su PASSWEB / cedolino.
- * NB: i contenuti verranno compilati step-by-step in seguito; qui è predisposta
- * solo la struttura (stringa vuota ⇒ il popup mostra "Contenuto in preparazione").
+ * Spiega COSA controllare, COME farlo e DOVE trovarlo su PASSWEB.
  */
 export interface VoceInfo {
   cosa: string;   // Cosa si deve controllare
   come: string;   // Come effettuare la verifica
-  dove: string;   // Dove reperire il dato (schermata PASSWEB, cedolino, ecc.)
+  dove: string;   // Percorso/schermata PASSWEB dove reperire il dato
 }
 
 export interface VoceChecklist {
@@ -71,19 +67,71 @@ export interface VoceChecklist {
   info: VoceInfo;
 }
 
-/** Struttura info vuota, pronta da compilare. */
-const infoVuota = (): VoceInfo => ({ cosa: '', come: '', dove: '' });
-
-/** Voci della checklist con etichetta, nell'ordine richiesto dalla maschera. */
+/** Voci della checklist con etichetta, nell'ordine di lavorazione indicato. */
 export const CHECKLIST_VOCI: VoceChecklist[] = [
-  { key: 'dateEsatte',               label: 'Verifica delle date esatte',                                 info: infoVuota() },
-  { key: 'tipoImpiego',              label: 'Verifica tipo impiego esatto',                               info: infoVuota() },
-  { key: 'assenzaVuotiContributivi', label: 'Verifica assenza vuoti contributivi',                        info: infoVuota() },
-  { key: 'interoPeriodoTFR',         label: 'Verifica se intero periodo TFR',                             info: infoVuota() },
-  { key: 'codiceCessazione',         label: 'Verifica codice cessazione',                                 info: infoVuota() },
-  { key: 'nonAccavallamento',        label: 'Verifica non accavallamento date assunzione/cessazione',     info: infoVuota() },
-  { key: 'congruitaImponibili',      label: 'Verifica congruità imponibili tra i mesi',                   info: infoVuota() },
+  {
+    key: 'dateEsatte',
+    label: 'Verifica delle date esatte',
+    info: {
+      cosa: 'Verificare che le date di assunzione e cessazione presenti in PASSWEB coincidano con i dati prodotti dall’Ente. Verificare inoltre che non si accavallino date di assunzione e cessazione con altri Enti.',
+      come: 'Una volta in Esecutore, selezionare l’Ente interessato e verificare le date, confrontandole anche con i periodi degli altri Enti per escludere sovrapposizioni.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione → selezionare l’Ente interessato.',
+    },
+  },
+  {
+    key: 'tipoImpiego',
+    label: 'Verifica tipo impiego esatto',
+    info: {
+      cosa: 'Verificare che il tipo impiego (tempo indeterminato, determinato, parziale, ecc.) sia congruo con i dati forniti dall’Ente.',
+      come: 'Consultare il rapporto di lavoro e controllare il tipo impiego rispetto a quanto comunicato dall’Ente.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione → selezionare l’Ente interessato.',
+    },
+  },
+  {
+    key: 'codiceCessazione',
+    label: 'Verifica codice cessazione',
+    info: {
+      cosa: 'Controllare se è presente il codice cessazione. Spesso, in caso di contratto a tempo determinato, verificare la presenza del codice 18 (fine incarico).',
+      come: 'Consultare il rapporto di lavoro e individuare il codice cessazione associato.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione.',
+    },
+  },
+  {
+    key: 'assenzaVuotiContributivi',
+    label: 'Verifica assenza vuoti contributivi',
+    info: {
+      cosa: 'Verificare che non ci siano vuoti contributivi, controllando ogni anno e ogni mese e aprendo il dettaglio per ogni anno di servizio.',
+      come: 'Aprire il dettaglio di ciascun anno di servizio. Consiglio: se in «Tipo impiego ed Iscrizione» è presente un periodo ininterrotto, non saranno presenti interruzioni contributive.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per anno e retribuzione.',
+    },
+  },
+  {
+    key: 'congruitaImponibili',
+    label: 'Verifica congruità imponibili tra i mesi',
+    info: {
+      cosa: 'Verificare che gli imponibili siano congrui al rapporto di lavoro e tra i mesi precedenti e successivi, per individuare eventuali errori da sistemare.',
+      come: 'Confrontare gli imponibili tra i mesi. Consiglio: verificare che siano presenti Inadel e Credito.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per anno e retribuzione.',
+    },
+  },
+  {
+    key: 'interoPeriodoTFR',
+    label: 'Verifica se intero periodo TFR',
+    info: {
+      cosa: 'Verificare l’assoggettamento al solo TFR per l’intero periodo e che non vi siano periodi assoggettati a TFS.',
+      come: 'Consiglio: è facilmente osservabile nella «Lista per anno e retribuzione».',
+      dove: 'Interrogazioni → Lista Rapporti di Lavoro → Lista periodi per regime previdenziale.',
+    },
+  },
 ];
+
+/**
+ * Avviso operativo valido per tutte le verifiche della checklist.
+ * Mostrato nello Step 2 e in calce a ogni scheda informativa.
+ */
+export const AVVISO_VERIFICHE =
+  'In caso di messaggi di errore, fare uno screenshot o salvare il messaggio e comunicarlo al Responsabile di Area. ' +
+  'In caso di incongruenze, interrompere l’inserimento TFR e valutare interventi SCAD e/o flussi a variazione con la Responsabile di Area.';
 
 /** True se tutte le 7 voci della checklist sono flaggate. */
 export const checklistCompleta = (c: ChecklistTFR): boolean =>
