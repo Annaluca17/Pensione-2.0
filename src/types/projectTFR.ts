@@ -53,15 +53,36 @@ export const emptyChecklist = (): ChecklistTFR => ({
   congruitaImponibili: false,
 });
 
+/**
+ * Contenuto della scheda informativa (popup "i") di una voce di verifica.
+ * Spiega COSA controllare, COME farlo e DOVE trovarlo su PASSWEB / cedolino.
+ * NB: i contenuti verranno compilati step-by-step in seguito; qui è predisposta
+ * solo la struttura (stringa vuota ⇒ il popup mostra "Contenuto in preparazione").
+ */
+export interface VoceInfo {
+  cosa: string;   // Cosa si deve controllare
+  come: string;   // Come effettuare la verifica
+  dove: string;   // Dove reperire il dato (schermata PASSWEB, cedolino, ecc.)
+}
+
+export interface VoceChecklist {
+  key: keyof ChecklistTFR;
+  label: string;
+  info: VoceInfo;
+}
+
+/** Struttura info vuota, pronta da compilare. */
+const infoVuota = (): VoceInfo => ({ cosa: '', come: '', dove: '' });
+
 /** Voci della checklist con etichetta, nell'ordine richiesto dalla maschera. */
-export const CHECKLIST_VOCI: Array<{ key: keyof ChecklistTFR; label: string }> = [
-  { key: 'dateEsatte',               label: 'Verifica delle date esatte' },
-  { key: 'tipoImpiego',              label: 'Verifica tipo impiego esatto' },
-  { key: 'assenzaVuotiContributivi', label: 'Verifica assenza vuoti contributivi' },
-  { key: 'interoPeriodoTFR',         label: 'Verifica se intero periodo TFR' },
-  { key: 'codiceCessazione',         label: 'Verifica codice cessazione' },
-  { key: 'nonAccavallamento',        label: 'Verifica non accavallamento date assunzione/cessazione' },
-  { key: 'congruitaImponibili',      label: 'Verifica congruità imponibili tra i mesi' },
+export const CHECKLIST_VOCI: VoceChecklist[] = [
+  { key: 'dateEsatte',               label: 'Verifica delle date esatte',                                 info: infoVuota() },
+  { key: 'tipoImpiego',              label: 'Verifica tipo impiego esatto',                               info: infoVuota() },
+  { key: 'assenzaVuotiContributivi', label: 'Verifica assenza vuoti contributivi',                        info: infoVuota() },
+  { key: 'interoPeriodoTFR',         label: 'Verifica se intero periodo TFR',                             info: infoVuota() },
+  { key: 'codiceCessazione',         label: 'Verifica codice cessazione',                                 info: infoVuota() },
+  { key: 'nonAccavallamento',        label: 'Verifica non accavallamento date assunzione/cessazione',     info: infoVuota() },
+  { key: 'congruitaImponibili',      label: 'Verifica congruità imponibili tra i mesi',                   info: infoVuota() },
 ];
 
 /** True se tutte le 7 voci della checklist sono flaggate. */
