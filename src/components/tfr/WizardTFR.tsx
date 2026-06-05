@@ -631,17 +631,7 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                 <ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">
                   {s.paragrafi.map((p, j) => <li key={j}>{p}</li>)}
                 </ul>
-                {s.imgAlt && (
-                  s.img
-                    ? <img src={s.img} alt={s.imgAlt}
-                        className="mt-2 rounded-lg border border-slate-200 max-w-full" />
-                    : (
-                      <div className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-xs text-slate-400">
-                        <ImageIcon className="w-4 h-4 shrink-0" />
-                        <span>Screenshot in arrivo — {s.imgAlt}</span>
-                      </div>
-                    )
-                )}
+                {s.imgAlt && <GuidaImg img={s.img} alt={s.imgAlt} />}
               </div>
             </li>
           ))}
@@ -671,6 +661,27 @@ function FieldRO({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
       <p className="text-xs text-slate-500 mb-0.5">{label}</p>
       <p className="text-sm font-semibold text-slate-800">{value}</p>
+    </div>
+  );
+}
+
+/**
+ * Immagine di un passo della guida PASSWEB. Se lo screenshot non è ancora
+ * presente sotto /guida-passweb/ (o il caricamento fallisce), mostra un
+ * segnaposto con la descrizione della schermata attesa.
+ */
+function GuidaImg({ img, alt }: { img?: string; alt: string }) {
+  const [errore, setErrore] = useState(false);
+  if (img && !errore) {
+    return (
+      <img src={img} alt={alt} loading="lazy" onError={() => setErrore(true)}
+        className="mt-2 rounded-lg border border-slate-200 max-w-full" />
+    );
+  }
+  return (
+    <div className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-xs text-slate-400">
+      <ImageIcon className="w-4 h-4 shrink-0" />
+      <span>Screenshot in arrivo — {alt}</span>
     </div>
   );
 }
