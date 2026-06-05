@@ -14,13 +14,12 @@ export const LS_KEY_TFR = 'xdesk_tfr_progetti_v1';
 export const LS_KEY_TFR_BOZZE = 'xdesk_tfr_bozze_v1';
 
 export interface ChecklistTFR {
-  dateEsatte: boolean;                // Verifica delle date esatte
-  tipoImpiego: boolean;               // Verifica tipo impiego esatto
-  assenzaVuotiContributivi: boolean;  // Verifica assenza vuoti contributivi
-  interoPeriodoTFR: boolean;          // Verifica se intero periodo TFR
-  codiceCessazione: boolean;          // Verifica codice cessazione
-  nonAccavallamento: boolean;         // Verifica non accavallamento date assunzione/cessazione
-  congruitaImponibili: boolean;       // Verifica congruità imponibili tra i mesi
+  dateEsatte: boolean;                // 1. Verifica delle date esatte (incl. non accavallamento con altri Enti)
+  tipoImpiego: boolean;               // 2. Verifica tipo impiego esatto
+  codiceCessazione: boolean;          // 3. Verifica codice cessazione
+  assenzaVuotiContributivi: boolean;  // 4. Verifica assenza vuoti contributivi
+  congruitaImponibili: boolean;       // 5. Verifica congruità imponibili tra i mesi
+  interoPeriodoTFR: boolean;          // 6. Verifica se intero periodo TFR
 }
 
 export interface DipendenteTFR {
@@ -46,11 +45,10 @@ export interface ProgettoTFR {
 export const emptyChecklist = (): ChecklistTFR => ({
   dateEsatte: false,
   tipoImpiego: false,
-  assenzaVuotiContributivi: false,
-  interoPeriodoTFR: false,
   codiceCessazione: false,
-  nonAccavallamento: false,
+  assenzaVuotiContributivi: false,
   congruitaImponibili: false,
+  interoPeriodoTFR: false,
 });
 
 /**
@@ -69,14 +67,14 @@ export interface VoceChecklist {
   info: VoceInfo;
 }
 
-/** Voci della checklist con etichetta, nell'ordine richiesto dalla maschera. */
+/** Voci della checklist con etichetta, nell'ordine di lavorazione indicato. */
 export const CHECKLIST_VOCI: VoceChecklist[] = [
   {
     key: 'dateEsatte',
     label: 'Verifica delle date esatte',
     info: {
-      cosa: 'Verificare che le date di assunzione e cessazione presenti in PASSWEB coincidano con i dati prodotti dall’Ente.',
-      come: 'Una volta in Esecutore, selezionare l’Ente interessato e confrontare le date di assunzione e cessazione con quelle fornite dall’Ente.',
+      cosa: 'Verificare che le date di assunzione e cessazione presenti in PASSWEB coincidano con i dati prodotti dall’Ente. Verificare inoltre che non si accavallino date di assunzione e cessazione con altri Enti.',
+      come: 'Una volta in Esecutore, selezionare l’Ente interessato e verificare le date, confrontandole anche con i periodi degli altri Enti per escludere sovrapposizioni.',
       dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione → selezionare l’Ente interessato.',
     },
   },
@@ -90,11 +88,29 @@ export const CHECKLIST_VOCI: VoceChecklist[] = [
     },
   },
   {
+    key: 'codiceCessazione',
+    label: 'Verifica codice cessazione',
+    info: {
+      cosa: 'Controllare se è presente il codice cessazione. Spesso, in caso di contratto a tempo determinato, verificare la presenza del codice 18 (fine incarico).',
+      come: 'Consultare il rapporto di lavoro e individuare il codice cessazione associato.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione.',
+    },
+  },
+  {
     key: 'assenzaVuotiContributivi',
     label: 'Verifica assenza vuoti contributivi',
     info: {
       cosa: 'Verificare che non ci siano vuoti contributivi, controllando ogni anno e ogni mese e aprendo il dettaglio per ogni anno di servizio.',
       come: 'Aprire il dettaglio di ciascun anno di servizio. Consiglio: se in «Tipo impiego ed Iscrizione» è presente un periodo ininterrotto, non saranno presenti interruzioni contributive.',
+      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per anno e retribuzione.',
+    },
+  },
+  {
+    key: 'congruitaImponibili',
+    label: 'Verifica congruità imponibili tra i mesi',
+    info: {
+      cosa: 'Verificare che gli imponibili siano congrui al rapporto di lavoro e tra i mesi precedenti e successivi, per individuare eventuali errori da sistemare.',
+      come: 'Confrontare gli imponibili tra i mesi. Consiglio: verificare che siano presenti Inadel e Credito.',
       dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per anno e retribuzione.',
     },
   },
@@ -105,33 +121,6 @@ export const CHECKLIST_VOCI: VoceChecklist[] = [
       cosa: 'Verificare l’assoggettamento al solo TFR per l’intero periodo e che non vi siano periodi assoggettati a TFS.',
       come: 'Consiglio: è facilmente osservabile nella «Lista per anno e retribuzione».',
       dove: 'Interrogazioni → Lista Rapporti di Lavoro → Lista periodi per regime previdenziale.',
-    },
-  },
-  {
-    key: 'codiceCessazione',
-    label: 'Verifica codice cessazione',
-    info: {
-      cosa: 'Controllare se è presente il codice cessazione. Spesso, in caso di contratto a tempo determinato, verificare la presenza del codice 18 (fine incarico).',
-      come: 'Consultare il rapporto di lavoro e individuare il codice cessazione associato.',
-      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione.',
-    },
-  },
-  {
-    key: 'nonAccavallamento',
-    label: 'Verifica non accavallamento date assunzione/cessazione',
-    info: {
-      cosa: 'Verificare che non si accavallino le date di assunzione e cessazione con altri Enti.',
-      come: 'Selezionare l’Ente interessato e confrontare i periodi con quelli degli altri Enti per escludere sovrapposizioni.',
-      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per Tipo impiego ed Iscrizione → selezionare l’Ente interessato.',
-    },
-  },
-  {
-    key: 'congruitaImponibili',
-    label: 'Verifica congruità imponibili tra i mesi',
-    info: {
-      cosa: 'Verificare che gli imponibili siano congrui al rapporto di lavoro e tra i mesi precedenti e successivi, per individuare eventuali errori da sistemare.',
-      come: 'Confrontare gli imponibili tra i mesi. Consiglio: verificare che siano presenti Inadel e Credito.',
-      dove: 'Interrogazioni → Lista rapporti di lavoro → Lista per anno e retribuzione.',
     },
   },
 ];
