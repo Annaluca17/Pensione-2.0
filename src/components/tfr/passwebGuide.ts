@@ -27,6 +27,8 @@ export interface GuidaStep {
    * ancora, l'UI mostra automaticamente il segnaposto (onError → fallback).
    */
   img?: string;
+  /** Didascalia mostrata sotto l'immagine (es. avviso "immagine semplificativa"). */
+  imgNota?: string;
 }
 
 /** Helper di formattazione iniettati dal componente (riuso di eur/fmtDate). */
@@ -96,21 +98,21 @@ export function buildPasswebGuide(r: RisultatoTFR, fmt: GuidaFmt): GuidaStep[] {
       paragrafi: [
         'Andare in Interrogazioni → Lista dati integrativi.',
         'Funzioni → Inserisci dati comuni.',
-        'Tipo prescrizione: TFR; Data validità = data odierna; Data riferimento = data cessazione (' + fmt.data(r.dataCessazione) + ').',
-        'Salvare il dato.',
+        'Tipo prescrizione: TFR.',
       ],
       imgAlt: 'Inserimento dati comuni con tipo prescrizione TFR',
       img: IMG('step02.png'),
     },
     {
-      id: 'periodo-riferimento',
-      titolo: 'Dati utili ai fini TFR — periodo di riferimento',
+      id: 'dati-utili-tfr',
+      titolo: 'Dati utili ai fini TFR',
       paragrafi: [
         'Accedere a "Dati utili ai fini TFR".',
-        'Inserire il periodo di riferimento corretto (assunzione e cessazione) su cui operare.',
-        `Periodo: ${fmt.data(r.decorrenzaGiuridica)} → ${fmt.data(r.dataCessazione)}.`,
+        'Data validità = data odierna.',
+        `Data riferimento = data cessazione (${fmt.data(r.dataCessazione)}).`,
+        'Salva il dato.',
       ],
-      imgAlt: 'Inserimento del periodo di riferimento (assunzione e cessazione)',
+      imgAlt: 'Dati utili ai fini TFR: data validità e data riferimento',
       img: IMG('step03.png'),
     },
     {
@@ -126,6 +128,7 @@ export function buildPasswebGuide(r: RisultatoTFR, fmt: GuidaFmt): GuidaStep[] {
       paragrafi: datiRetributivi,
       imgAlt: 'Inserimento dati retributivi utili al TFR',
       img: IMG('step05.png'),
+      imgNota: 'Immagine semplificativa: la schermata reale cambia in base alla casistica in lavorazione (assunzione/cessazione ≥ o < 15 giorni).',
     },
     {
       id: 'fine-lavorazione',
