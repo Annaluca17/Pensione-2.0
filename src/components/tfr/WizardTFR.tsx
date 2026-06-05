@@ -11,16 +11,17 @@
 import { useMemo, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Info } from 'lucide-react';
+import { Info, X, ImageIcon } from 'lucide-react';
 import { round2 } from '../../utils/math';
 import {
   calcolaTFR, giorniNelMese, giornoDelMese, giorniResiduiMeseIniziale,
   type InputTFR, type RisultatoTFR,
 } from './logicTFR';
+import { buildPasswebGuide } from './passwebGuide';
 import {
   CHECKLIST_VOCI, checklistCompleta, emptyChecklist,
   LS_KEY_TFR_BOZZE,
-  type ChecklistTFR, type DipendenteTFR,
+  type ChecklistTFR, type DipendenteTFR, type VoceInfo,
 } from '../../types/projectTFR';
 
 // ─── Props ──────────────────────────────────────────────────────────────────────
@@ -104,10 +105,16 @@ function NotaGuida({ children }: { children: React.ReactNode }) {
 
 // ─── Componente ──────────────────────────────────────────────────────────────
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
+
+/** Voce di verifica selezionata per il popup info (null = popup chiuso). */
+interface InfoAperta { label: string; info: VoceInfo; }
 
 export default function WizardTFR({ progettoId, existing, onSave, onCancel }: WizardTFRProps) {
   const [step, setStep] = useState<Step>(1);
+
+  // Popup informativo "i" sulle voci di verifica (Step 2).
+  const [infoAperta, setInfoAperta] = useState<InfoAperta | null>(null);
 
   // Anagrafica
   const [cf, setCf]                       = useState(existing?.cf ?? '');
@@ -263,23 +270,26 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
   };
 
   // ── Indicatore step ───────────────────────────────────────────────────────
-  const StepBar = () => (
-    <div className="flex items-center gap-2 text-xs">
-      {([[1, 'Anagrafica'], [2, 'Checklist'], [3, 'Output PASSWEB']] as const).map(([n, lbl], i) => (
-        <div key={n} className="flex items-center gap-2">
-          <span className={[
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium',
-            step === n ? 'bg-blue-600 text-white'
-              : step > n ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400',
-          ].join(' ')}>
-            <span className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-[11px]">{n}</span>
-            {lbl}
-          </span>
-          {i < 2 && <span className="text-slate-300">→</span>}
-        </div>
-      ))}
-    </div>
-  );
+  const StepBar = () => {
+    const tappe = [[1, 'Anagrafica'], [2, 'Checklist'], [3, 'Output PASSWEB'], [4, 'Guida PASSWEB']] as const;
+    return (
+      <div className="flex items-center gap-2 text-xs flex-wrap">
+        {tappe.map(([n, lbl], i) => (
+          <div key={n} className="flex items-center gap-2">
+            <span className={[
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium',
+              step === n ? 'bg-blue-600 text-white'
+                : step > n ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400',
+            ].join(' ')}>
+              <span className="w-5 h-5 rounded-full bg-white/30 flex items-center justify-center text-[11px]">{n}</span>
+              {lbl}
+            </span>
+            {i < tappe.length - 1 && <span className="text-slate-300">→</span>}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   // ── Render Step 1 — Anagrafica ────────────────────────────────────────────
   const renderStep1 = () => (
@@ -352,17 +362,26 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
         </p>
 
         <div className="space-y-2">
-          {CHECKLIST_VOCI.map(({ key, label }, i) => (
-            <label key={key}
-              className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+          {CHECKLIST_VOCI.map(({ key, label, info }, i) => (
+            <div key={key}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors ${
                 checklist[key] ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-slate-200 hover:bg-slate-50'
               }`}>
-              <input type="checkbox" checked={checklist[key]} onChange={() => toggleCheck(key)}
-                className="w-4 h-4 accent-emerald-600" />
-              <span className="text-sm text-slate-700">
-                <span className="text-slate-400 text-xs mr-1.5">{i + 1}.</span>{label}
-              </span>
-            </label>
+              <label className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+                <input type="checkbox" checked={checklist[key]} onChange={() => toggleCheck(key)}
+                  className="w-4 h-4 accent-emerald-600 shrink-0" />
+                <span className="text-sm text-slate-700">
+                  <span className="text-slate-400 text-xs mr-1.5">{i + 1}.</span>{label}
+                </span>
+              </label>
+              <button type="button"
+                onClick={() => setInfoAperta({ label, info })}
+                title="Come, cosa e dove controllare"
+                aria-label={`Informazioni: ${label}`}
+                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-blue-600 hover:bg-blue-100 transition-colors">
+                <Info className="w-4 h-4" />
+              </button>
+            </div>
           ))}
         </div>
 
@@ -410,6 +429,10 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
               className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">
               ↓ Esporta PDF scheda
             </button>
+            <button onClick={() => setStep(4)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+              Guida inserimento PASSWEB →
+            </button>
             <button onClick={() => setStep(2)}
               className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">
               ← Modifica
@@ -450,14 +473,14 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                 <h4 className="text-sm font-semibold text-slate-700">Mese iniziale — rateo 13^ teorica primo anno</h4>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Retribuzione virtuale TFR (PASSWEB) del 1° mese pieno
+                    Retribuzione valutabile TFR (PASSWEB) del 1° mese pieno
                   </label>
                   <input type="number" min="0" step="0.01" value={retrPrimoMesePieno}
                     onChange={e => setRetrPrimoMesePieno(e.target.value)} placeholder="0,00"
                     className={`w-full max-w-xs text-right border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${NO_SPIN}`} />
                 </div>
                 <NotaGuida>
-                  Inserire il valore della retribuzione virtuale ai fini TFR così come esposto su PASSWEB nel
+                  Inserire il valore della retribuzione valutabile ai fini TFR così come esposto su PASSWEB nel
                   primo mese intero di servizio. Usando il dato PASSWEB si evita il calcolo da cedolino
                   (imponibile / 13 × 1,25 riproporzionato al part-time): il valore PASSWEB è già al netto della riproporzione.
                 </NotaGuida>
@@ -489,7 +512,7 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                 <h4 className="text-sm font-semibold text-slate-700">Mese finale — rateo 13^ teorica cessazione (≥ 15 gg)</h4>
                 <div>
                   <label className="block text-xs font-medium text-slate-600 mb-1">
-                    Retribuzione virtuale TFR (PASSWEB) dell’ultimo mese pieno
+                    Retribuzione valutabile TFR (PASSWEB) dell’ultimo mese pieno
                   </label>
                   <input type="number" min="0" step="0.01" value={retrUltimoMesePieno}
                     onChange={e => setRetrUltimoMesePieno(e.target.value)} placeholder="0,00"
@@ -545,7 +568,7 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                   <p className="text-xs text-slate-500 mb-1">Tredicesima ed emolumenti valutabili arretrati per cassa</p>
                   <span className="text-lg font-bold text-blue-700 font-mono">{eur(r.tredicesimaEmolumentiCassa)}</span>
                   <p className="text-xs text-slate-400 mt-1">
-                    = (Tredicesima annua / Giorni totali maturazione) × {giornoCess} giorni + emolumenti valutabili
+                    = (Tredicesima annua / Giorni lavorati anno) × (Giorni lavorati anno − {giornoCess}) + emolumenti valutabili
                   </p>
                 </div>
               </div>
@@ -562,12 +585,71 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
     );
   };
 
+  // ── Render Step 4 — Guida inserimento PASSWEB (adattiva) ───────────────────
+  const renderStep4 = () => {
+    if (!risultato) {
+      return (
+        <div className="space-y-4 max-w-xl">
+          <h2 className="text-lg font-semibold text-slate-800">Step 4 — Guida inserimento su PASSWEB</h2>
+          <div className="bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-800">
+            Completare prima lo Step 3 (dati retributivi) per generare la guida adattata alla casistica.
+          </div>
+          <button onClick={() => setStep(3)}
+            className="px-5 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">
+            ← Torna allo Step 3
+          </button>
+        </div>
+      );
+    }
+    const guida = buildPasswebGuide(risultato, { eur, data: fmtDate });
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h2 className="text-lg font-semibold text-slate-800">Step 4 — Guida inserimento su PASSWEB</h2>
+          <button onClick={() => setStep(3)}
+            className="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg text-sm hover:bg-slate-50 transition-colors">
+            ← Torna allo Step 3
+          </button>
+        </div>
+
+        <NotaGuida>
+          Guida operativa adattata alla casistica calcolata
+          (mese iniziale: <strong>{risultato.casoIniziale}</strong>, mese finale: <strong>{risultato.casoFinale}</strong>).
+          Segui i passaggi nell’ordine indicato. Gli screenshot delle schermate verranno aggiunti progressivamente.
+        </NotaGuida>
+
+        <ol className="space-y-4">
+          {guida.map((s, i) => (
+            <li key={s.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex items-start gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50">
+                <span className="shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                  {i + 1}
+                </span>
+                <h3 className="text-sm font-semibold text-slate-800 mt-0.5">{s.titolo}</h3>
+              </div>
+              <div className="p-4 space-y-2">
+                <ul className="space-y-1.5 text-sm text-slate-700 list-disc pl-5">
+                  {s.paragrafi.map((p, j) => <li key={j}>{p}</li>)}
+                </ul>
+                {s.imgAlt && <GuidaImg img={s.img} alt={s.imgAlt} />}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-5">
       <StepBar />
       {step === 1 && renderStep1()}
       {step === 2 && renderStep2()}
       {step === 3 && renderStep3()}
+      {step === 4 && renderStep4()}
+      {infoAperta && (
+        <InfoModal voce={infoAperta} onClose={() => setInfoAperta(null)} />
+      )}
     </div>
   );
 }
@@ -579,6 +661,73 @@ function FieldRO({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
       <p className="text-xs text-slate-500 mb-0.5">{label}</p>
       <p className="text-sm font-semibold text-slate-800">{value}</p>
+    </div>
+  );
+}
+
+/**
+ * Immagine di un passo della guida PASSWEB. Se lo screenshot non è ancora
+ * presente sotto /guida-passweb/ (o il caricamento fallisce), mostra un
+ * segnaposto con la descrizione della schermata attesa.
+ */
+function GuidaImg({ img, alt }: { img?: string; alt: string }) {
+  const [errore, setErrore] = useState(false);
+  if (img && !errore) {
+    return (
+      <img src={img} alt={alt} loading="lazy" onError={() => setErrore(true)}
+        className="mt-2 rounded-lg border border-slate-200 max-w-full" />
+    );
+  }
+  return (
+    <div className="mt-2 flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-xs text-slate-400">
+      <ImageIcon className="w-4 h-4 shrink-0" />
+      <span>Screenshot in arrivo — {alt}</span>
+    </div>
+  );
+}
+
+/**
+ * Popup informativo "i" di una voce di verifica: spiega cosa, come e dove
+ * controllare. I contenuti vengono compilati step-by-step; finché una sezione è
+ * vuota viene mostrato un segnaposto "Contenuto in preparazione".
+ */
+function InfoModal({ voce, onClose }: { voce: InfoAperta; onClose: () => void }) {
+  const sezioni: Array<{ titolo: string; testo: string }> = [
+    { titolo: 'Cosa controllare', testo: voce.info.cosa },
+    { titolo: 'Come verificare', testo: voce.info.come },
+    { titolo: 'Dove trovarlo', testo: voce.info.dove },
+  ];
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      role="dialog" aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-100 bg-slate-50 rounded-t-xl">
+          <div className="flex items-start gap-2">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+            <h3 className="text-sm font-semibold text-slate-800">{voce.label}</h3>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Chiudi"
+            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-200 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          {sezioni.map(({ titolo, testo }) => (
+            <div key={titolo}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">{titolo}</p>
+              {testo.trim()
+                ? <p className="text-sm text-slate-700 whitespace-pre-line">{testo}</p>
+                : <p className="text-sm text-slate-400 italic">Contenuto in preparazione.</p>}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
