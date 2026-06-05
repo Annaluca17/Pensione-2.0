@@ -632,6 +632,9 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                   {s.paragrafi.map((p, j) => <li key={j}>{p}</li>)}
                 </ul>
                 {s.imgAlt && <GuidaImg img={s.img} alt={s.imgAlt} />}
+                {s.imgNota && (
+                  <p className="text-xs text-slate-500 italic">{s.imgNota}</p>
+                )}
               </div>
             </li>
           ))}
