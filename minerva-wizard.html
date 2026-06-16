@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Minerva — Wizard Profilo di Ruolo (Enti Locali)</title>
+<style>
+  /* ---------- Palette & token ---------- */
+  :root {
+    --navy: #1F3A5F;
+    --cyan: #00ADCC;
+    --gold: #C8A25B;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1c2733;
+    --muted: #647186;
+    --border: #d8dee8;
+    --border-strong: #b7c1d1;
+    --ok-bg: #e8f7ee;
+    --ok-fg: #1d7a43;
+    --shadow: 0 1px 3px rgba(16,32,56,.08), 0 6px 18px rgba(16,32,56,.06);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 960px; margin: 0 auto; padding: 24px 20px 64px; }
+
+  header.app {
+    display: flex; align-items: center; gap: 14px;
+    padding-bottom: 16px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--navy), var(--cyan));
+    color: #fff; font-weight: 700; font-size: 20px;
+    display: grid; place-items: center;
+    box-shadow: var(--shadow);
+  }
+  header.app h1 { font-size: 1.25rem; margin: 0; color: var(--navy); }
+  header.app p { margin: 2px 0 0; font-size: .85rem; color: var(--muted); }
+
+  /* ---------- Progress bar ---------- */
+  .progress { display: flex; gap: 8px; margin-bottom: 18px; }
+  .progress .step {
+    flex: 1; text-align: center; font-size: .78rem; color: var(--muted);
+    padding: 8px 6px; border-radius: 8px; background: #eef1f6;
+    border: 1px solid transparent; position: relative;
+    transition: all .15s ease;
+  }
+  .progress .step .num {
+    display: inline-grid; place-items: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #cfd7e3; color: #fff; font-weight: 700; font-size: .8rem;
+    margin-right: 6px; vertical-align: middle;
+  }
+  .progress .step.active { background: #e7f0fa; color: var(--navy); border-color: var(--cyan); font-weight: 600; }
+  .progress .step.active .num { background: var(--cyan); }
+  .progress .step.done { color: var(--ok-fg); background: var(--ok-bg); }
+  .progress .step.done .num { background: var(--ok-fg); }
+
+  /* ---------- Breadcrumb ---------- */
+  .breadcrumb { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 18px; min-height: 30px; }
+  .breadcrumb .crumb {
+    background: #fff; border: 1px solid var(--border); color: var(--navy);
+    border-radius: 999px; padding: 5px 12px; font-size: .8rem; cursor: pointer;
+    display: inline-flex; gap: 6px; align-items: center;
+  }
+  .breadcrumb .crumb:hover { border-color: var(--cyan); }
+  .breadcrumb .crumb .lbl { color: var(--muted); }
+  .breadcrumb .sep { color: var(--border-strong); }
+  .breadcrumb .crumb.auto { border-style: dashed; }
+
+  /* ---------- Card / panel ---------- */
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+  .panel h2 { margin: 0 0 4px; font-size: 1.1rem; color: var(--navy); }
+  .panel .hint { margin: 0 0 18px; color: var(--muted); font-size: .88rem; }
+
+  /* ---------- Identity inputs ---------- */
+  .id-row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  .field { flex: 1; min-width: 180px; }
+  .field label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  .field input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border-strong);
+    border-radius: 8px; font-size: .95rem; font-family: inherit;
+  }
+  .field input:focus { outline: 2px solid var(--cyan); outline-offset: 1px; border-color: var(--cyan); }
+
+  /* ---------- Options grid ---------- */
+  .options { display: grid; grid-template-columns: 1fr; gap: 10px; }
+  @media (min-width: 620px) { .options { grid-template-columns: 1fr 1fr; } }
+  .option {
+    display: flex; gap: 12px; align-items: flex-start;
+    border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px;
+    cursor: pointer; background: #fff; text-align: left;
+    font: inherit; color: inherit; transition: all .12s ease;
+  }
+  .option:hover { border-color: var(--cyan); background: #f7fcfe; }
+  .option:focus-visible { outline: 3px solid rgba(0,173,204,.4); outline-offset: 2px; }
+  .option.selected { border-color: var(--cyan); background: #eaf8fc; box-shadow: inset 0 0 0 1px var(--cyan); }
+  .option .radio {
+    flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid var(--border-strong); margin-top: 2px; position: relative;
+  }
+  .option.selected .radio { border-color: var(--cyan); }
+  .option.selected .radio::after {
+    content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--cyan);
+  }
+  .option .body .code { font-size: .72rem; color: var(--cyan); font-weight: 700; letter-spacing: .3px; }
+  .option .body .title { font-weight: 600; }
+
+  /* ---------- Auto-skip badge ---------- */
+  .auto-badge {
+    background: var(--ok-bg); color: var(--ok-fg); border: 1px solid #b6e3c6;
+    border-radius: 10px; padding: 12px 14px; font-size: .9rem; margin-bottom: 6px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .auto-badge .ico { font-size: 1.1rem; }
+
+  .empty-msg { padding: 18px; background: #fff6f6; border: 1px solid #f0c9c9; color: #a33; border-radius: 10px; }
+
+  /* ---------- Nav buttons ---------- */
+  .nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
+  button.btn {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px;
+    padding: 10px 18px; border: 1px solid var(--border-strong); background: #fff; color: var(--navy);
+    transition: all .12s ease;
+  }
+  button.btn:hover:not(:disabled) { border-color: var(--navy); }
+  button.btn:disabled { opacity: .45; cursor: not-allowed; }
+  button.btn.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+  button.btn.primary:hover:not(:disabled) { background: #16314f; }
+  button.btn.gold { background: var(--gold); color: #3a2c08; border-color: var(--gold); }
+  button.btn.ghost { background: transparent; }
+
+  /* ---------- Result ---------- */
+  .result-codes { display: grid; gap: 14px; grid-template-columns: 1fr; margin: 6px 0 18px; }
+  @media (min-width: 620px) { .result-codes { grid-template-columns: 1fr 1fr; } }
+  .code-card { border: 1.5px solid var(--cyan); border-radius: 12px; padding: 16px; background: #f7fcfe; }
+  .code-card .k { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+  .code-card .v { font-size: 1.35rem; font-weight: 800; color: var(--navy); font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; word-break: break-all; }
+  .code-card .sub { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+
+  .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  .summary-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: .92rem; vertical-align: top; }
+  .summary-table td.k { color: var(--muted); width: 130px; font-weight: 600; }
+
+  .competenze-note { margin-top: 14px; padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: 10px; color: var(--muted); font-size: .85rem; background: #fafbfd; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+  /* ---------- Employee list ---------- */
+  .list-panel { margin-top: 22px; }
+  .list-panel h2 { color: var(--navy); font-size: 1.05rem; margin: 0 0 12px; }
+  .list-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  table.list th, table.list td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  table.list th { background: #eef2f7; color: var(--navy); font-size: .76rem; text-transform: uppercase; letter-spacing: .4px; }
+  table.list td.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .82rem; }
+  table.list tr:hover td { background: #f7fbfd; }
+  .row-del { color: #b33; cursor: pointer; border: none; background: none; font-size: 1rem; }
+  .list-empty { color: var(--muted); font-size: .88rem; padding: 14px 0; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--navy); color: #fff; padding: 10px 18px; border-radius: 8px;
+    font-size: .9rem; opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="logo">M</div>
+    <div>
+      <h1>Minerva — Wizard Profilo di Ruolo</h1>
+      <p>Comparto Funzioni Locali · compilazione guidata per dipendente</p>
+    </div>
+  </header>
+
+  <!-- Progress bar -->
+  <div class="progress" id="progress"></div>
+
+  <!-- Breadcrumb -->
+  <div class="breadcrumb" id="breadcrumb"></div>
+
+  <!-- Wizard / result panel -->
+  <div class="panel" id="panel"></div>
+
+  <!-- Employee list -->
+  <div class="panel list-panel" id="listPanel">
+    <div class="list-head">
+      <h2>Dipendenti compilati <span id="listCount" style="color:var(--muted);font-weight:400;"></span></h2>
+      <div class="toolbar" style="margin:0;">
+        <button class="btn ghost" id="exportCsv">Esporta CSV</button>
+        <button class="btn ghost" id="exportJson">Esporta JSON</button>
+      </div>
+    </div>
+    <div id="listBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   1) DATASET — incorporato come costante. Tutte le opzioni dei passi sono
+      DERIVATE da questo oggetto (in particolare da validPairs), mai hardcodate.
+   ========================================================================= */
+const DATA = {
+ "bands": [
+  { "code": "ELL_CCNL001", "title": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_CCNL002", "title": "ISTRUTTORI" },
+  { "code": "ELL_CCNL003", "title": "OPERATORE ESPERTO" },
+  { "code": "ELL_CCNL004", "title": "OPERATORE" }
+ ],
+ "families": [
+  { "code": "ELL_FP001", "title": "Programmazione e gestione economico - finanziaria" },
+  { "code": "ELL_FP002", "title": "Persone e sviluppo organizzativo" },
+  { "code": "ELL_FP003", "title": "Risorse tecnologiche e transizione digitale" },
+  { "code": "ELL_FP004", "title": "Servizi di funzionamento" },
+  { "code": "ELL_FP005", "title": "Regolazione e legale" },
+  { "code": "ELL_FP006", "title": "Comunicazione" },
+  { "code": "ELL_FP007", "title": "Policy e Servizi ai cittadini" },
+  { "code": "ELL_FP008", "title": "Governo e sviluppo del territorio" }
+ ],
+ "ambiti": [
+  { "code": "ELL_AR001", "title": "Gestione finanziaria e bilancio", "family": "ELL_FP001" },
+  { "code": "ELL_AR002", "title": "Fondi Nazionali/Europei/Internazionali", "family": "ELL_FP001" },
+  { "code": "ELL_AR003", "title": "Fiscalità territoriale", "family": "ELL_FP001" },
+  { "code": "ELL_AR004", "title": "Enti vigilati/controllati  e società partecipate", "family": "ELL_FP001" },
+  { "code": "ELL_AR005", "title": "Gestione giuridica, economica e previdenziale del personale", "family": "ELL_FP002" },
+  { "code": "ELL_AR006", "title": "Performance", "family": "ELL_FP002" },
+  { "code": "ELL_AR007", "title": "Sviluppo e valorizzazione delle persone", "family": "ELL_FP002" },
+  { "code": "ELL_AR008", "title": "Formazione", "family": "ELL_FP002" },
+  { "code": "ELL_AR009", "title": "Organizzazione", "family": "ELL_FP002" },
+  { "code": "ELL_AR010", "title": "Sicurezza sui luoghi di lavoro", "family": "ELL_FP002" },
+  { "code": "ELL_AR011", "title": "Diversità ed inclusione", "family": "ELL_FP002" },
+  { "code": "ELL_AR012", "title": "Digitalizzazione  processi e servizi", "family": "ELL_FP003" },
+  { "code": "ELL_AR013", "title": "Infrastrutture tecnologiche", "family": "ELL_FP003" },
+  { "code": "ELL_AR014", "title": "Cybersecurity", "family": "ELL_FP003" },
+  { "code": "ELL_AR015", "title": "Applicativi e gestione web", "family": "ELL_FP003" },
+  { "code": "ELL_AR047", "title": "Sistemi di Intelligenza Artificiale", "family": "ELL_FP003" },
+  { "code": "ELL_AR016", "title": "Gestione del Patrimonio", "family": "ELL_FP004" },
+  { "code": "ELL_AR017", "title": "Logistica e servizi operativi", "family": "ELL_FP004" },
+  { "code": "ELL_AR018", "title": "Supporto agli organi istituzionali", "family": "ELL_FP004" },
+  { "code": "ELL_AR019", "title": "Trasparenza e prevenzione della corruzione", "family": "ELL_FP004" },
+  { "code": "ELL_AR020", "title": "Produzione regolamentare", "family": "ELL_FP005" },
+  { "code": "ELL_AR021", "title": "Contrattualistica e appalti", "family": "ELL_FP005" },
+  { "code": "ELL_AR022", "title": "Privacy", "family": "ELL_FP005" },
+  { "code": "ELL_AR023", "title": "Affari Legali", "family": "ELL_FP005" },
+  { "code": "ELL_AR024", "title": "Informazione e comunicazione istituzionale", "family": "ELL_FP006" },
+  { "code": "ELL_AR025", "title": "Comunicazione web e social", "family": "ELL_FP006" },
+  { "code": "ELL_AR026", "title": "Progettazione partecipata", "family": "ELL_FP006" },
+  { "code": "ELL_AR027", "title": "Relazioni internazionali", "family": "ELL_FP006" },
+  { "code": "ELL_AR028", "title": "Servizi Demografici", "family": "ELL_FP007" },
+  { "code": "ELL_AR029", "title": "Servizi educativi e scolastici", "family": "ELL_FP007" },
+  { "code": "ELL_AR030", "title": "Welfare", "family": "ELL_FP007" },
+  { "code": "ELL_AR031", "title": "Cultura", "family": "ELL_FP007" },
+  { "code": "ELL_AR032", "title": "Transizione ecologica ed economia circolare", "family": "ELL_FP008" },
+  { "code": "ELL_AR033", "title": "Urbanistica ed edlizia", "family": "ELL_FP008" },
+  { "code": "ELL_AR034", "title": "Mobilità e trasporti", "family": "ELL_FP008" },
+  { "code": "ELL_AR035", "title": "Turismo e promozione del territorio", "family": "ELL_FP008" },
+  { "code": "ELL_AR036", "title": "Sicurezza urbana", "family": "ELL_FP008" },
+  { "code": "ELL_AR037", "title": "Protezione civile  e gestione emergenza", "family": "ELL_FP008" },
+  { "code": "ELL_AR038", "title": "Competitività e sviluppo economico", "family": "ELL_FP008" },
+  { "code": "ELL_AR039", "title": "Opere pubbliche", "family": "ELL_FP008" }
+ ],
+ "archetypes": [
+  { "code": "ELL_PP0001", "title": "ESPERTO/A DI ANALISI DATI", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0002", "title": "ESPERTO/A DI CONTROLLO ED AUDITING", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0003", "title": "ESPERTO/A DI PIANIFICAZIONE FINANZIARIA", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0004", "title": "ESPERTO/A DI PIANIFICAZIONE POLICY", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0005", "title": "ESPERTO/A DI RISK MANAGEMENT", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0006", "title": "ESPERTO/A ECONOMICO - FINANZIARIO", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0007", "title": "ESPERTO/A DI ATTUAZIONE POLICY/PROGETTI", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0008", "title": "ESPERTO/A DI DIGITAL INNOVATION", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0009", "title": "ESPERTO/A DI VALUTAZIONE", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0010", "title": "ESPERTO/A GIURIDICO - AMMINISTRATIVO", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0011", "title": "ESPERTO/A DI SISTEMI INFORMATICI", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0012", "title": "ESPERTO/A DI GARE E CONTRATTI", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0013", "title": "ESPERTO/A DI SOSTENIBILITÀ", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0014", "title": "ESPERTO/A DI COMUNICAZIONE", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0015", "title": "AVVOCATO", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0016", "title": "GIORNALISTA", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0017", "title": "ASSISTENTE SOCIALE", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0018", "title": "INSEGNANTE (Area Funzionari)", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0019", "title": "SPECIALISTA DI PROGETTAZIONE E GESTIONE TECNICA", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0020", "title": "UFFICIALE DI POLIZIA LOCALE", "band": "FUNZIONARI ED E.Q." },
+  { "code": "ELL_PP0021", "title": "ISTRUTTORE ECONOMICO - FINANZIARIO", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0022", "title": "ISTRUTTORE DI POLICY", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0023", "title": "ISTRUTTORE GIURIDICO - AMMINISTRATIVO", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0024", "title": "ISTRUTTORE TECNICO", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0025", "title": "ISTRUTTORE DI FRONT - LINE", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0026", "title": "INSEGNANTE (Area Istruttori)", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0027", "title": "AGENTE DI POLIZIA LOCALE", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0028", "title": "COLLABORATORE AMMINISTRATIVO", "band": "OPERATORE ESPERTO" },
+  { "code": "ELL_PP0029", "title": "COLLABORATORE TECNICO", "band": "OPERATORE ESPERTO" },
+  { "code": "ELL_PP0030", "title": "OPERATORE", "band": "OPERATORE" },
+  { "code": "ELL_PP0041", "title": "ISTRUTTORE DI SISTEMI INFORMATICI", "band": "ISTRUTTORI" },
+  { "code": "ELL_PP0066", "title": "ESPERTO/A ARCHIVISTICA E GESTIONE DOCUMENTALE", "band": "FUNZIONARI ED E.Q." }
+ ],
+ "validPairs": [
+  { "pp": "ELL_PP0006", "ar": "AR003" }, { "pp": "ELL_PP0006", "ar": "AR004" },
+  { "pp": "ELL_PP0001", "ar": "AR030" }, { "pp": "ELL_PP0001", "ar": "AR003" },
+  { "pp": "ELL_PP0001", "ar": "AR038" }, { "pp": "ELL_PP0001", "ar": "AR034" },
+  { "pp": "ELL_PP0002", "ar": "AR002" }, { "pp": "ELL_PP0002", "ar": "AR004" },
+  { "pp": "ELL_PP0002", "ar": "AR001" }, { "pp": "ELL_PP0003", "ar": "AR001" },
+  { "pp": "ELL_PP0003", "ar": "AR002" }, { "pp": "ELL_PP0003", "ar": "AR016" },
+  { "pp": "ELL_PP0030", "ar": "AR017" }, { "pp": "ELL_PP0029", "ar": "AR017" },
+  { "pp": "ELL_PP0029", "ar": "AR034" }, { "pp": "ELL_PP0029", "ar": "AR037" },
+  { "pp": "ELL_PP0029", "ar": "AR039" }, { "pp": "ELL_PP0028", "ar": "AR017" },
+  { "pp": "ELL_PP0028", "ar": "AR018" }, { "pp": "ELL_PP0027", "ar": "AR036" },
+  { "pp": "ELL_PP0024", "ar": "AR010" }, { "pp": "ELL_PP0024", "ar": "AR039" },
+  { "pp": "ELL_PP0023", "ar": "AR005" }, { "pp": "ELL_PP0023", "ar": "AR017" },
+  { "pp": "ELL_PP0023", "ar": "AR018" }, { "pp": "ELL_PP0023", "ar": "AR020" },
+  { "pp": "ELL_PP0023", "ar": "AR022" }, { "pp": "ELL_PP0023", "ar": "AR028" },
+  { "pp": "ELL_PP0022", "ar": "AR008" }, { "pp": "ELL_PP0022", "ar": "AR029" },
+  { "pp": "ELL_PP0022", "ar": "AR030" }, { "pp": "ELL_PP0022", "ar": "AR031" },
+  { "pp": "ELL_PP0022", "ar": "AR034" }, { "pp": "ELL_PP0022", "ar": "AR038" },
+  { "pp": "ELL_PP0021", "ar": "AR001" }, { "pp": "ELL_PP0021", "ar": "AR003" },
+  { "pp": "ELL_PP0019", "ar": "AR037" }, { "pp": "ELL_PP0019", "ar": "AR039" },
+  { "pp": "ELL_PP0020", "ar": "AR036" }, { "pp": "ELL_PP0017", "ar": "AR030" },
+  { "pp": "ELL_PP0016", "ar": "AR024" }, { "pp": "ELL_PP0014", "ar": "AR024" },
+  { "pp": "ELL_PP0014", "ar": "AR025" }, { "pp": "ELL_PP0014", "ar": "AR026" },
+  { "pp": "ELL_PP0014", "ar": "AR031" }, { "pp": "ELL_PP0007", "ar": "AR007" },
+  { "pp": "ELL_PP0007", "ar": "AR008" }, { "pp": "ELL_PP0007", "ar": "AR009" },
+  { "pp": "ELL_PP0007", "ar": "AR010" }, { "pp": "ELL_PP0007", "ar": "AR011" },
+  { "pp": "ELL_PP0007", "ar": "AR016" }, { "pp": "ELL_PP0007", "ar": "AR029" },
+  { "pp": "ELL_PP0007", "ar": "AR030" }, { "pp": "ELL_PP0007", "ar": "AR031" },
+  { "pp": "ELL_PP0007", "ar": "AR033" }, { "pp": "ELL_PP0007", "ar": "AR034" },
+  { "pp": "ELL_PP0007", "ar": "AR035" }, { "pp": "ELL_PP0007", "ar": "AR036" },
+  { "pp": "ELL_PP0007", "ar": "AR037" }, { "pp": "ELL_PP0007", "ar": "AR038" },
+  { "pp": "ELL_PP0012", "ar": "AR017" }, { "pp": "ELL_PP0012", "ar": "AR021" },
+  { "pp": "ELL_PP0012", "ar": "AR039" }, { "pp": "ELL_PP0006", "ar": "AR005" },
+  { "pp": "ELL_PP0010", "ar": "AR005" }, { "pp": "ELL_PP0010", "ar": "AR016" },
+  { "pp": "ELL_PP0010", "ar": "AR018" }, { "pp": "ELL_PP0010", "ar": "AR019" },
+  { "pp": "ELL_PP0010", "ar": "AR020" }, { "pp": "ELL_PP0010", "ar": "AR022" },
+  { "pp": "ELL_PP0005", "ar": "AR019" }, { "pp": "ELL_PP0005", "ar": "AR014" },
+  { "pp": "ELL_PP0004", "ar": "AR007" }, { "pp": "ELL_PP0004", "ar": "AR016" },
+  { "pp": "ELL_PP0011", "ar": "AR013" }, { "pp": "ELL_PP0011", "ar": "AR014" },
+  { "pp": "ELL_PP0011", "ar": "AR015" }, { "pp": "ELL_PP0008", "ar": "AR009" },
+  { "pp": "ELL_PP0008", "ar": "AR012" }, { "pp": "ELL_PP0015", "ar": "AR023" },
+  { "pp": "ELL_PP0014", "ar": "AR027" }, { "pp": "ELL_PP0004", "ar": "AR003" },
+  { "pp": "ELL_PP0004", "ar": "AR030" }, { "pp": "ELL_PP0004", "ar": "AR032" },
+  { "pp": "ELL_PP0004", "ar": "AR033" }, { "pp": "ELL_PP0004", "ar": "AR034" },
+  { "pp": "ELL_PP0004", "ar": "AR038" }, { "pp": "ELL_PP0005", "ar": "AR001" },
+  { "pp": "ELL_PP0005", "ar": "AR021" }, { "pp": "ELL_PP0005", "ar": "AR037" },
+  { "pp": "ELL_PP0013", "ar": "AR021" }, { "pp": "ELL_PP0013", "ar": "AR032" },
+  { "pp": "ELL_PP0013", "ar": "AR033" }, { "pp": "ELL_PP0013", "ar": "AR034" },
+  { "pp": "ELL_PP0013", "ar": "AR039" }, { "pp": "ELL_PP0009", "ar": "AR006" },
+  { "pp": "ELL_PP0009", "ar": "AR030" }, { "pp": "ELL_PP0009", "ar": "AR032" },
+  { "pp": "ELL_PP0009", "ar": "AR033" }, { "pp": "ELL_PP0009", "ar": "AR034" },
+  { "pp": "ELL_PP0009", "ar": "AR038" }, { "pp": "ELL_PP0006", "ar": "AR001" },
+  { "pp": "ELL_PP0010", "ar": "AR023" }, { "pp": "ELL_PP0010", "ar": "AR028" },
+  { "pp": "ELL_PP0008", "ar": "AR028" }, { "pp": "ELL_PP0008", "ar": "AR025" },
+  { "pp": "ELL_PP0026", "ar": "AR029" }, { "pp": "ELL_PP0018", "ar": "AR029" },
+  { "pp": "ELL_PP0025", "ar": "AR024" }, { "pp": "ELL_PP0025", "ar": "AR028" },
+  { "pp": "ELL_PP0025", "ar": "AR029" }, { "pp": "ELL_PP0025", "ar": "AR030" },
+  { "pp": "ELL_PP0025", "ar": "AR031" }, { "pp": "ELL_PP0023", "ar": "AR023" },
+  { "pp": "ELL_PP0022", "ar": "AR035" }, { "pp": "ELL_PP0041", "ar": "AR013" },
+  { "pp": "ELL_PP0041", "ar": "AR015" }, { "pp": "ELL_PP0001", "ar": "AR047" },
+  { "pp": "ELL_PP0011", "ar": "AR047" }, { "pp": "ELL_PP0008", "ar": "AR047" },
+  { "pp": "ELL_PP0005", "ar": "AR047" }, { "pp": "ELL_PP0010", "ar": "AR047" },
+  { "pp": "ELL_PP0022", "ar": "AR024" }, { "pp": "ELL_PP0022", "ar": "AR025" },
+  { "pp": "ELL_PP0066", "ar": "AR012" }, { "pp": "ELL_PP0023", "ar": "AR021" },
+  { "pp": "ELL_PP0021", "ar": "AR005" }, { "pp": "ELL_PP0022", "ar": "AR033" }
+ ]
+};
+
+/* =========================================================================
+   2) INDICI / HELPER DERIVATI
+   ========================================================================= */
+// In validPairs gli ar sono in forma corta ("AR001"); negli ambiti la forma
+// è lunga ("ELL_AR001"). short() normalizza togliendo il prefisso "ELL_".
+const short = (code) => code.replace("ELL_", "");
+
+// Mappe di lookup
+const archByCode   = new Map(DATA.archetypes.map(a => [a.code, a]));
+const ambByShort   = new Map(DATA.ambiti.map(a => [short(a.code), a]));
+const ambByCode    = new Map(DATA.ambiti.map(a => [a.code, a]));
+const famByCode    = new Map(DATA.families.map(f => [f.code, f]));
+const bandByTitle  = new Map(DATA.bands.map(b => [b.title, b]));
+
+// band(pp)    -> titolo banda dell'archetipo
+const bandOfPP  = (pp) => (archByCode.get(pp) || {}).band;
+// family(ar)  -> codice famiglia dell'ambito (ar in forma corta)
+const familyOfAR = (arShort) => (ambByShort.get(arShort) || {}).family;
+
+/* ---- Regole a cascata: tutte le opzioni derivano da validPairs ---- */
+
+// Q2: famiglie disponibili per la banda scelta (per titolo banda).
+function familiesForBand(bandTitle) {
+  const set = new Set();
+  for (const vp of DATA.validPairs) {
+    if (bandOfPP(vp.pp) !== bandTitle) continue;
+    const fam = familyOfAR(vp.ar);
+    if (fam) set.add(fam);
+  }
+  return DATA.families.filter(f => set.has(f.code));
+}
+
+// Q3: ambiti disponibili per (banda, famiglia).
+function ambitiFor(bandTitle, familyCode) {
+  const set = new Set();
+  for (const vp of DATA.validPairs) {
+    if (bandOfPP(vp.pp) !== bandTitle) continue;
+    if (familyOfAR(vp.ar) !== familyCode) continue;
+    set.add(vp.ar); // forma corta
+  }
+  // Restituisco gli ambiti nell'ordine del dataset
+  return DATA.ambiti.filter(a => a.family === familyCode && set.has(short(a.code)));
+}
+
+// Q4: archetipi disponibili per (banda, ambito).
+function archetypesFor(bandTitle, ambitoShort) {
+  const set = new Set();
+  for (const vp of DATA.validPairs) {
+    if (vp.ar !== ambitoShort) continue;
+    if (bandOfPP(vp.pp) !== bandTitle) continue;
+    set.add(vp.pp);
+  }
+  return DATA.archetypes.filter(a => set.has(a.code));
+}
+
+/* =========================================================================
+   3) STATO (solo in memoria)
+   ========================================================================= */
+const state = {
+  step: 1,                 // 1..4 ; 5 = risultato
+  matricola: "",
+  nome: "",
+  band: null,              // {code,title}
+  family: null,            // {code,title}
+  ambito: null,            // {code,title,family}
+  archetype: null,         // {code,title,band}
+  archetypeAuto: false     // true se Q4 è stato auto-assegnato
+};
+
+const employees = [];      // lista dipendenti compilati
+
+const STEP_LABELS = ["Banda", "Famiglia", "Ambito", "Archetipo"];
+
+/* =========================================================================
+   4) RENDER
+   ========================================================================= */
+const $panel = document.getElementById("panel");
+const $progress = document.getElementById("progress");
+const $breadcrumb = document.getElementById("breadcrumb");
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function renderProgress() {
+  const isResult = state.step === 5;
+  $progress.innerHTML = STEP_LABELS.map((lbl, i) => {
+    const n = i + 1;
+    let cls = "step";
+    if (isResult || n < state.step) cls += " done";
+    else if (n === state.step) cls += " active";
+    return `<div class="${cls}"><span class="num">${n}</span>${esc(lbl)}</div>`;
+  }).join("");
+}
+
+function renderBreadcrumb() {
+  const crumbs = [];
+  if (state.band)    crumbs.push({ step: 1, lbl: "Banda",    val: state.band.title, auto: false });
+  if (state.family)  crumbs.push({ step: 2, lbl: "Famiglia", val: state.family.title, auto: false });
+  if (state.ambito)  crumbs.push({ step: 3, lbl: "Ambito",   val: state.ambito.title, auto: false });
+  if (state.archetype) crumbs.push({ step: 4, lbl: "Archetipo", val: state.archetype.title, auto: state.archetypeAuto });
+
+  if (!crumbs.length) { $breadcrumb.innerHTML = ""; return; }
+
+  $breadcrumb.innerHTML = crumbs.map((c, i) => {
+    const sep = i ? `<span class="sep">›</span>` : "";
+    const autoCls = c.auto ? " auto" : "";
+    return `${sep}<button class="crumb${autoCls}" data-step="${c.step}" title="Torna a: ${esc(c.lbl)}">
+      <span class="lbl">${esc(c.lbl)}:</span> ${esc(c.val)}${c.auto ? " ⚙" : ""}</button>`;
+  }).join("");
+
+  $breadcrumb.querySelectorAll(".crumb").forEach(btn => {
+    btn.addEventListener("click", () => goToStep(parseInt(btn.dataset.step, 10)));
+  });
+}
+
+// Costruisce una lista di opzioni (card) generiche.
+function optionListHTML(items, selectedCode) {
+  return `<div class="options">` + items.map(it => {
+    const sel = it.code === selectedCode ? " selected" : "";
+    return `<button type="button" class="option${sel}" data-code="${esc(it.code)}" role="radio" aria-checked="${it.code===selectedCode}">
+      <span class="radio"></span>
+      <span class="body">
+        <span class="code">${esc(it.code)}</span>
+        <span class="title">${esc(it.title)}</span>
+      </span>
+    </button>`;
+  }).join("") + `</div>`;
+}
+
+function renderStep() {
+  renderProgress();
+  renderBreadcrumb();
+
+  if (state.step === 5) { renderResult(); return; }
+
+  let title = "", hint = "", items = [], selected = null, extraTop = "";
+
+  if (state.step === 1) {
+    title = "Passo 1 — Banda (Area contrattuale)";
+    hint  = "Seleziona l'area contrattuale CCNL del dipendente.";
+    items = DATA.bands;
+    selected = state.band && state.band.code;
+    extraTop = identityFieldsHTML();
+  } else if (state.step === 2) {
+    title = "Passo 2 — Famiglia professionale";
+    hint  = `Famiglie disponibili per la banda «${esc(state.band.title)}».`;
+    items = familiesForBand(state.band.title);
+    selected = state.family && state.family.code;
+  } else if (state.step === 3) {
+    title = "Passo 3 — Ambito di ruolo";
+    hint  = `Ambiti della famiglia «${esc(state.family.title)}» compatibili con la banda scelta.`;
+    items = ambitiFor(state.band.title, state.family.code);
+    selected = state.ambito && state.ambito.code;
+  } else if (state.step === 4) {
+    title = "Passo 4 — Archetipo (Profilo professionale)";
+    hint  = `Archetipi compatibili con banda «${esc(state.band.title)}» e ambito «${esc(state.ambito.title)}».`;
+    items = archetypesFor(state.band.title, short(state.ambito.code));
+    selected = state.archetype && state.archetype.code;
+  }
+
+  const body = items.length
+    ? optionListHTML(items, selected)
+    : `<div class="empty-msg">Nessuna opzione disponibile per questo percorso. Torna indietro per modificare le scelte.</div>`;
+
+  const nextDisabled = !selected;
+  $panel.innerHTML = `
+    <h2>${esc(title)}</h2>
+    <p class="hint">${hint}</p>
+    ${extraTop}
+    ${body}
+    <div class="nav">
+      <button class="btn ghost" id="btnBack" ${state.step === 1 ? "disabled" : ""}>← Indietro</button>
+      <button class="btn primary" id="btnNext" ${nextDisabled ? "disabled" : ""}>
+        ${state.step === 4 ? "Genera profilo →" : "Avanti →"}
+      </button>
+    </div>`;
+
+  // Listener identity (solo passo 1)
+  if (state.step === 1) {
+    const m = document.getElementById("inMatricola");
+    const n = document.getElementById("inNome");
+    if (m) m.addEventListener("input", e => state.matricola = e.target.value);
+    if (n) n.addEventListener("input", e => state.nome = e.target.value);
+  }
+
+  // Listener opzioni
+  $panel.querySelectorAll(".option").forEach(btn => {
+    btn.addEventListener("click", () => selectOption(btn.dataset.code));
+  });
+  document.getElementById("btnBack").addEventListener("click", back);
+  document.getElementById("btnNext").addEventListener("click", next);
+}
+
+function identityFieldsHTML() {
+  return `<div class="id-row">
+    <div class="field">
+      <label for="inMatricola">Matricola</label>
+      <input id="inMatricola" type="text" value="${esc(state.matricola)}" placeholder="es. 12345" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="inNome">Nome e cognome</label>
+      <input id="inNome" type="text" value="${esc(state.nome)}" placeholder="es. Mario Rossi" autocomplete="off" />
+    </div>
+  </div>`;
+}
+
+/* =========================================================================
+   5) AZIONI WIZARD
+   ========================================================================= */
+function selectOption(code) {
+  if (state.step === 1) {
+    state.band = DATA.bands.find(b => b.code === code) || null;
+    // Cambiando banda, invalido le scelte a valle
+    state.family = state.ambito = state.archetype = null; state.archetypeAuto = false;
+  } else if (state.step === 2) {
+    state.family = famByCode.get(code) || null;
+    state.ambito = state.archetype = null; state.archetypeAuto = false;
+  } else if (state.step === 3) {
+    state.ambito = ambByCode.get(code) || null;
+    state.archetype = null; state.archetypeAuto = false;
+  } else if (state.step === 4) {
+    state.archetype = archByCode.get(code) || null;
+    state.archetypeAuto = false;
+  }
+  renderStep();
+}
+
+function next() {
+  // Passaggio con eventuale auto-skip del passo 4
+  if (state.step === 1 && !state.band) return;
+  if (state.step === 2 && !state.family) return;
+
+  if (state.step === 3) {
+    if (!state.ambito) return;
+    // Calcolo archetipi: se uno solo -> auto-skip al risultato
+    const archs = archetypesFor(state.band.title, short(state.ambito.code));
+    if (archs.length === 1) {
+      state.archetype = archs[0];
+      state.archetypeAuto = true;
+      state.step = 5;
+      renderStep();
+      return;
+    }
+    state.step = 4;
+    renderStep();
+    return;
+  }
+
+  if (state.step === 4) {
+    if (!state.archetype) return;
+    state.step = 5;
+    renderStep();
+    return;
+  }
+
+  state.step += 1;
+  renderStep();
+}
+
+function back() {
+  if (state.step === 1) return;
+  if (state.step === 5) {
+    // Dal risultato si torna al passo 4 se c'era scelta, altrimenti al 3 (auto-skip)
+    state.step = state.archetypeAuto ? 3 : 4;
+    if (state.archetypeAuto) { state.archetype = null; state.archetypeAuto = false; }
+    renderStep();
+    return;
+  }
+  state.step -= 1;
+  renderStep();
+}
+
+// Salto diretto da breadcrumb: invalida tutte le scelte a valle dello step target.
+function goToStep(step) {
+  state.step = step;
+  if (step <= 1) { state.family = state.ambito = state.archetype = null; state.archetypeAuto = false; }
+  else if (step === 2) { state.ambito = state.archetype = null; state.archetypeAuto = false; }
+  else if (step === 3) { state.archetype = null; state.archetypeAuto = false; }
+  renderStep();
+}
+
+/* =========================================================================
+   6) RISULTATO
+   ========================================================================= */
+function buildResult() {
+  const arShort = short(state.ambito.code);
+  const ruolo = `${state.archetype.code}-${arShort}`;               // Profilo di ruolo
+  const professionale = state.archetype.code;                       // Profilo professionale (PPxxxx)
+  // Verifica di sicurezza: il profilo di ruolo deve esistere in validPairs
+  const valid = DATA.validPairs.some(vp => vp.pp === state.archetype.code && vp.ar === arShort);
+  return { ruolo, professionale, arShort, valid };
+}
+
+function renderResult() {
+  const r = buildResult();
+
+  $panel.innerHTML = `
+    <h2>Profilo generato</h2>
+    <p class="hint">Riepilogo delle scelte e codici risultanti.${r.valid ? "" : " <strong style='color:#b33'>⚠ Coppia non presente in validPairs!</strong>"}</p>
+
+    <div class="result-codes">
+      <div class="code-card">
+        <div class="k">Profilo di ruolo</div>
+        <div class="v">${esc(r.ruolo)}</div>
+        <div class="sub">${esc(state.archetype.title)} · ${esc(state.ambito.title)}</div>
+      </div>
+      <div class="code-card">
+        <div class="k">Profilo professionale</div>
+        <div class="v">${esc(r.professionale)}</div>
+        <div class="sub">${esc(state.archetype.title)} su famiglia «${esc(state.family.title)}»</div>
+      </div>
+    </div>
+
+    ${state.archetypeAuto ? `<div class="auto-badge"><span class="ico">⚙</span> Archetipo determinato automaticamente: <strong>&nbsp;${esc(state.archetype.title)}</strong> (unica opzione valida per il percorso).</div>` : ""}
+
+    <table class="summary-table">
+      <tr><td class="k">Matricola</td><td>${esc(state.matricola || "—")}</td></tr>
+      <tr><td class="k">Nome</td><td>${esc(state.nome || "—")}</td></tr>
+      <tr><td class="k">Banda</td><td>${esc(state.band.code)} — ${esc(state.band.title)}</td></tr>
+      <tr><td class="k">Famiglia</td><td>${esc(state.family.code)} — ${esc(state.family.title)}</td></tr>
+      <tr><td class="k">Ambito</td><td>${esc(state.ambito.code)} — ${esc(state.ambito.title)}</td></tr>
+      <tr><td class="k">Archetipo</td><td>${esc(state.archetype.code)} — ${esc(state.archetype.title)}${state.archetypeAuto ? " (auto)" : ""}</td></tr>
+    </table>
+
+    <div class="competenze-note">📦 Area competenze: vuota in questo wizard. Le competenze sono derivate a valle dai due profili e <em>caricate dal backend Minerva</em>.</div>
+
+    <div class="toolbar">
+      <button class="btn ghost" id="btnCopy">📋 Copia JSON</button>
+      <button class="btn gold" id="btnAdd">＋ Aggiungi alla lista</button>
+    </div>
+    <div class="nav">
+      <button class="btn ghost" id="btnBack">← Indietro</button>
+      <button class="btn" id="btnReset">↺ Nuovo dipendente</button>
+    </div>`;
+
+  document.getElementById("btnBack").addEventListener("click", back);
+  document.getElementById("btnReset").addEventListener("click", resetWizard);
+  document.getElementById("btnCopy").addEventListener("click", () => {
+    copyText(JSON.stringify(currentRecord(), null, 2));
+  });
+  document.getElementById("btnAdd").addEventListener("click", addToList);
+}
+
+// Record corrente come oggetto serializzabile
+function currentRecord() {
+  const r = buildResult();
+  return {
+    matricola: state.matricola || "",
+    nome: state.nome || "",
+    banda_code: state.band.code,
+    banda: state.band.title,
+    famiglia_code: state.family.code,
+    famiglia: state.family.title,
+    ambito_code: state.ambito.code,
+    ambito: state.ambito.title,
+    archetipo_code: state.archetype.code,
+    archetipo: state.archetype.title,
+    archetipo_auto: state.archetypeAuto,
+    profilo_di_ruolo: r.ruolo,
+    profilo_professionale: r.professionale
+  };
+}
+
+/* =========================================================================
+   7) LISTA DIPENDENTI + EXPORT
+   ========================================================================= */
+function addToList() {
+  employees.push(currentRecord());
+  renderList();
+  toast("Dipendente aggiunto alla lista");
+  resetWizard();
+}
+
+function resetWizard() {
+  state.step = 1;
+  state.matricola = ""; state.nome = "";
+  state.band = state.family = state.ambito = state.archetype = null;
+  state.archetypeAuto = false;
+  renderStep();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderList() {
+  const $body = document.getElementById("listBody");
+  const $count = document.getElementById("listCount");
+  $count.textContent = employees.length ? `(${employees.length})` : "";
+
+  if (!employees.length) {
+    $body.innerHTML = `<div class="list-empty">Nessun dipendente compilato. Completa il wizard e premi «Aggiungi alla lista».</div>`;
+    return;
+  }
+
+  const rows = employees.map((e, i) => `
+    <tr>
+      <td>${esc(e.matricola || "—")}</td>
+      <td>${esc(e.nome || "—")}</td>
+      <td>${esc(e.banda)}</td>
+      <td>${esc(e.famiglia)}</td>
+      <td>${esc(e.ambito)}</td>
+      <td>${esc(e.archetipo)}${e.archetipo_auto ? " ⚙" : ""}</td>
+      <td class="mono">${esc(e.profilo_di_ruolo)}</td>
+      <td class="mono">${esc(e.profilo_professionale)}</td>
+      <td><button class="row-del" data-i="${i}" title="Rimuovi">✕</button></td>
+    </tr>`).join("");
+
+  $body.innerHTML = `<div style="overflow-x:auto;">
+    <table class="list">
+      <thead><tr>
+        <th>Matricola</th><th>Nome</th><th>Banda</th><th>Famiglia</th>
+        <th>Ambito</th><th>Archetipo</th><th>Profilo ruolo</th><th>Profilo prof.</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+
+  $body.querySelectorAll(".row-del").forEach(btn => {
+    btn.addEventListener("click", () => {
+      employees.splice(parseInt(btn.dataset.i, 10), 1);
+      renderList();
+    });
+  });
+}
+
+// Export JSON della lista
+document.getElementById("exportJson").addEventListener("click", () => {
+  if (!employees.length) { toast("Lista vuota"); return; }
+  downloadFile("minerva_profili.json", "application/json",
+    JSON.stringify(employees, null, 2));
+});
+
+// Export CSV della lista
+document.getElementById("exportCsv").addEventListener("click", () => {
+  if (!employees.length) { toast("Lista vuota"); return; }
+  const cols = ["matricola","nome","banda_code","banda","famiglia_code","famiglia",
+    "ambito_code","ambito","archetipo_code","archetipo","archetipo_auto",
+    "profilo_di_ruolo","profilo_professionale"];
+  const csvEsc = (v) => {
+    const s = String(v == null ? "" : v);
+    return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = [cols.join(";")];
+  for (const e of employees) lines.push(cols.map(c => csvEsc(e[c])).join(";"));
+  // BOM per corretta apertura in Excel
+  downloadFile("minerva_profili.csv", "text/csv;charset=utf-8",
+    "﻿" + lines.join("\r\n"));
+});
+
+/* =========================================================================
+   8) UTILITY (download, clipboard, toast)
+   ========================================================================= */
+function downloadFile(filename, mime, content) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => toast("JSON copiato negli appunti"),
+      () => fallbackCopy(text)
+    );
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); toast("JSON copiato negli appunti"); }
+  catch { toast("Copia non riuscita"); }
+  document.body.removeChild(ta);
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+
+/* =========================================================================
+   9) AVVIO
+   ========================================================================= */
+renderStep();
+renderList();
+</script>
+</body>
+</html>
