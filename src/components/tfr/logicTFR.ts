@@ -114,6 +114,18 @@ export function giorniResiduiMeseIniziale(dataAssunzione: string): number {
   return giorniNelMese(dataAssunzione) - giornoDelMese(dataAssunzione) + 1;
 }
 
+/**
+ * Converte giorni di calendario in giorni lavorativi.
+ * I giorni dell'ultimo mese sono rilevati come giorni di calendario, ma ai fini
+ * del TFR vanno indicati i giorni LAVORATIVI: 6 giorni su 7 (la domenica non si
+ * lavora), coerentemente con il mese lavorativo convenzionale di 26 giorni.
+ *   giorniLavorativi = round(giorniCalendario × 6 / 7)
+ * Esempio: 30 gg di calendario → 26 gg lavorativi.
+ */
+export function giorniLavorativiDaCalendario(giorniCalendario: number): number {
+  return Math.round((giorniCalendario * 6) / 7);
+}
+
 // ─── Motore principale ─────────────────────────────────────────────────────────
 
 export function calcolaTFR(input: InputTFR): RisultatoTFR {
@@ -150,17 +162,21 @@ export function calcolaTFR(input: InputTFR): RisultatoTFR {
   } else if (casoFinale === 'PARZIALE_LT15') {
     const tredAnnua  = input.tredicesimaAnnua ?? 0;
     const giorniTot  = input.giorniTotaliMaturazione ?? 0;
-    const giorniUlt  = input.giorniUltimoMese ?? giornoDelMese(input.dataCessazione);
+    // Giorni dell'ultimo mese rilevati come giorni di CALENDARIO…
+    const giorniUltCalendario = input.giorniUltimoMese ?? giornoDelMese(input.dataCessazione);
+    // …ma da indicare in giorni LAVORATIVI (6 su 7, mese di 26 gg).
+    const giorniUltLavorativi = giorniLavorativiDaCalendario(giorniUltCalendario);
     const valutabili = input.emolumentiValutabili ?? 0;
     // Quota giorno = Tredicesima totale / Giorni lavorati anno.
-    // Dato da inserire = Quota giorno × (giorni lavorati anno − giorni lavorati ultimo mese).
+    // Dato da inserire = Quota giorno × (giorni lavorati anno − giorni lavorativi ultimo mese).
     const quotaGiorno = giorniTot > 0 ? tredAnnua / giorniTot : 0;
-    const quota = quotaGiorno * (giorniTot - giorniUlt);
+    const quota = quotaGiorno * (giorniTot - giorniUltLavorativi);
     tredicesimaEmolumentiCassa = round2(quota + valutabili);
-    inputs.tredicesimaAnnua          = tredAnnua;
-    inputs.giorniTotaliMaturazione   = giorniTot;
-    inputs.giorniUltimoMese          = giorniUlt;
-    inputs.emolumentiValutabili      = valutabili;
+    inputs.tredicesimaAnnua            = tredAnnua;
+    inputs.giorniTotaliMaturazione     = giorniTot;
+    inputs.giorniUltimoMese            = giorniUltCalendario;   // giorni di calendario (input)
+    inputs.giorniLavorativiUltimoMese  = giorniUltLavorativi;   // giorni lavorativi (usati nel calcolo)
+    inputs.emolumentiValutabili        = valutabili;
   }
 
   return {

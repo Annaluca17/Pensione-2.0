@@ -75,7 +75,8 @@ export function buildPasswebGuide(r: RisultatoTFR, fmt: GuidaFmt): GuidaStep[] {
     } else if (r.casoFinale === 'PARZIALE_LT15') {
       datiRetributivi.push(
         `Mese finale (< 15 gg): "Tredicesima ed emolumenti valutabili arretrati per cassa" = ${fmt.eur(r.tredicesimaEmolumentiCassa)}.`,
-        'Quota giorno = Tredicesima totale / Giorni lavorati anno; dato = quota giorno × (giorni lavorati anno − giorni lavorati ultimo mese) + eventuali emolumenti valutabili arretrati.',
+        'Quota giorno = Tredicesima totale / Giorni lavorati anno; dato = quota giorno × (giorni lavorati anno − giorni lavorativi ultimo mese) + eventuali emolumenti valutabili arretrati.',
+        'I giorni dell’ultimo mese vanno indicati in giorni lavorativi (6 su 7, mese di 26 gg), non in giorni di calendario.',
       );
     }
   }

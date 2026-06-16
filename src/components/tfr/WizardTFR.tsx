@@ -15,6 +15,7 @@ import { Info, X, ImageIcon } from 'lucide-react';
 import { round2 } from '../../utils/math';
 import {
   calcolaTFR, giorniNelMese, giornoDelMese, giorniResiduiMeseIniziale,
+  giorniLavorativiDaCalendario,
   type InputTFR, type RisultatoTFR,
 } from './logicTFR';
 import { buildPasswebGuide } from './passwebGuide';
@@ -421,6 +422,8 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
     const residui = giorniResiduiMeseIniziale(dataAssunzione);
     const giornoCess = giornoDelMese(dataCessazione);
     const gMeseCess = giorniNelMese(dataCessazione);
+    // Giorni di calendario dell'ultimo mese convertiti in giorni LAVORATIVI (6 su 7).
+    const giorniLavUltimoMese = giorniLavorativiDaCalendario(giornoCess);
 
     return (
       <div className="space-y-5">
@@ -556,8 +559,11 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Giorni lavorati nell’ultimo mese</label>
-                    <input type="number" value={giornoCess} readOnly
+                    <input type="number" value={giorniLavUltimoMese} readOnly
                       className="w-full text-right border border-slate-200 bg-slate-50 rounded-lg px-3 py-2 text-sm text-slate-500" />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      {giornoCess} gg di calendario → {giorniLavUltimoMese} gg lavorativi (6 su 7, mese di 26 gg)
+                    </p>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Eventuali emolumenti valutabili arretrati</label>
@@ -574,7 +580,7 @@ export default function WizardTFR({ progettoId, existing, onSave, onCancel }: Wi
                   <p className="text-xs text-slate-500 mb-1">Tredicesima ed emolumenti valutabili arretrati per cassa</p>
                   <span className="text-lg font-bold text-blue-700 font-mono">{eur(r.tredicesimaEmolumentiCassa)}</span>
                   <p className="text-xs text-slate-400 mt-1">
-                    = (Tredicesima annua / Giorni lavorati anno) × (Giorni lavorati anno − {giornoCess}) + emolumenti valutabili
+                    = (Tredicesima annua / Giorni lavorati anno) × (Giorni lavorati anno − {giorniLavUltimoMese}) + emolumenti valutabili
                   </p>
                 </div>
               </div>
