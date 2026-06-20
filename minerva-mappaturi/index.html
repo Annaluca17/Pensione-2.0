@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minerva MappaTuri — Cockpit + Wizard guidato</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#11161c; --ink-2:#3a4654; --ink-3:#697585;
+    --canvas:#eef1f4; --panel:#ffffff; --panel-2:#f6f8fa;
+    --line:#d8dee6; --line-2:#e7ecf1;
+    --accent:#0e7c86; --accent-ink:#08454b; --accent-soft:#d6eef0;
+    --alta:#0f9d6b; --alta-bg:#e2f5ec;
+    --media:#b87503; --media-bg:#fdf0d8;
+    --bassa:#c2362f; --bassa-bg:#fbe4e2;
+    --neutral:#5a6877; --neutral-bg:#e9edf1;
+    --shadow:0 1px 0 rgba(17,22,28,.04),0 8px 24px -16px rgba(17,22,28,.28);
+    --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);background:var(--canvas);color:var(--ink);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{margin:0;font-weight:680;letter-spacing:-.01em}
+  code,.mono{font-family:var(--mono)}
+  button{font-family:inherit;cursor:pointer}
+  button:focus-visible,select:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .hidden{display:none!important}
+
+  header.rail{background:var(--ink);color:#e9eef3;padding:14px 22px;display:flex;align-items:center;gap:18px;position:sticky;top:0;z-index:40}
+  .rail .glyph{width:30px;height:30px;border:1.5px solid #46566a;border-radius:7px;display:grid;place-items:center;font-family:var(--mono);font-weight:700;color:#7fe0d6}
+  .rail h1{font-size:15px;letter-spacing:.02em}
+  .rail .sub{font-size:11px;color:#8a99a8;letter-spacing:.16em;text-transform:uppercase;margin-top:1px}
+  .rail .spacer{flex:1}
+  .rail .pill{font-family:var(--mono);font-size:11px;color:#9fb0bf;border:1px solid #2c3a49;border-radius:999px;padding:4px 10px}
+  .rail .reset{border:1px solid #46566a;background:transparent;color:#cdd8e2;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600}
+  .rail .reset:hover{border-color:#7fe0d6;color:#7fe0d6}
+
+  .stepper{display:flex;background:var(--panel);border-bottom:1px solid var(--line);padding:0 18px;overflow-x:auto}
+  .step{display:flex;align-items:center;gap:9px;padding:13px 18px 11px;border-bottom:2px solid transparent;color:var(--ink-3);font-size:12.5px;font-weight:600;white-space:nowrap}
+  .step .n{width:21px;height:21px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  .step.active{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .step.active .n{border-color:var(--accent);background:var(--accent);color:#fff}
+  .step.done{color:var(--ink-2)}
+  .step.done .n{border-color:var(--alta);background:var(--alta);color:#fff}
+
+  main{max-width:1320px;margin:0 auto;padding:24px 18px 80px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+  .panel.pad{padding:22px}
+  .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);font-weight:700;margin-bottom:6px}
+  .lead{color:var(--ink-2);max-width:72ch}
+
+  .embedded{display:flex;align-items:center;gap:14px;background:var(--accent-soft);border:1px solid #b9dde0;border-radius:10px;padding:13px 16px;margin-top:16px}
+  .embedded .ic{width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-weight:700;flex-shrink:0}
+  .embedded .txt{font-size:12.5px;color:var(--accent-ink)}
+  .embedded .txt b{font-family:var(--mono)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 15px;border-radius:9px;font-weight:600;font-size:13px;transition:.12s}
+  .btn:hover{border-color:var(--ink-3)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+  .btn.ghost{background:transparent}
+  .btn.sm{padding:6px 11px;font-size:12px;border-radius:7px}
+  .btn.alta{background:var(--alta);border-color:var(--alta);color:#fff}
+  .btn.alta:hover{filter:brightness(.94)}
+  .btn.danger{border-color:#e8b4af;color:var(--bassa)}
+  .btn.danger:hover{background:var(--bassa-bg)}
+
+  .uphero{margin-top:18px;border:1.5px dashed var(--line);border-radius:12px;padding:28px;background:var(--panel-2);transition:.12s;position:relative;text-align:center}
+  .uphero:hover{border-color:var(--accent);background:#fff}
+  .uphero.loaded{border-style:solid;border-color:var(--alta);background:var(--alta-bg);text-align:left}
+  .uphero .ftag{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.04em}
+  .uphero h3{font-size:17px;margin:8px 0 4px}
+  .uphero p{margin:0;font-size:12.5px;color:var(--ink-3)}
+  .uphero input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .uphero .fname{margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--accent-ink);word-break:break-all}
+  .uphero .req{display:inline-block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--accent);border-radius:5px;padding:2px 8px;font-weight:700;margin-bottom:6px}
+
+  .srcstrip{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+  .srcslot{flex:1;min-width:210px;border:1px solid var(--line);border-radius:9px;padding:11px 13px;background:var(--panel-2);position:relative;display:flex;align-items:center;gap:11px;transition:.12s}
+  .srcslot:hover{border-color:var(--accent)}
+  .srcslot.loaded{border-color:var(--alta);background:var(--alta-bg)}
+  .srcslot .sic{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);display:grid;place-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-3);background:#fff;flex-shrink:0}
+  .srcslot.loaded .sic{border-color:var(--alta);color:var(--alta)}
+  .srcslot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+  .srcslot .lab{font-size:12px;font-weight:700;color:var(--ink-2)}
+  .srcslot .nm{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);word-break:break-all}
+  .srcslot.loaded .nm{color:var(--accent-ink)}
+
+  details.adv{margin-top:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+  details.adv>summary{cursor:pointer;padding:13px 16px;font-weight:600;font-size:13px;color:var(--ink-2);list-style:none;display:flex;align-items:center;gap:8px}
+  details.adv>summary::before{content:"▸";color:var(--ink-3)}
+  details.adv[open]>summary::before{content:"▾"}
+
+  .mapgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
+  @media(max-width:760px){.mapgrid{grid-template-columns:1fr}}
+  .mapcard{border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--panel-2)}
+  .mapcard h3{font-size:12.5px;margin-bottom:12px;color:var(--accent-ink)}
+  .maprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+  .maprow label{font-size:12px;color:var(--ink-2);font-weight:600}
+  .maprow .req{color:var(--bassa);font-weight:700}
+  .maprow .opt{color:var(--ink-3);font-weight:500;font-size:11px}
+  select,input[type=text]{font-family:inherit;font-size:12.5px;border:1px solid var(--line);border-radius:7px;padding:6px 8px;background:#fff;color:var(--ink);max-width:180px}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:18px 0 6px}
+  .tile{border:1px solid var(--line);border-radius:10px;padding:14px 15px;background:var(--panel);position:relative;overflow:hidden}
+  .tile .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  .tile .v{font-family:var(--mono);font-size:26px;font-weight:600;margin-top:6px;letter-spacing:-.02em}
+  .tile .d{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:2px}
+  .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--neutral)}
+  .tile.ok::before{background:var(--alta)} .tile.ok .v{color:var(--alta)}
+  .tile.warn::before{background:var(--media)} .tile.warn .v{color:var(--media)}
+  .tile.err::before{background:var(--bassa)} .tile.err .v{color:var(--bassa)}
+  .tile.tot::before{background:var(--accent)}
+  .tile.ces::before{background:var(--neutral)} .tile.ces .v{color:var(--neutral)}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:20px 0 12px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--ink-2);display:inline-flex;gap:7px;align-items:center}
+  .chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .chip .cnt{font-family:var(--mono);font-size:11px;opacity:.8}
+  .search{flex:1;min-width:180px;max-width:340px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:0 10px;background:#fff}
+  .search input{border:none;outline:none;padding:9px 0;width:100%;max-width:none;font-size:13px}
+
+  .tablewrap{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--panel)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:700;padding:11px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody tr:hover{background:var(--panel-2)}
+  tbody tr.editing{background:var(--accent-soft)}
+  .code{font-family:var(--mono);font-size:11.5px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:5px;padding:2px 6px;white-space:nowrap}
+  .matr{font-family:var(--mono);color:var(--ink-3);font-size:11.5px}
+  .conf{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:999px}
+  .conf .dot{width:7px;height:7px;border-radius:50%}
+  .conf.ALTA{background:var(--alta-bg);color:var(--alta)} .conf.ALTA .dot{background:var(--alta)}
+  .conf.MEDIA{background:var(--media-bg);color:var(--media)} .conf.MEDIA .dot{background:var(--media)}
+  .conf.BASSA{background:var(--bassa-bg);color:var(--bassa)} .conf.BASSA .dot{background:var(--bassa)}
+  .conf.NEU{background:var(--neutral-bg);color:var(--neutral)} .conf.NEU .dot{background:var(--neutral)}
+  .azione{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-2)}
+  .needs{color:var(--bassa)}
+  .rowbtn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 10px;font-size:11.5px;font-weight:600;color:var(--accent-ink);display:inline-flex;gap:6px;align-items:center}
+  .rowbtn:hover{border-color:var(--accent)}
+  .rowbtn.muted{color:var(--ink-3)}
+
+  .editor{background:var(--accent-soft);border-top:1px solid #b9dde0}
+  .editor td{padding:16px 18px}
+  .ed-head{font-size:12px;color:var(--accent-ink);font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ed-head .raw{font-family:var(--mono);background:#fff;border:1px solid #b9dde0;border-radius:5px;padding:2px 7px;color:var(--ink)}
+  .ed-grid{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  .field select{max-width:none;min-width:240px;padding:8px 10px}
+  .ed-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .hint{font-size:11.5px;color:var(--ink-2);margin-top:10px;max-width:82ch}
+  .hint b{color:var(--accent-ink)}
+
+  .empty{padding:48px 20px;text-align:center;color:var(--ink-3)}
+  .empty .big{font-size:15px;color:var(--ink-2);font-weight:600;margin-bottom:4px}
+
+  .footbar{position:sticky;bottom:0;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:12px 18px;display:flex;gap:12px;align-items:center;z-index:30;margin-top:20px;border-radius:0 0 12px 12px;flex-wrap:wrap}
+  .footbar .stat{font-size:12px;color:var(--ink-2)}
+  .footbar .stat b{font-family:var(--mono);color:var(--ink)}
+  .footbar .spacer{flex:1}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:600;opacity:0;transition:.22s;z-index:80;box-shadow:0 10px 30px -10px rgba(0,0,0,.5)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ===== Wizard guidato (modale cascata) ===== */
+  .wzmodal{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:20px}
+  .wzbackdrop{position:absolute;inset:0;background:rgba(17,22,28,.55);backdrop-filter:blur(2px)}
+  .wzcard{position:relative;width:min(740px,100%);max-height:92vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);overflow:hidden}
+  .wzhead{display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line);background:var(--ink);color:#e9eef3}
+  .wzhead .wztitle{display:flex;align-items:center;gap:12px;flex:1}
+  .wzlogo{width:30px;height:30px;border:1.5px solid #46566a;border-radius:7px;display:grid;place-items:center;font-family:var(--mono);font-weight:700;color:#7fe0d6}
+  .wzhead b{font-size:14px} .wzsub{font-size:10.5px;color:#8a99a8;letter-spacing:.12em;text-transform:uppercase}
+  .wzx{background:transparent;border:none;color:#cdd8e2;font-size:15px;cursor:pointer;padding:5px 9px;border-radius:6px}
+  .wzx:hover{background:#2c3a49;color:#fff}
+  .wzsteps{display:flex;gap:6px;padding:11px 20px;border-bottom:1px solid var(--line-2);flex-wrap:wrap;background:var(--panel-2)}
+  .wzstep{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:4px 11px}
+  .wzstep b{width:18px;height:18px;border-radius:50%;background:var(--line);color:#fff;display:grid;place-items:center;font-family:var(--mono);font-size:10px;font-weight:700}
+  .wzstep.active{color:var(--accent-ink);border-color:var(--accent);background:var(--accent-soft)} .wzstep.active b{background:var(--accent)}
+  .wzstep.done{color:var(--alta);border-color:var(--alta)} .wzstep.done b{background:var(--alta)}
+  .wzbody{padding:18px 20px;overflow:auto}
+  .wzbody h3{font-size:15px;margin-bottom:4px}
+  .wzhint{font-size:12.5px;color:var(--ink-3);margin:0 0 12px}
+  .wzwho{font-size:13px;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line-2);border-radius:8px;padding:8px 12px;margin-bottom:12px}
+  .wzopts{display:flex;flex-direction:column;gap:8px}
+  .wzopt,.wzfam{display:flex;gap:11px;align-items:flex-start;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:11px 13px;cursor:pointer;transition:.12s;width:100%;font-family:inherit;color:var(--ink)}
+  .wzopt:hover,.wzfam:hover{border-color:var(--accent)}
+  .wzopt.sel,.wzfam.sel{border-color:var(--accent);background:var(--accent-soft)}
+  .wzradio{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;margin-top:2px}
+  .wzopt.sel .wzradio,.wzfam.sel .wzradio{border-color:var(--accent);background:var(--accent);box-shadow:inset 0 0 0 3px #fff}
+  .wzobody{display:flex;flex-direction:column;gap:2px} .wzobody .mono{font-size:11px;color:var(--ink-3)}
+  .wzfbody{display:flex;flex-direction:column;gap:3px} .wzfbody .mono{font-size:11px;color:var(--ink-3)} .wzfbody b{font-size:13px}
+  .wzdesc{font-size:11.5px;color:var(--ink-3);margin-top:2px;line-height:1.4}
+  .wzchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+  .wzchip{font-size:10.5px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:999px;padding:2px 8px;color:var(--ink-2)}
+  .wzsearch{width:100%;max-width:none;margin-bottom:12px;padding:9px 12px;font-size:13px;border:1px solid var(--line);border-radius:9px}
+  .wzfamlist{display:flex;flex-direction:column;gap:8px}
+  .wzempty{padding:24px;text-align:center;color:var(--ink-3);font-size:13px;border:1px dashed var(--line);border-radius:10px}
+  .wzresult{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+  .wzrr{display:flex;justify-content:space-between;gap:14px;align-items:center;border:1px solid var(--line-2);border-radius:9px;padding:10px 13px;background:var(--panel-2)}
+  .wzrr span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700;white-space:nowrap}
+  .wzrr b{text-align:right} .wzrr.big{background:var(--accent-soft);border-color:#b9dde0} .wzrr.big b.code{font-size:16px}
+  .wzfoot{display:flex;align-items:center;gap:10px;padding:13px 20px;border-top:1px solid var(--line);background:var(--panel-2)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="rail">
+  <div class="glyph">M</div>
+  <div><h1>Minerva MappaTuri</h1><div class="sub">Cockpit + Wizard · 2.3.2</div></div>
+  <div class="spacer"></div>
+  <div class="pill" id="railEngine">dizionario integrato · no-guess</div>
+  <button class="reset" id="resetRail">Reset</button>
+</header>
+
+<nav class="stepper" id="stepper">
+  <div class="step active" data-step="1"><span class="n">1</span> Carica anagrafica</div>
+  <div class="step" data-step="2"><span class="n">2</span> Colonne</div>
+  <div class="step" data-step="3"><span class="n">3</span> Mappatura</div>
+  <div class="step" data-step="4"><span class="n">4</span> Correggi</div>
+  <div class="step" data-step="5"><span class="n">5</span> Esporta</div>
+</nav>
+
+<main>
+
+  <section id="s1" class="panel pad">
+    <div class="eyebrow">Step 1 — Ingestion</div>
+    <h2>Carica l'anagrafica</h2>
+    <p class="lead">Dizionario di transcodifica e tassonomia Minerva sono integrati. Carica il solo file anagrafico: la mappatura parte in automatico. Matricole vuote saltate, cessati esclusi dal conteggio. Tutto resta nel browser.</p>
+
+    <div class="embedded"><div class="ic">✓</div><div class="txt" id="embStats">Dizionario Minerva integrato</div></div>
+
+    <div class="uphero" id="drop-anag">
+      <span class="req">richiesto</span>
+      <div class="ftag">anagrafica.xlsx</div>
+      <h3>Trascina o seleziona l'anagrafica</h3>
+      <p>Colonne: Codice fiscale · [Matricola per Conto Annuale] · posizione economica (A/B/C/D) · mansione · [area] · [data cessazione]</p>
+      <div class="fname" id="fn-anag"></div>
+      <input type="file" accept=".xlsx,.xls" id="f-anag">
+    </div>
+
+    <details class="adv">
+      <summary>Opzionale — Conto Annuale e dizionario aggiornato</summary>
+      <div class="srcstrip" style="padding:0 16px 16px">
+        <label class="srcslot" id="slot1-ca"><span class="sic">CA</span><div><div class="lab">Conto Annuale</div><div class="nm">abilita ambito da area di intervento</div></div><input type="file" accept=".xlsx,.xls" id="f-ca"></label>
+        <label class="srcslot" id="slot1-dz"><span class="sic">DZ</span><div><div class="lab">Dizionario override</div><div class="nm">estende il dizionario integrato</div></div><input type="file" accept=".xlsx,.xls" id="f-dz"></label>
+      </div>
+    </details>
+
+    <div class="hidden" id="s1err" style="color:var(--bassa);font-size:12.5px;margin-top:14px;background:var(--bassa-bg);border:1px solid #f0c9c5;border-radius:8px;padding:10px 13px"></div>
+  </section>
+
+  <section id="s2" class="panel pad hidden">
+    <div class="eyebrow">Step 2 — Contratto di interfaccia</div>
+    <h2>Conferma le colonne</h2>
+    <p class="lead">Auto-rilevamento sugli header attesi. La banda si ricava da <b>posizione economica</b> (A/B/C/D); se assente, da <b>area</b>. Correggi dove serve.</p>
+    <div class="mapgrid" id="mapgrid"></div>
+
+    <div class="eyebrow" style="margin-top:18px">Allegati opzionali</div>
+    <div class="srcstrip">
+      <label class="srcslot" id="slot2-ca"><span class="sic">CA</span><div><div class="lab">Conto Annuale</div><div class="nm" id="nm2-ca">aggiungi…</div></div><input type="file" accept=".xlsx,.xls" id="f-ca2"></label>
+      <label class="srcslot" id="slot2-dz"><span class="sic">DZ</span><div><div class="lab">Dizionario override</div><div class="nm" id="nm2-dz">aggiungi…</div></div><input type="file" accept=".xlsx,.xls" id="f-dz2"></label>
+    </div>
+
+    <div class="mapcard" style="margin-top:18px">
+      <h3>Bande direttive (ambito ← area di intervento)</h3>
+      <p style="font-size:12px;color:var(--ink-3);margin:0 0 10px">Bande con piena varietà di famiglie. Le restanti (esecutive) ricavano l'ambito dalla mansione/whitelist.</p>
+      <div id="bandebox" style="display:flex;flex-wrap:wrap;gap:14px"></div>
+    </div>
+    <div class="hidden" id="s2err" style="color:var(--bassa);font-size:12.5px;margin-top:14px;background:var(--bassa-bg);border:1px solid #f0c9c5;border-radius:8px;padding:10px 13px"></div>
+    <div style="margin-top:20px;display:flex;gap:12px">
+      <button class="btn ghost" onclick="goStep(1)">← Indietro</button>
+      <button class="btn primary" id="runEngineBtn">Esegui transcodifica →</button>
+    </div>
+  </section>
+
+  <section id="s34" class="hidden">
+    <div class="panel pad" style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px">
+        <div><div class="eyebrow">Sorgenti</div><h2 style="font-size:18px">Mappatura</h2></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn ghost sm" onclick="openMapping()">Colonne</button>
+          <button class="btn danger sm" id="resetBtn">Reset</button>
+        </div>
+      </div>
+      <div class="srcstrip">
+        <label class="srcslot loaded" id="slot3-anag"><span class="sic">AN</span><div><div class="lab">Anagrafica</div><div class="nm" id="nm3-anag">—</div></div><input type="file" accept=".xlsx,.xls" id="f-anag3"></label>
+        <label class="srcslot" id="slot3-ca"><span class="sic">CA</span><div><div class="lab">Conto Annuale</div><div class="nm" id="nm3-ca">+ aggiungi</div></div><input type="file" accept=".xlsx,.xls" id="f-ca3"></label>
+        <label class="srcslot" id="slot3-dz"><span class="sic">DZ</span><div><div class="lab">Dizionario override</div><div class="nm" id="nm3-dz">+ aggiungi</div></div><input type="file" accept=".xlsx,.xls" id="f-dz3"></label>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <div id="baseline" class="stat" style="font-size:11.5px;color:var(--ink-3);font-family:var(--mono)"></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="chips" id="chips"></div>
+      <div class="search"><span style="color:var(--ink-3)">⌕</span><input id="q" type="text" placeholder="Cerca matricola, mansione, codice…"></div>
+      <label class="chip" style="cursor:pointer"><input type="checkbox" id="onlyTodo" style="accent-color:var(--accent)"> solo da correggere</label>
+      <button class="btn sm" id="wzOpenBtn" style="margin-left:auto">🧭 Wizard guidato</button>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Codice fiscale</th><th>Cognome e Nome</th><th>Mansione</th><th>Banda</th>
+          <th>Archetipo</th><th>Ambito</th><th>Profilo ruolo</th>
+          <th>Confidenza</th><th>Azione</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="footbar">
+      <div class="stat">Visibili: <b id="visCount">0</b> / <b id="totCount">0</b></div>
+      <div class="stat">Risolte: <b id="resCount">0</b></div>
+      <div class="stat">Aperte: <b id="openCount" class="needs">0</b></div>
+      <div class="stat">Scartati / cessati: <b id="cesCount">0</b></div>
+      <div class="spacer"></div>
+      <button class="btn" id="exportDict">Esporta delta dizionario</button>
+      <button class="btn primary" id="exportMap">Esporta mappatura .xlsx</button>
+    </div>
+  </section>
+
+</main>
+
+<div class="wzmodal hidden" id="wzModal">
+  <div class="wzbackdrop" id="wzBackdrop"></div>
+  <div class="wzcard" role="dialog" aria-modal="true" aria-label="Wizard guidato profilo di ruolo">
+    <header class="wzhead">
+      <div class="wztitle"><span class="wzlogo">M</span><div><b>Wizard guidato</b><div class="wzsub">Profilo di ruolo PP-AR</div></div></div>
+      <button class="wzx" id="wzClose" aria-label="Chiudi">&#10005;</button>
+    </header>
+    <div class="wzsteps" id="wzSteps"></div>
+    <div class="wzbody" id="wzBody"></div>
+    <footer class="wzfoot" id="wzFoot"></footer>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const EMBEDDED = {"ref":[["FUNZIONARI ED E.Q.","ELL_PP0001","ELL_AR003","ELL_PP0001-AR003"],["FUNZIONARI ED E.Q.","ELL_PP0001","ELL_AR030","ELL_PP0001-AR030"],["FUNZIONARI ED E.Q.","ELL_PP0001","ELL_AR034","ELL_PP0001-AR034"],["FUNZIONARI ED E.Q.","ELL_PP0001","ELL_AR038","ELL_PP0001-AR038"],["FUNZIONARI ED E.Q.","ELL_PP0001","ELL_AR047","ELL_PP0001-AR047"],["FUNZIONARI ED E.Q.","ELL_PP0002","ELL_AR001","ELL_PP0002-AR001"],["FUNZIONARI ED E.Q.","ELL_PP0002","ELL_AR002","ELL_PP0002-AR002"],["FUNZIONARI ED E.Q.","ELL_PP0002","ELL_AR004","ELL_PP0002-AR004"],["FUNZIONARI ED E.Q.","ELL_PP0003","ELL_AR001","ELL_PP0003-AR001"],["FUNZIONARI ED E.Q.","ELL_PP0003","ELL_AR002","ELL_PP0003-AR002"],["FUNZIONARI ED E.Q.","ELL_PP0003","ELL_AR016","ELL_PP0003-AR016"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR003","ELL_PP0004-AR003"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR007","ELL_PP0004-AR007"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR016","ELL_PP0004-AR016"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR030","ELL_PP0004-AR030"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR032","ELL_PP0004-AR032"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR033","ELL_PP0004-AR033"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR034","ELL_PP0004-AR034"],["FUNZIONARI ED E.Q.","ELL_PP0004","ELL_AR038","ELL_PP0004-AR038"],["FUNZIONARI ED E.Q.","ELL_PP0005","ELL_AR001","ELL_PP0005-AR001"],["FUNZIONARI ED E.Q.","ELL_PP0005","ELL_AR014","ELL_PP0005-AR014"],["FUNZIONARI ED E.Q.","ELL_PP0005","ELL_AR019","ELL_PP0005-AR019"],["FUNZIONARI ED E.Q.","ELL_PP0005","ELL_AR021","ELL_PP0005-AR021"],["FUNZIONARI ED E.Q.","ELL_PP0005","ELL_AR037","ELL_PP0005-AR037"],["FUNZIONARI ED E.Q.","ELL_PP0005","ELL_AR047","ELL_PP0005-AR047"],["FUNZIONARI ED E.Q.","ELL_PP0006","ELL_AR001","ELL_PP0006-AR001"],["FUNZIONARI ED E.Q.","ELL_PP0006","ELL_AR003","ELL_PP0006-AR003"],["FUNZIONARI ED E.Q.","ELL_PP0006","ELL_AR004","ELL_PP0006-AR004"],["FUNZIONARI ED E.Q.","ELL_PP0006","ELL_AR005","ELL_PP0006-AR005"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR007","ELL_PP0007-AR007"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR008","ELL_PP0007-AR008"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR009","ELL_PP0007-AR009"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR010","ELL_PP0007-AR010"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR011","ELL_PP0007-AR011"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR016","ELL_PP0007-AR016"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR029","ELL_PP0007-AR029"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR030","ELL_PP0007-AR030"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR031","ELL_PP0007-AR031"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR033","ELL_PP0007-AR033"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR034","ELL_PP0007-AR034"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR035","ELL_PP0007-AR035"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR036","ELL_PP0007-AR036"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR037","ELL_PP0007-AR037"],["FUNZIONARI ED E.Q.","ELL_PP0007","ELL_AR038","ELL_PP0007-AR038"],["FUNZIONARI ED E.Q.","ELL_PP0008","ELL_AR009","ELL_PP0008-AR009"],["FUNZIONARI ED E.Q.","ELL_PP0008","ELL_AR012","ELL_PP0008-AR012"],["FUNZIONARI ED E.Q.","ELL_PP0008","ELL_AR025","ELL_PP0008-AR025"],["FUNZIONARI ED E.Q.","ELL_PP0008","ELL_AR028","ELL_PP0008-AR028"],["FUNZIONARI ED E.Q.","ELL_PP0008","ELL_AR047","ELL_PP0008-AR047"],["FUNZIONARI ED E.Q.","ELL_PP0009","ELL_AR006","ELL_PP0009-AR006"],["FUNZIONARI ED E.Q.","ELL_PP0009","ELL_AR030","ELL_PP0009-AR030"],["FUNZIONARI ED E.Q.","ELL_PP0009","ELL_AR032","ELL_PP0009-AR032"],["FUNZIONARI ED E.Q.","ELL_PP0009","ELL_AR033","ELL_PP0009-AR033"],["FUNZIONARI ED E.Q.","ELL_PP0009","ELL_AR034","ELL_PP0009-AR034"],["FUNZIONARI ED E.Q.","ELL_PP0009","ELL_AR038","ELL_PP0009-AR038"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR005","ELL_PP0010-AR005"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR016","ELL_PP0010-AR016"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR018","ELL_PP0010-AR018"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR019","ELL_PP0010-AR019"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR020","ELL_PP0010-AR020"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR022","ELL_PP0010-AR022"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR023","ELL_PP0010-AR023"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR028","ELL_PP0010-AR028"],["FUNZIONARI ED E.Q.","ELL_PP0010","ELL_AR047","ELL_PP0010-AR047"],["FUNZIONARI ED E.Q.","ELL_PP0011","ELL_AR013","ELL_PP0011-AR013"],["FUNZIONARI ED E.Q.","ELL_PP0011","ELL_AR014","ELL_PP0011-AR014"],["FUNZIONARI ED E.Q.","ELL_PP0011","ELL_AR015","ELL_PP0011-AR015"],["FUNZIONARI ED E.Q.","ELL_PP0011","ELL_AR047","ELL_PP0011-AR047"],["FUNZIONARI ED E.Q.","ELL_PP0011","ELL_AR143-cmbo","ELL_PP0011-AR143-cmbo"],["FUNZIONARI ED E.Q.","ELL_PP0012","ELL_AR017","ELL_PP0012-AR017"],["FUNZIONARI ED E.Q.","ELL_PP0012","ELL_AR021","ELL_PP0012-AR021"],["FUNZIONARI ED E.Q.","ELL_PP0012","ELL_AR039","ELL_PP0012-AR039"],["FUNZIONARI ED E.Q.","ELL_PP0013","ELL_AR021","ELL_PP0013-AR021"],["FUNZIONARI ED E.Q.","ELL_PP0013","ELL_AR032","ELL_PP0013-AR032"],["FUNZIONARI ED E.Q.","ELL_PP0013","ELL_AR033","ELL_PP0013-AR033"],["FUNZIONARI ED E.Q.","ELL_PP0013","ELL_AR034","ELL_PP0013-AR034"],["FUNZIONARI ED E.Q.","ELL_PP0013","ELL_AR039","ELL_PP0013-AR039"],["FUNZIONARI ED E.Q.","ELL_PP0014","ELL_AR024","ELL_PP0014-AR024"],["FUNZIONARI ED E.Q.","ELL_PP0014","ELL_AR025","ELL_PP0014-AR025"],["FUNZIONARI ED E.Q.","ELL_PP0014","ELL_AR026","ELL_PP0014-AR026"],["FUNZIONARI ED E.Q.","ELL_PP0014","ELL_AR027","ELL_PP0014-AR027"],["FUNZIONARI ED E.Q.","ELL_PP0014","ELL_AR031","ELL_PP0014-AR031"],["FUNZIONARI ED E.Q.","ELL_PP0015","ELL_AR023","ELL_PP0015-AR023"],["FUNZIONARI ED E.Q.","ELL_PP0016","ELL_AR024","ELL_PP0016-AR024"],["FUNZIONARI ED E.Q.","ELL_PP0017","ELL_AR030","ELL_PP0017-AR030"],["FUNZIONARI ED E.Q.","ELL_PP0018","ELL_AR029","ELL_PP0018-AR029"],["FUNZIONARI ED E.Q.","ELL_PP0019","ELL_AR037","ELL_PP0019-AR037"],["FUNZIONARI ED E.Q.","ELL_PP0019","ELL_AR039","ELL_PP0019-AR039"],["FUNZIONARI ED E.Q.","ELL_PP0019","ELL_AR144-cmba","ELL_PP0019-AR144-cmba"],["FUNZIONARI ED E.Q.","ELL_PP0020","ELL_AR036","ELL_PP0020-AR036"],["ISTRUTTORI","ELL_PP0021","ELL_AR001","ELL_PP0021-AR001"],["ISTRUTTORI","ELL_PP0021","ELL_AR003","ELL_PP0021-AR003"],["ISTRUTTORI","ELL_PP0021","ELL_AR005","ELL_PP0021-AR005"],["ISTRUTTORI","ELL_PP0022","ELL_AR008","ELL_PP0022-AR008"],["ISTRUTTORI","ELL_PP0022","ELL_AR024","ELL_PP0022-AR024"],["ISTRUTTORI","ELL_PP0022","ELL_AR025","ELL_PP0022-AR025"],["ISTRUTTORI","ELL_PP0022","ELL_AR029","ELL_PP0022-AR029"],["ISTRUTTORI","ELL_PP0022","ELL_AR030","ELL_PP0022-AR030"],["ISTRUTTORI","ELL_PP0022","ELL_AR031","ELL_PP0022-AR031"],["ISTRUTTORI","ELL_PP0022","ELL_AR033","ELL_PP0022-AR033"],["ISTRUTTORI","ELL_PP0022","ELL_AR034","ELL_PP0022-AR034"],["ISTRUTTORI","ELL_PP0022","ELL_AR035","ELL_PP0022-AR035"],["ISTRUTTORI","ELL_PP0022","ELL_AR038","ELL_PP0022-AR038"],["ISTRUTTORI","ELL_PP0022","ELL_AR146-p_fg","ELL_PP0022-AR146-p_fg"],["ISTRUTTORI","ELL_PP0023","ELL_AR005","ELL_PP0023-AR005"],["ISTRUTTORI","ELL_PP0023","ELL_AR017","ELL_PP0023-AR017"],["ISTRUTTORI","ELL_PP0023","ELL_AR018","ELL_PP0023-AR018"],["ISTRUTTORI","ELL_PP0023","ELL_AR020","ELL_PP0023-AR020"],["ISTRUTTORI","ELL_PP0023","ELL_AR021","ELL_PP0023-AR021"],["ISTRUTTORI","ELL_PP0023","ELL_AR022","ELL_PP0023-AR022"],["ISTRUTTORI","ELL_PP0023","ELL_AR023","ELL_PP0023-AR023"],["ISTRUTTORI","ELL_PP0023","ELL_AR028","ELL_PP0023-AR028"],["ISTRUTTORI","ELL_PP0024","ELL_AR010","ELL_PP0024-AR010"],["ISTRUTTORI","ELL_PP0024","ELL_AR039","ELL_PP0024-AR039"],["ISTRUTTORI","ELL_PP0025","ELL_AR078-cmba","ELL_PP0025"],["ISTRUTTORI","ELL_PP0025","ELL_AR024","ELL_PP0025-AR024"],["ISTRUTTORI","ELL_PP0025","ELL_AR028","ELL_PP0025-AR028"],["ISTRUTTORI","ELL_PP0025","ELL_AR029","ELL_PP0025-AR029"],["ISTRUTTORI","ELL_PP0025","ELL_AR030","ELL_PP0025-AR030"],["ISTRUTTORI","ELL_PP0025","ELL_AR031","ELL_PP0025-AR031"],["ISTRUTTORI","ELL_PP0026","ELL_AR029","ELL_PP0026-AR029"],["ISTRUTTORI","ELL_PP0027","ELL_AR036","ELL_PP0027-AR036"],["OPERATORE ESPERTO","ELL_PP0028","ELL_AR017","ELL_PP0028-AR017"],["OPERATORE ESPERTO","ELL_PP0028","ELL_AR018","ELL_PP0028-AR018"],["OPERATORE ESPERTO","ELL_PP0029","ELL_AR017","ELL_PP0029-AR017"],["OPERATORE ESPERTO","ELL_PP0029","ELL_AR034","ELL_PP0029-AR034"],["OPERATORE ESPERTO","ELL_PP0029","ELL_AR037","ELL_PP0029-AR037"],["OPERATORE ESPERTO","ELL_PP0029","ELL_AR039","ELL_PP0029-AR039"],["OPERATORE","ELL_PP0030","ELL_AR017","ELL_PP0030-AR017"],["ISTRUTTORI","ELL_PP0041","ELL_AR013","ELL_PP0041-AR013"],["ISTRUTTORI","ELL_PP0041","ELL_AR015","ELL_PP0041-AR015"],["FUNZIONARI ED E.Q.","ELL_PP0066","ELL_AR012","ELL_PP0066-AR012"]],"ar_to_fam":{"ELL_AR003":"ELL_FP001","ELL_AR030":"ELL_FP007","ELL_AR034":"ELL_FP008","ELL_AR038":"ELL_FP008","ELL_AR047":"ELL_FP003","ELL_AR001":"ELL_FP001","ELL_AR002":"ELL_FP001","ELL_AR004":"ELL_FP001","ELL_AR016":"ELL_FP004","ELL_AR007":"ELL_FP002","ELL_AR032":"ELL_FP008","ELL_AR033":"ELL_FP008","ELL_AR014":"ELL_FP003","ELL_AR019":"ELL_FP004","ELL_AR021":"ELL_FP005","ELL_AR037":"ELL_FP008","ELL_AR005":"ELL_FP002","ELL_AR008":"ELL_FP002","ELL_AR009":"ELL_FP002","ELL_AR010":"ELL_FP002","ELL_AR011":"ELL_FP002","ELL_AR029":"ELL_FP007","ELL_AR031":"ELL_FP007","ELL_AR035":"ELL_FP008","ELL_AR036":"ELL_FP008","ELL_AR012":"ELL_FP003","ELL_AR025":"ELL_FP006","ELL_AR028":"ELL_FP007","ELL_AR006":"ELL_FP002","ELL_AR018":"ELL_FP004","ELL_AR020":"ELL_FP005","ELL_AR022":"ELL_FP005","ELL_AR023":"ELL_FP005","ELL_AR013":"ELL_FP003","ELL_AR015":"ELL_FP003","ELL_AR143-cmbo":"ELL_FP003","ELL_AR017":"ELL_FP004","ELL_AR039":"ELL_FP008","ELL_AR024":"ELL_FP006","ELL_AR026":"ELL_FP006","ELL_AR027":"ELL_FP006","ELL_AR144-cmba":"ELL_FP008","ELL_AR146-p_fg":"ELL_FP008","ELL_AR078-cmba":"ELL_FP007"},"ambTit":{"ELL_AR003":"Fiscalità territoriale","ELL_AR030":"Welfare","ELL_AR034":"Mobilità e trasporti","ELL_AR038":"Competitività e sviluppo economico","ELL_AR047":"Sistemi di Intelligenza Artificiale","ELL_AR001":"Gestione finanziaria e bilancio","ELL_AR002":"Fondi Nazionali/Europei/Internazionali","ELL_AR004":"Enti vigilati/controllati  e società partecipate","ELL_AR016":"Gestione del Patrimonio","ELL_AR007":"Sviluppo e valorizzazione delle persone","ELL_AR032":"Transizione ecologica ed economia circolare","ELL_AR033":"Urbanistica ed edlizia","ELL_AR014":"Cybersecurity","ELL_AR019":"Trasparenza e prevenzione della corruzione","ELL_AR021":"Contrattualistica e appalti","ELL_AR037":"Protezione civile  e gestione emergenza","ELL_AR005":"Gestione giuridica, economica e previdenziale del personale","ELL_AR008":"Formazione","ELL_AR009":"Organizzazione","ELL_AR010":"Sicurezza sui luoghi di lavoro","ELL_AR011":"Diversità ed inclusione","ELL_AR029":"Servizi educativi e scolastici","ELL_AR031":"Cultura","ELL_AR035":"Turismo e promozione del territorio","ELL_AR036":"Sicurezza urbana","ELL_AR012":"Digitalizzazione  processi e servizi","ELL_AR025":"Comunicazione web e social","ELL_AR028":"Servizi Demografici","ELL_AR006":"Performance","ELL_AR018":"Supporto agli organi istituzionali","ELL_AR020":"Produzione regolamentare","ELL_AR022":"Privacy","ELL_AR023":"Affari Legali","ELL_AR013":"Infrastrutture tecnologiche","ELL_AR015":"Applicativi e gestione web","ELL_AR143-cmbo":"sistemi informativi territoriali","ELL_AR017":"Logistica e servizi operativi","ELL_AR039":"Opere pubbliche","ELL_AR024":"Informazione e comunicazione istituzionale","ELL_AR026":"Progettazione partecipata","ELL_AR027":"Relazioni internazionali","ELL_AR144-cmba":"Opere pubbliche e manutenzioni","ELL_AR146-p_fg":"Concessioni e autorizzazioni stradali","ELL_AR078-cmba":"Programmazione scolastica"},"famTit":{"ELL_FP001":"Programmazione e gestione economico - finanziaria","ELL_FP007":"Policy e Servizi ai cittadini","ELL_FP008":"Governo e sviluppo del territorio","ELL_FP003":"Risorse tecnologiche e transizione digitale","ELL_FP004":"Servizi di funzionamento","ELL_FP002":"Persone e sviluppo organizzativo","ELL_FP005":"Regolazione e legale","ELL_FP006":"Comunicazione"},"archTit":{"ELL_PP0001":"ESPERTO/A DI ANALISI DATI","ELL_PP0002":"ESPERTO/A DI CONTROLLO ED AUDITING","ELL_PP0003":"ESPERTO/A DI PIANIFICAZIONE FINANZIARIA","ELL_PP0004":"ESPERTO/A DI PIANIFICAZIONE POLICY","ELL_PP0005":"ESPERTO/A DI RISK MANAGEMENT","ELL_PP0006":"ESPERTO/A ECONOMICO - FINANZIARIO","ELL_PP0007":"ESPERTO/A DI ATTUAZIONE POLICY/PROGETTI","ELL_PP0008":"ESPERTO/A DI DIGITAL INNOVATION","ELL_PP0009":"ESPERTO/A DI VALUTAZIONE","ELL_PP0010":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","ELL_PP0011":"ESPERTO/A DI SISTEMI INFORMATICI","ELL_PP0012":"ESPERTO/A DI GARE E CONTRATTI","ELL_PP0013":"ESPERTO/A DI SOSTENIBILITÀ","ELL_PP0014":"ESPERTO/A DI COMUNICAZIONE","ELL_PP0015":"AVVOCATO","ELL_PP0016":"GIORNALISTA","ELL_PP0017":"ASSISTENTE SOCIALE","ELL_PP0018":"INSEGNANTE (Area Funzionari)","ELL_PP0019":"SPECIALISTA DI PROGETTAZIONE E GESTIONE TECNICA","ELL_PP0020":"UFFICIALE DI POLIZIA LOCALE","ELL_PP0021":"ISTRUTTORE ECONOMICO - FINANZIARIO","ELL_PP0022":"ISTRUTTORE DI POLICY","ELL_PP0023":"ISTRUTTORE GIURIDICO - AMMINISTRATIVO","ELL_PP0024":"ISTRUTTORE TECNICO","ELL_PP0025":"ISTRUTTORE DI FRONT - LINE","ELL_PP0026":"INSEGNANTE (Area Istruttori)","ELL_PP0027":"AGENTE DI POLIZIA LOCALE","ELL_PP0028":"COLLABORATORE AMMINISTRATIVO","ELL_PP0029":"COLLABORATORE TECNICO","ELL_PP0030":"OPERATORE","ELL_PP0041":"ISTRUTTORE DI SISTEMI INFORMATICI","ELL_PP0066":"ESPERTO/A ARCHIVISTICA E GESTIONE DOCUMENTALE"},"man":{"ADDETTO ALLA CUCINA":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"ADDETTO CUCINA":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"AGENTE DI POLIZIA":{"a":"ELL_PP0027","t":"AGENTE DI POLIZIA LOCALE","c":"ALTA"},"AGENTE DI POLIZIA LOCALE":{"a":"ELL_PP0027","t":"AGENTE DI POLIZIA LOCALE","c":"ALTA"},"AGENTE POLIZIA LOCALE":{"a":"ELL_PP0027","t":"AGENTE DI POLIZIA LOCALE","c":"ALTA"},"ASSISTENTE SOCIALE":{"a":"ELL_PP0017","t":"ASSISTENTE SOCIALE","c":"ALTA"},"AUSILIARIO D UFFICIO":{"a":"ELL_PP0030","t":"OPERATORE","c":"ALTA"},"AUSILIARIO CUSTODE":{"a":"ELL_PP0030","t":"OPERATORE","c":"ALTA"},"COLLABORATORE AMINISTRATIVO":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"ALTA"},"COLLABORATORE AMM VO":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"ALTA"},"COLLABORATORE AMMINISTRATIVO":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"ALTA"},"COLLABORATORE AMMISTRATIVO":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"ALTA"},"COLLABORATORE TECNICO MANUTENTIVO":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"CONDUTTORE D IMPIANTI":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"CONDUTTORE DI MACCHINE":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"CONDUTTORE DI MACCHINE OPERATR COM":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"CUSTODE":{"a":"ELL_PP0030","t":"OPERATORE","c":"ALTA"},"CUSTODE CIMITERO":{"a":"ELL_PP0030","t":"OPERATORE","c":"ALTA"},"ELETTRICISTA":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"FUNZIONARIO TECNICO":{"a":"ELL_PP0019","t":"SPECIALISTA DI PROGETTAZIONE E GESTIONE TECNICA","c":"ALTA"},"ISTRUTT POLIZIA MUNICIPALE":{"a":"ELL_PP0027","t":"AGENTE DI POLIZIA LOCALE","c":"ALTA"},"ISTRUTTORE DI P M":{"a":"ELL_PP0027","t":"AGENTE DI POLIZIA LOCALE","c":"ALTA"},"ISTRUTTORE DI POLIZIA MUNICIPALE":{"a":"ELL_PP0027","t":"AGENTE DI POLIZIA LOCALE","c":"ALTA"},"ISTRUTTORE DIRETTIVO CONTABILE":{"a":"ELL_PP0006","t":"ESPERTO/A ECONOMICO - FINANZIARIO","c":"ALTA"},"ISTRUTTORE DIRETTIVO TECNICO":{"a":"ELL_PP0019","t":"SPECIALISTA DI PROGETTAZIONE E GESTIONE TECNICA","c":"ALTA"},"ISTRUTTORE TECNICO":{"a":"ELL_PP0024","t":"ISTRUTTORE TECNICO","c":"ALTA"},"ISTRUTTOTE TECNICO":{"a":"ELL_PP0024","t":"ISTRUTTORE TECNICO","c":"ALTA"},"LAVORANTE IN CUCINA":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"OPERAIO SPECIALIZZATO":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"OPERAIO SPECIALIZZATO VERDE PUBBLIC":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"OPERATORE AI SERVIZI AUSILIARI":{"a":"ELL_PP0030","t":"OPERATORE","c":"ALTA"},"RESPONSABILE SETTORE FINANZIARIO":{"a":"ELL_PP0006","t":"ESPERTO/A ECONOMICO - FINANZIARIO","c":"ALTA"},"SPECIALISTA DI VIGILANZA":{"a":"ELL_PP0020","t":"UFFICIALE DI POLIZIA LOCALE","c":"ALTA"},"SPECIALISTA TECNICO":{"a":"ELL_PP0019","t":"SPECIALISTA DI PROGETTAZIONE E GESTIONE TECNICA","c":"ALTA"},"TECNICO MANUTENTIVO":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"ALTA"},"ADDETTO STAMPA":{"a":"ELL_PP0014","t":"ESPERTO/A DI COMUNICAZIONE","c":"MEDIA"},"ASS EDUC PORT HANDIC ISTRUTT AMM":{"a":"ELL_PP0026","t":"INSEGNANTE (Area Istruttori)","c":"BASSA"},"AUSILIARIO DEL TRAFFICO":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"MEDIA"},"AUSILIARIO DEL TRAFFICO STAGIONALE":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"MEDIA"},"AUTISTA SCUOLABUS":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"MEDIA"},"CATEGORIA C":{"a":"ELL_PP0023","t":"ISTRUTTORE GIURIDICO - AMMINISTRATIVO","c":"BASSA"},"CATEGORIA D":{"a":"ELL_PP0010","t":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","c":"BASSA"},"CENTRALINISTA":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"MEDIA"},"CENTRALINISTA TELEFONICO":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"MEDIA"},"DIRETTORE TECNICO":{"a":"ELL_PP0019","t":"SPECIALISTA DI PROGETTAZIONE E GESTIONE TECNICA","c":"MEDIA"},"EDUCATORE PROFESSIONALE":{"a":"ELL_PP0018","t":"INSEGNANTE (Area Funzionari)","c":"MEDIA"},"ESECUTORE ARCHIVISTA":{"a":"ELL_PP0028","t":"COLLABORATORE AMMINISTRATIVO","c":"MEDIA"},"IMPIEGATO AMMINISTRATIVO":{"a":"ELL_PP0010","t":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"ISTRUTT AMM VO":{"a":"ELL_PP0023","t":"ISTRUTTORE GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"ISTRUTTORE AMM VO ECONOMO":{"a":"ELL_PP0021","t":"ISTRUTTORE ECONOMICO - FINANZIARIO","c":"MEDIA"},"ISTRUTTORE AMM VO":{"a":"ELL_PP0023","t":"ISTRUTTORE GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"ISTRUTTORE AMMINISTRATIVO":{"a":"ELL_PP0023","t":"ISTRUTTORE GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"ISTRUTTORE AMMINISTRATIVO CONTABILE":{"a":"ELL_PP0021","t":"ISTRUTTORE ECONOMICO - FINANZIARIO","c":"MEDIA"},"ISTRUTTORE DIRETTIVO AMMINISTRATIV":{"a":"ELL_PP0010","t":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"ISTRUTTORE DIRETTIVO AMMINISTRATIVO":{"a":"ELL_PP0010","t":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"OPERATORE":{"a":"ELL_PP0029","t":"COLLABORATORE TECNICO","c":"BASSA"},"PSICOLOGA":{"a":"ELL_PP0007","t":"ESPERTO/A DI ATTUAZIONE POLICY/PROGETTI","c":"BASSA"},"SEGRETARIO COMUNALE":{"a":"—","t":"(fuori perimetro)","c":"ESCLUSO"},"SPEC ATTIVITA AMMINISTRATIVE":{"a":"ELL_PP0010","t":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","c":"MEDIA"},"SPECIAL ATTIVITA AMMINISTRATIVE":{"a":"ELL_PP0010","t":"ESPERTO/A GIURIDICO - AMMINISTRATIVO","c":"MEDIA"}},"area":{"6.1-Organi istituzionali":{"f":"ELL_FP004","ft":"Servizi di funzionamento","am":"ELL_AR018","amt":"Supporto agli organi istituzionali"},"6.2-Gest.economica,finanz,programmaz,provvedit. e controllo gestione":{"f":"ELL_FP001","ft":"Programmazione e gestione economico - finanziaria","am":"ELL_AR001","amt":"Gestione finanziaria e bilancio"},"6.3-Gestione entrate tributarie e servizi fiscali":{"f":"ELL_FP001","ft":"Programmazione e gestione economico - finanziaria","am":"ELL_AR003","amt":"Fiscalità territoriale"},"6.5-Risorse umane":{"f":"ELL_FP002","ft":"Persone e sviluppo organizzativo","am":"ELL_AR005","amt":"Gestione giuridica, economica e previdenziale del personale"},"6.6-Servizi legali":{"f":"ELL_FP005","ft":"Regolazione e legale","am":"ELL_AR023","amt":"Affari Legali"},"6.7-Servizi di supporto":{"f":"ELL_FP004","ft":"Servizi di funzionamento","am":"ELL_AR017","amt":"Logistica e servizi operativi"},"6.8-Messi comunali":{"f":"ELL_FP004","ft":"Servizi di funzionamento","am":"ELL_AR017","amt":"Logistica e servizi operativi"},"6.9-Servizi informativi":{"f":"ELL_FP003","ft":"Risorse tecnologiche e transizione digitale","am":"ELL_AR012","amt":"Digitalizzazione  processi e servizi"},"6.10-Servizi statistici":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR028","amt":"Servizi Demografici"},"8.1-Verifiche catastali e tributarie":{"f":"ELL_FP001","ft":"Programmazione e gestione economico - finanziaria","am":"ELL_AR003","amt":"Fiscalità territoriale"},"9.1-Urbanistica e programmazione del territorio":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR033","amt":"Urbanistica ed edlizia"},"9.2-Edilizia resid.pubblica e locale. Piano edilizia economico-popolare":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR033","amt":"Urbanistica ed edlizia"},"9.3-Viabilita`, circolazione stradale e illuminazione pubblica":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR039","amt":"Opere pubbliche"},"9.4-Ufficio tecnico-SUE":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR033","amt":"Urbanistica ed edlizia"},"10.1-Servizi di protezione civile":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR037","amt":"Protezione civile  e gestione emergenza"},"10.2-Interventi a seguito di calamita` naturali":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR037","amt":"Protezione civile  e gestione emergenza"},"11.1-Protezione delle biodiversita` e dei beni paesaggistici":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR032","amt":"Transizione ecologica ed economia circolare"},"11.2-Trattamento dei rifiuti":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR032","amt":"Transizione ecologica ed economia circolare"},"11.4-Qualita` dell'aria e riduzione dell'inquinamento":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR032","amt":"Transizione ecologica ed economia circolare"},"12.1-Interventi per l'infanzia, i minori e asili nido":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR029","amt":"Servizi educativi e scolastici"},"12.2-Interventi per i soggetti a rischio di esclusione sociale":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR030","amt":"Welfare"},"12.3-Interventi per gli anziani":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR030","amt":"Welfare"},"12.4-Interventi per la disabilita`":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR030","amt":"Welfare"},"12.6-Servizio necroscopico e cimiteriale":{"f":"ELL_FP004","ft":"Servizi di funzionamento","am":"ELL_AR017","amt":"Logistica e servizi operativi"},"13.1-Scuola dell'infanzia":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR029","amt":"Servizi educativi e scolastici"},"13.2-Istruzione primaria":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR029","amt":"Servizi educativi e scolastici"},"13.5-Servizi ausiliari all'istruzione":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR029","amt":"Servizi educativi e scolastici"},"13.6-Diritto allo studio":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR029","amt":"Servizi educativi e scolastici"},"14.1-Polizia locale":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR036","amt":"Sicurezza urbana"},"15.1-Anagrafe, stato civile, elettorale, leva e servizio statistico":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR028","amt":"Servizi Demografici"},"17.1-Valorizzazione dei beni di interesse storico e artistico":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR031","amt":"Cultura"},"17.2-Attivita` culturali e interventi diversi nel settore culturale":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR031","amt":"Cultura"},"18.2-Sport e tempo libero":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR031","amt":"Cultura"},"18.3-Giovani":{"f":"ELL_FP007","ft":"Policy e Servizi ai cittadini","am":"ELL_AR031","amt":"Cultura"},"19.1-Servizi turistici e manifestazioni turistiche":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR035","amt":"Turismo e promozione del territorio"},"20.1-Pubblicita`,fiere,mercati,mattatoio e servizi connessi e SUAP":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR038","amt":"Competitività e sviluppo economico"},"21.2-Formazione professionale":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR038","amt":"Competitività e sviluppo economico"},"21.3-Sostegno all'occupazione":{"f":"ELL_FP008","ft":"Governo e sviluppo del territorio","am":"ELL_AR038","amt":"Competitività e sviluppo economico"}},"bande":["FUNZIONARI ED E.Q.","ISTRUTTORI","OPERATORE","OPERATORE ESPERTO"],"archByBand":{"FUNZIONARI ED E.Q.":["ELL_PP0001","ELL_PP0002","ELL_PP0003","ELL_PP0004","ELL_PP0005","ELL_PP0006","ELL_PP0007","ELL_PP0008","ELL_PP0009","ELL_PP0010","ELL_PP0011","ELL_PP0012","ELL_PP0013","ELL_PP0014","ELL_PP0015","ELL_PP0016","ELL_PP0017","ELL_PP0018","ELL_PP0019","ELL_PP0020","ELL_PP0066"],"ISTRUTTORI":["ELL_PP0021","ELL_PP0022","ELL_PP0023","ELL_PP0024","ELL_PP0025","ELL_PP0026","ELL_PP0027","ELL_PP0041"],"OPERATORE ESPERTO":["ELL_PP0028","ELL_PP0029"],"OPERATORE":["ELL_PP0030"]},"direttive":["FUNZIONARI ED E.Q.","ISTRUTTORI"]};
+const SEP="\u0001";
+
+const DEFAULT_HEADERS = {
+  anag:{ codice_fiscale:["Codice fiscale","cod.fiscale","cod fiscale","codice fisc."], matricola:["Matricola","matr."], dipendente:["dipendente","nominativo","cognome e nome","cognome e nome dipendente","cognome nome","nome e cognome","nominativo dipendente"], cognome:["cognome","cognome dipendente"], nome:["nome","nome dipendente"], posizione:["posizione economica","pos.economica"], banda:["area","area contrattuale"], mansione:"mansione", cessazione:["data cessazione","cessato il"] },
+  ca:{ matricola:"Matricola", area:"Area di intervento", perc:"Percentuale" },
+};
+const BANDA_ALIAS = [
+  [/FUNZIONAR|ELEVATA\s+QUALIF|CCNL001/, "FUNZIONARI ED E.Q."],
+  [/ISTRUTTOR|CCNL002/, "ISTRUTTORI"],
+  [/OPERATOR[EI]\s+ESPERT[OI]|CCNL003/, "OPERATORE ESPERTO"],
+  [/OPERATOR[EI]|CCNL004/, "OPERATORE"],
+];
+const POS_TO_BANDA = { A:"OPERATORE", B:"OPERATORE ESPERTO", C:"ISTRUTTORI", D:"FUNZIONARI ED E.Q." };
+const BASELINE = { OK:54, VERIFICA:105, FALLBACK_QUESTIONARIO:5, FUORI_PERIMETRO:1 };
+
+const PUNCT_RE = /[.,;:/\\\-_()\[\]{}"']/g;
+function normalize(v){ if(v===null||v===undefined) return "";
+  let s=String(v).trim().toUpperCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
+  return s.replace(PUNCT_RE," ").replace(/\s+/g," ").trim(); }
+function fmtPct(n){ return Number.isInteger(n)?String(n):parseFloat(n.toFixed(4)).toString(); }
+function bandaFromArea(raw){ const s=normalize(raw); if(!s)return "";
+  for(const [re,c] of BANDA_ALIAS) if(re.test(s)) return c;
+  for(const b of EMBEDDED.bande) if(normalize(b)===s) return b; return ""; }
+function bandaFromPos(raw){ const s=normalize(raw); const m=s.match(/\bEX\s*([A-D])\d*/) || s.match(/^[^A-Z]*([A-D])\d*\b/); return m?(POS_TO_BANDA[m[1]]||""):""; }
+function resolveBanda(area,pos){ return bandaFromPos(pos) || bandaFromArea(area); }
+function isCessato(v){ const s=String(v??"").trim(); return s!=="" && s!=="-" && s!=="0" && !/^0+[\/.\-]0+/.test(s); }
+
+const FRESH = () => ({
+  raw:{ anag:null, ca:null, dz:null }, files:{},
+  headers:{ anag:{}, ca:{} },
+  bandeDirettive:new Set(EMBEDDED.direttive||["FUNZIONARI ED E.Q.","ISTRUTTORI"]),
+  dict:null, anagRows:[], caIndex:new Map(),
+  result:[], _diag:null, cessati:0, vuote:0,
+  duplicateCf:new Map(),
+  overrides:{ mansione:new Map(), ambito:new Map(), confirm:new Set(), discard:new Map(), profilo:new Map() },
+  filter:"ALL", query:"", onlyTodo:false, editing:null,
+});
+let STATE = FRESH();
+
+function dictFromEmbedded(){
+  const archTit=new Map(Object.entries(EMBEDDED.archTit));
+  const man=new Map(), man_any=new Map();
+  for(const [k,v] of Object.entries(EMBEDDED.man)) man_any.set(k,{archetipo:v.a,archetipo_titolo:v.t||archTit.get(v.a)||"",confidenza:v.c});
+  const area=new Map();
+  for(const [k,v] of Object.entries(EMBEDDED.area)) area.set(k,{famiglia:v.f,famiglia_titolo:v.ft,ambito:v.am,ambito_titolo:v.amt});
+  const ref=new Map(), ar_to_fam=new Map(Object.entries(EMBEDDED.ar_to_fam));
+  for(const [b,p,a,pr] of EMBEDDED.ref) ref.set(b+SEP+p+SEP+a, pr);
+  return { man, man_any, area, ref, ar_to_fam, archTit, ambTit:new Map(Object.entries(EMBEDDED.ambTit)), famTit:new Map(Object.entries(EMBEDDED.famTit)) };
+}
+function mergeDictFile(wb, dict){
+  const obj=(n)=>{ const s=wb.Sheets[n]; return s?XLSX.utils.sheet_to_json(s,{defval:"",raw:false}):null; };
+  const dm=obj("Dizionario_Mansione");
+  if(dm) for(const r of dm){ const k=normalize(r.mansione_grezza); if(!k) continue;
+    dict.man_any.set(k,{archetipo:String(r.archetipo_codice||"").trim(),archetipo_titolo:String(r.archetipo_titolo||"").trim(),confidenza:String(r.confidenza||"").trim().toUpperCase()}); }
+  const da=obj("Dizionario_AreaIntervento");
+  if(da) for(const r of da){ const k=String(r.codice_descrizione_area||"").trim(); if(!k) continue;
+    dict.area.set(k,{famiglia:String(r.famiglia_codice||"").trim(),famiglia_titolo:String(r.famiglia_titolo||"").trim(),ambito:String(r.ambito_codice||"").trim(),ambito_titolo:String(r.ambito_titolo||"").trim()}); }
+}
+
+function readWB(file){ return new Promise((res,rej)=>{ const r=new FileReader();
+  r.onload=e=>{ try{ res(XLSX.read(e.target.result,{type:"array"})); }catch(err){ rej(err);} };
+  r.onerror=()=>rej(new Error("Lettura fallita")); r.readAsArrayBuffer(file); }); }
+function headerKey(v){ return normalize(v).replace(/\bMATR\b/g,"MATRICOLA").replace(/\bCOD\b/g,"CODICE").replace(/\bFISC\b/g,"FISCALE").replace(/\bPOS\b/g,"POSIZIONE").replace(/\bECON\b/g,"ECONOMICA"); }
+function headerRowIndex(wb,i){ const n=typeof i==="number"?wb.SheetNames[i]:i; if(!n||!wb.Sheets[n])return 0;
+  const a=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:""}); let best=0,score=-1;
+  const markers=["CODICE FISCALE","MATRICOLA","DIPENDENTE","COGNOME","NOME","MANSIONE","POSIZIONE ECONOMICA","AREA","CESSATO IL","PERCENTUALE"];
+  for(let r=0;r<Math.min(a.length,10);r++){ const row=(a[r]||[]).map(headerKey).filter(Boolean); const joined=row.join(" "); const s=markers.reduce((n,m)=>n+(joined.includes(m)?1:0),0);
+    if(s>score){ score=s; best=r; } }
+  return score>=2?best:0; }
+function sheetObjs(wb,i){ const n=typeof i==="number"?wb.SheetNames[i]:i; if(!n||!wb.Sheets[n])return null; return XLSX.utils.sheet_to_json(wb.Sheets[n],{defval:"",raw:false,range:headerRowIndex(wb,i)}); }
+function headersOf(wb,i){ const n=typeof i==="number"?wb.SheetNames[i]:i; if(!n||!wb.Sheets[n])return []; const a=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:""}); return (a[headerRowIndex(wb,i)]||[]).map(x=>String(x).trim()).filter(Boolean); }
+
+function dominantArea(rows){ if(!rows||!rows.length)return[null,""];
+  const agg=new Map(); for(const r of rows) agg.set(r.area,(agg.get(r.area)||0)+r.perc);
+  const arr=[...agg.entries()].sort((a,b)=> b[1]-a[1] || (a[0]<b[0]?-1:a[0]>b[0]?1:0));
+  return [arr[0][0], arr.map(([a,p])=>`${a}=${fmtPct(p)}%`).join("; ")]; }
+
+function ambitiWL(banda,arch){ const out=[]; for(const key of STATE.dict.ref.keys()){ const [b,pp,ar]=key.split(SEP); if(b===banda&&pp===arch) out.push(ar);} return out; }
+function rowKey(r){ return r?.key || r?.codice_fiscale || r?.matricola || ""; }
+function caRowsFor(rec){ return rec.matricola ? STATE.caIndex.get(rec.matricola) : null; }
+
+function resolveRow(rec, dz, diag){
+  const key=rowKey(rec);
+  const out={ key, codice_fiscale:rec.codice_fiscale||"", matricola:rec.matricola, dipendente:rec.dipendente||"", nominativo:rec.nominativo||rec.dipendente||"", mansione_raw:rec.mansione_raw, mansione_norm:rec.mansione_norm,
+    banda:rec.banda, banda_raw:rec.banda_raw, posizione:rec.posizione||"", archetipo_codice:"", archetipo_titolo:"", famiglia_codice:"", famiglia_titolo:"",
+    ambito_codice:"", ambito_titolo:"", profilo_ruolo_codice:"", profilo_professionale_codice:"",
+    area_intervento_dominante:"", area_intervento_prevalente:"", area_intervento_mix:"", confidenza:"", azione:"", note:"", _src:"" };
+  if(STATE.overrides.discard.has(key)){ out.azione="SCARTATO"; out.confidenza=""; out.note=STATE.overrides.discard.get(key)||"persona scartata dalla mappatura"; if(diag)diag.scartato++; return out; }
+  if(!rec.codice_fiscale){ out.azione="CODICE_FISCALE_MANCANTE"; out.confidenza="BASSA"; out.note="codice fiscale assente"; if(diag)diag.codice_fiscale_mancante++; return out; }
+  if(rec.cf_duplicato){ out.azione="CODICE_FISCALE_DUPLICATO"; out.confidenza="BASSA"; out.note=`codice fiscale duplicato: ${rec.codice_fiscale}`; if(diag)diag.codice_fiscale_duplicato++; return out; }
+  const ovProf=STATE.overrides.profilo.get(key);
+  if(ovProf){ out.banda=ovProf.banda||rec.banda; out.archetipo_codice=ovProf.archetipo; out.archetipo_titolo=dz.archTit.get(ovProf.archetipo)||"";
+    out.ambito_codice=ovProf.ambito; out.ambito_titolo=dz.ambTit.get(ovProf.ambito)||""; out.famiglia_codice=dz.ar_to_fam.get(ovProf.ambito)||""; out.famiglia_titolo=dz.famTit.get(out.famiglia_codice)||"";
+    out.profilo_ruolo_codice=ovProf.profilo_ruolo||dz.ref.get((ovProf.banda||rec.banda)+SEP+ovProf.archetipo+SEP+ovProf.ambito)||"";
+    out.profilo_professionale_codice=out.famiglia_codice?`${out.archetipo_codice}@${out.famiglia_codice}`:out.archetipo_codice;
+    out.confidenza="ALTA"; out.azione="OK"; out.note="profilo da questionario guidato"; out._src="QUESTIONARIO"; if(diag)diag.ok++; return out; }
+  const banda=rec.banda;
+  if(!banda){ out.azione="BANDA_NON_RICONOSCIUTA"; out.note="banda non ricavabile da posizione '"+(rec.posizione||"")+"' / area '"+(rec.banda_raw||"")+"'"; if(diag)diag.banda_non_riconosciuta++; return out; }
+
+  let hit = dz.man.get(rec.mansione_norm+SEP+banda) || dz.man_any.get(rec.mansione_norm);
+  const ovMan = STATE.overrides.mansione.get(rec.mansione_norm);
+  if(ovMan) hit={ archetipo:ovMan.archetipo, archetipo_titolo:dz.archTit.get(ovMan.archetipo)||"", confidenza:ovMan.confidenza };
+  if(!hit){ out.azione="DA_INTEGRARE_DIZIONARIO"; out.confidenza="BASSA"; out.note="mansione assente nel dizionario";
+    if(diag) diag.mansioni_non_mappate.set(rec.mansione_norm,(diag.mansioni_non_mappate.get(rec.mansione_norm)||0)+1); return out; }
+  const confDz=hit.confidenza;
+  out.archetipo_codice=hit.archetipo; out.archetipo_titolo=hit.archetipo_titolo||dz.archTit.get(hit.archetipo)||"";
+  if(confDz==="ESCLUSO"||hit.archetipo===""||hit.archetipo==="\u2014"){ out.azione="FUORI_PERIMETRO"; out.note="mansione esclusa dal perimetro"; if(diag)diag.fuori_perimetro++; return out; }
+
+  const direttiva=STATE.bandeDirettive.has(banda);
+  const caRows=caRowsFor(rec);
+  let areaDom=null,areaMix=""; if(caRows)[areaDom,areaMix]=dominantArea(caRows);
+  out.area_intervento_dominante=areaDom||""; out.area_intervento_prevalente=areaDom||""; out.area_intervento_mix=areaMix;
+
+  let ambito="",famiglia="",ambitoSrc="";
+  const ovAmb=STATE.overrides.ambito.get(key);
+  const cand=ambitiWL(banda,out.archetipo_codice);
+
+  if(ovAmb){ ambito=ovAmb; ambitoSrc="MANUALE"; famiglia=dz.ar_to_fam.get(ambito)||""; }
+  else if(direttiva){
+    if(areaDom!==null && dz.area.get(areaDom)){ const amap=dz.area.get(areaDom);
+      if(cand.includes(amap.ambito)){ ambito=amap.ambito; famiglia=amap.famiglia; out.ambito_titolo=amap.ambito_titolo; out.famiglia_titolo=amap.famiglia_titolo; ambitoSrc="AREA"; } }
+    if(!ambito){ if(cand.length===1){ ambito=cand[0]; ambitoSrc="MANSIONE_UNICA"; famiglia=dz.ar_to_fam.get(ambito)||""; }
+      else { out.azione="FALLBACK_QUESTIONARIO"; out.confidenza="BASSA";
+        out.note=areaDom===null?"banda direttiva senza area di intervento (Conto Annuale)":"area '"+areaDom+"' non risolve un ambito ammesso"; if(diag)diag.fallback_questionario++; return out; } }
+  } else {
+    if(cand.length===1){ ambito=cand[0]; ambitoSrc="MANSIONE_UNICA"; }
+    else if(cand.length>1){ let chosen=null;
+      if(areaDom!==null){ const amap=dz.area.get(areaDom); if(amap && dz.ref.has(banda+SEP+out.archetipo_codice+SEP+amap.ambito)){ chosen=amap.ambito; ambitoSrc="AREA_SU_ESECUTIVO"; } }
+      if(chosen===null){ chosen=[...cand].sort()[0]; ambitoSrc="MANSIONE_DEFAULT"; } ambito=chosen; }
+    else { out.azione="COPPIA_INESISTENTE"; out.confidenza="BASSA"; out.note="nessun ambito ammesso per banda+archetipo in whitelist"; if(diag)diag.coppia_inesistente++; return out; }
+    famiglia=dz.ar_to_fam.get(ambito)||"";
+  }
+  out.ambito_codice=ambito; out.famiglia_codice=famiglia||out.famiglia_codice;
+  out.ambito_titolo=out.ambito_titolo||dz.ambTit.get(ambito)||"";
+  out.famiglia_titolo=out.famiglia_titolo||dz.famTit.get(out.famiglia_codice)||"";
+
+  const pr=dz.ref.get(banda+SEP+out.archetipo_codice+SEP+ambito);
+  if(pr===undefined){ out.azione="COPPIA_INESISTENTE"; out.confidenza="BASSA"; out.note=`coppia (${banda}|${out.archetipo_codice}|${ambito}) fuori whitelist`; if(diag)diag.coppia_inesistente++; return out; }
+  out.profilo_ruolo_codice=pr;
+  out.profilo_professionale_codice=famiglia?`${out.archetipo_codice}@${famiglia}`:out.archetipo_codice;
+
+  const confirmed=STATE.overrides.confirm.has(key);
+  if(ambitoSrc==="MANUALE"){ out.confidenza="ALTA"; out.azione="OK"; out.note="ambito impostato manualmente"; if(diag)diag.ok++; }
+  else if(confirmed){ out.confidenza="ALTA"; out.azione="OK"; out.note="confermato manualmente"; if(diag)diag.ok++; }
+  else if(confDz==="BASSA"){ out.confidenza="BASSA"; out.azione="DA_VERIFICARE_MANUALE"; if(diag)diag.da_verificare++; }
+  else if(confDz==="ALTA" && (ambitoSrc==="MANSIONE_UNICA"||ambitoSrc==="AREA") && pr){ out.confidenza="ALTA"; out.azione="OK"; if(diag)diag.ok++; }
+  else { out.confidenza="MEDIA"; out.azione="VERIFICA"; out.note=out.note||`ambito da ${ambitoSrc}: confermare`; if(diag)diag.verifica++; }
+  out._src=ambitoSrc; return out;
+}
+
+function loadAnag(){
+  const H=STATE.headers.anag; const rows=sheetObjs(STATE.raw.anag,0)||[]; let vuote=0; const out=[];
+  for(const r of rows){
+    const matr=String(r[H.matricola]??"").trim();
+    const cf=H.codice_fiscale?normalize(r[H.codice_fiscale]).replace(/\s+/g,""):"";
+    if(cf==="" && matr===""){ vuote++; continue; }
+    const area=H.banda?String(r[H.banda]??"").trim():"";
+    const pos=H.posizione?String(r[H.posizione]??"").trim():"";
+    const cess=H.cessazione?r[H.cessazione]:"";
+    const dipUnico=H.dipendente?String(r[H.dipendente]??"").trim():"";
+    const cogn=H.cognome?String(r[H.cognome]??"").trim():"";
+    const nom=H.nome?String(r[H.nome]??"").trim():"";
+    const nominativo=dipUnico || [cogn,nom].filter(Boolean).join(" ").trim();
+    out.push({ key:cf||matr, codice_fiscale:cf, matricola:matr, dipendente:nominativo, nominativo:nominativo, cognome:cogn, nome:nom,
+      posizione:pos, banda_raw:area||pos, banda:resolveBanda(area,pos),
+      mansione_raw:String(r[H.mansione]??""), mansione_norm:normalize(r[H.mansione]),
+      cessato:isCessato(cess), cessazione:String(cess??"").trim() });
+  }
+  STATE.vuote=vuote; return out;
+}
+function loadCA(){ if(!STATE.raw.ca) return new Map(); const H=STATE.headers.ca; const rows=sheetObjs(STATE.raw.ca,0)||[]; const idx=new Map();
+  for(const r of rows){ const m=String(r[H.matricola]??"").trim(); if(!m)continue; let p=parseFloat(String(r[H.perc]??"0").replace(",",".")); if(isNaN(p))p=0;
+    if(!idx.has(m))idx.set(m,[]); idx.get(m).push({area:String(r[H.area]??"").trim(),perc:p}); } return idx; }
+
+function buildDict(){ const d=dictFromEmbedded(); if(STATE.raw.dz) mergeDictFile(STATE.raw.dz,d); STATE.dict=d; }
+function markDuplicateCf(rows){ const by=new Map(); for(const r of rows){ if(!r.codice_fiscale)continue; if(!by.has(r.codice_fiscale))by.set(r.codice_fiscale,[]); by.get(r.codice_fiscale).push(r); }
+  STATE.duplicateCf=new Map([...by.entries()].filter(([,v])=>v.length>1)); for(const r of rows) r.cf_duplicato=!!(r.codice_fiscale&&STATE.duplicateCf.has(r.codice_fiscale)); }
+function newDiag(){ return { ok:0,verifica:0,fallback_questionario:0,fuori_perimetro:0,da_verificare:0,coppia_inesistente:0,banda_non_riconosciuta:0,codice_fiscale_mancante:0,codice_fiscale_duplicato:0,scartato:0,mansioni_non_mappate:new Map(),aree_non_mappate:new Map() }; }
+function recompute(){ const diag=newDiag(); STATE.result=STATE.anagRows.map(r=>resolveRow(r,STATE.dict,diag)); STATE._diag=diag; }
+
+function execute(){
+  try{ buildDict(); }catch(e){ showErr("s1err","Errore dizionario: "+e.message); return; }
+  const all=loadAnag();
+  STATE.cessati=all.filter(r=>r.cessato).length;
+  STATE.anagRows=all.filter(r=>!r.cessato);
+  markDuplicateCf(STATE.anagRows);
+  STATE.caIndex=loadCA();
+  recompute(); goStep(3); renderSources(); buildChips(); buildTiles(); renderTable(); markDone(1); markDone(3);
+}
+
+function bestGuess(headers,want){ const wants=(Array.isArray(want)?want:[want]).map(headerKey).filter(Boolean);
+  return headers.find(h=>wants.includes(headerKey(h))) || headers.find(h=>{const x=headerKey(h);return wants.some(w=>x.includes(w)||w.includes(x));}) || ""; }
+function autoMapAnag(){ const H=headersOf(STATE.raw.anag,0); const d=DEFAULT_HEADERS.anag;
+  const cognomeCol=H.find(h=>headerKey(h)==="COGNOME")||"";
+  const nomeCol=H.find(h=>headerKey(h)==="NOME")||"";
+  const dipCol=H.find(h=>{ const x=headerKey(h); return x!=="COGNOME"&&x!=="NOME"&&(x==="DIPENDENTE"||x.indexOf("NOMINATIV")>=0||(x.indexOf("COGNOME")>=0&&x.indexOf("NOME")>=0)); })||"";
+  const m={
+  codice_fiscale:bestGuess(H,d.codice_fiscale), matricola:bestGuess(H,d.matricola), dipendente:dipCol, cognome:cognomeCol, nome:nomeCol, posizione:bestGuess(H,d.posizione), banda:bestGuess(H,d.banda), mansione:bestGuess(H,d.mansione), cessazione:bestGuess(H,d.cessazione) };
+  STATE.headers.anag=m; return !!(m.codice_fiscale && m.mansione && (m.posizione||m.banda)); }
+function autoMapCA(){ if(!STATE.raw.ca){STATE.headers.ca={};return true;} const H=headersOf(STATE.raw.ca,0); const d=DEFAULT_HEADERS.ca; const m={
+  matricola:bestGuess(H,d.matricola), area:bestGuess(H,d.area), perc:bestGuess(H,d.perc) };
+  STATE.headers.ca=m; return !!(m.matricola && m.area && m.perc); }
+function tryAutoRun(){ if(!STATE.raw.anag) return; if(autoMapAnag() && autoMapCA()) execute(); else openMapping(); }
+
+function goStep(n){
+  document.getElementById("s1").classList.toggle("hidden",n!==1);
+  document.getElementById("s2").classList.toggle("hidden",n!==2);
+  document.getElementById("s34").classList.toggle("hidden",n<3);
+  [...document.querySelectorAll(".step")].forEach(s=>{ const sn=+s.dataset.step; s.classList.toggle("active", sn===n || (n>=3&&sn===3) || (n>=4&&sn===4)); });
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function markDone(n){ const s=document.querySelector(`.step[data-step="${n}"]`); if(s)s.classList.add("done"); }
+function resetAll(){
+  STATE = FRESH();
+  ["f-anag","f-ca","f-dz","f-ca2","f-dz2","f-anag3","f-ca3","f-dz3"].forEach(id=>{ const el=document.getElementById(id); if(el)el.value=""; });
+  document.getElementById("drop-anag").classList.remove("loaded");
+  document.getElementById("fn-anag").textContent="";
+  ["slot1-ca","slot1-dz","slot2-ca","slot2-dz"].forEach(id=>document.getElementById(id)?.classList.remove("loaded"));
+  ["nm2-ca","nm2-dz"].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent="aggiungi…";});
+  document.getElementById("s1err").classList.add("hidden");
+  document.querySelectorAll(".step").forEach(s=>s.classList.remove("done"));
+  goStep(1); toast("Reset eseguito");
+}
+
+function renderSources(){
+  const set=(slotId,nmId,key,ph)=>{ const slot=document.getElementById(slotId), nm=document.getElementById(nmId); if(!slot)return; const f=STATE.files[key];
+    if(f){ slot.classList.add("loaded"); if(nm)nm.textContent=f; } else { slot.classList.remove("loaded"); if(nm)nm.textContent=ph; } };
+  set("slot3-anag","nm3-anag","anag","—"); set("slot3-ca","nm3-ca","ca","+ aggiungi"); set("slot3-dz","nm3-dz","dz","+ aggiungi");
+  set("slot2-ca","nm2-ca","ca","aggiungi…"); set("slot2-dz","nm2-dz","dz","aggiungi…");
+  document.getElementById("slot1-ca")?.classList.toggle("loaded",!!STATE.files.ca);
+  document.getElementById("slot1-dz")?.classList.toggle("loaded",!!STATE.files.dz);
+}
+
+function openMapping(){
+  const grid=document.getElementById("mapgrid"); grid.innerHTML="";
+  const H=headersOf(STATE.raw.anag,0);
+  const card=document.createElement("div"); card.className="mapcard"; card.innerHTML="<h3>Anagrafica</h3>";
+  [["codice_fiscale","Codice fiscale",1],["matricola","Matricola (ponte Conto Annuale)",0],["dipendente","Cognome e Nome (colonna unica)",0],["cognome","Cognome (se separato)",0],["nome","Nome (se separato)",0],["posizione","Posizione economica",1],["banda","Area",0],["mansione","Mansione",1],["cessazione","Data cessazione",0]].forEach(([k,lab,req])=>{
+    const guess=(["dipendente","cognome","nome"].indexOf(k)>=0?(STATE.headers.anag[k]||""):(STATE.headers.anag[k]||bestGuess(H,DEFAULT_HEADERS.anag[k]))); STATE.headers.anag[k]=guess;
+    const row=document.createElement("div"); row.className="maprow";
+    const opts=['<option value="">— assente —</option>'].concat(H.map(h=>`<option ${h===guess?"selected":""}>${h}</option>`)).join("");
+    row.innerHTML=`<label>${lab} ${req?'<span class="req">*</span>':'<span class="opt">opz.</span>'}</label><select data-k="${k}">${opts}</select>`;
+    row.querySelector("select").addEventListener("change",e=>STATE.headers.anag[k]=e.target.value); card.appendChild(row); });
+  const note=document.createElement("p"); note.style.cssText="font-size:11px;color:var(--ink-3);margin:6px 0 0";
+  note.textContent="Chiave persona: codice fiscale. Matricola usata solo come ponte verso il Conto Annuale. Banda: posizione economica (A/B/C/D) prioritaria; area come fallback.";
+  card.appendChild(note); grid.appendChild(card);
+
+  if(STATE.raw.ca){ const cH=headersOf(STATE.raw.ca,0); const cc=document.createElement("div"); cc.className="mapcard"; cc.innerHTML="<h3>Conto Annuale</h3>";
+    [["matricola","Matricola"],["area","Area di intervento"],["perc","Percentuale"]].forEach(([k,lab])=>{ const guess=STATE.headers.ca[k]||bestGuess(cH,DEFAULT_HEADERS.ca[k]); STATE.headers.ca[k]=guess;
+      const row=document.createElement("div"); row.className="maprow";
+      const opts=['<option value="">— assente —</option>'].concat(cH.map(h=>`<option ${h===guess?"selected":""}>${h}</option>`)).join("");
+      row.innerHTML=`<label>${lab} <span class="req">*</span></label><select data-k="${k}">${opts}</select>`;
+      row.querySelector("select").addEventListener("change",e=>STATE.headers.ca[k]=e.target.value); cc.appendChild(row); });
+    grid.appendChild(cc); }
+
+  const box=document.getElementById("bandebox"); box.innerHTML="";
+  EMBEDDED.bande.forEach(b=>{ const lbl=document.createElement("label"); lbl.style.cssText="display:flex;gap:7px;align-items:center;font-size:12.5px;font-weight:600;color:var(--ink-2)";
+    lbl.innerHTML=`<input type="checkbox" ${STATE.bandeDirettive.has(b)?"checked":""} style="accent-color:var(--accent)"> ${b}`;
+    lbl.querySelector("input").addEventListener("change",e=>e.target.checked?STATE.bandeDirettive.add(b):STATE.bandeDirettive.delete(b)); box.appendChild(lbl); });
+  renderSources(); goStep(2);
+}
+
+const ACTION_META={ OK:{cls:"ok",label:"OK",grp:"done"}, VERIFICA:{cls:"warn",label:"VERIFICA",grp:"todo"},
+  DA_VERIFICARE_MANUALE:{cls:"warn",label:"DA VERIFICARE",grp:"todo"}, FALLBACK_QUESTIONARIO:{cls:"err",label:"FALLBACK",grp:"todo"},
+  DA_INTEGRARE_DIZIONARIO:{cls:"err",label:"DA INTEGRARE",grp:"todo"}, COPPIA_INESISTENTE:{cls:"err",label:"COPPIA INESISTENTE",grp:"todo"},
+  BANDA_NON_RICONOSCIUTA:{cls:"err",label:"BANDA IGNOTA",grp:"todo"}, CODICE_FISCALE_MANCANTE:{cls:"err",label:"CF MANCANTE",grp:"todo"}, CODICE_FISCALE_DUPLICATO:{cls:"err",label:"CF DOPPIO",grp:"todo"},
+  SCARTATO:{cls:"",label:"SCARTATO",grp:"none"}, FUORI_PERIMETRO:{cls:"",label:"FUORI PERIMETRO",grp:"none"} };
+function countByAction(){ const c={}; for(const r of STATE.result) c[r.azione]=(c[r.azione]||0)+1; return c; }
+
+function buildTiles(){ const c=countByAction(); const tiles=document.getElementById("tiles"); tiles.innerHTML="";
+  const activeRows=STATE.result.filter(r=>r.azione!=="SCARTATO"); const tot=activeRows.length; const done=activeRows.filter(r=>ACTION_META[r.azione]?.grp==="done").length;
+  const join=[...STATE.caIndex.keys()].filter(m=>STATE.anagRows.some(a=>a.matricola===m)).length;
+  const defs=[ {cls:"tot",k:"Attivi",v:tot,d:STATE.raw.ca?`join CA ${join}/${tot}`:(STATE.vuote?`${STATE.vuote} vuote saltate`:"senza Conto Annuale")},
+    {cls:"ok",k:"Risolte",v:done,d:"OK / confermate"},
+    {cls:"warn",k:"Da confermare",v:(c.VERIFICA||0)+(c.DA_VERIFICARE_MANUALE||0),d:"MEDIA / BASSA"},
+    {cls:"err",k:"Bloccanti",v:(c.DA_INTEGRARE_DIZIONARIO||0)+(c.FALLBACK_QUESTIONARIO||0)+(c.COPPIA_INESISTENTE||0)+(c.BANDA_NON_RICONOSCIUTA||0)+(c.CODICE_FISCALE_MANCANTE||0)+(c.CODICE_FISCALE_DUPLICATO||0),d:STATE.duplicateCf.size?`CF doppi: ${STATE.duplicateCf.size}`:"intervento richiesto"},
+    {cls:"ces",k:"Scartati/Cessati",v:(c.SCARTATO||0)+STATE.cessati,d:`scartati ${c.SCARTATO||0} · cessati ${STATE.cessati}`} ];
+  defs.forEach(t=>{ const d=document.createElement("div"); d.className="tile "+t.cls; d.innerHTML=`<div class="k">${t.k}</div><div class="v">${t.v}</div><div class="d">${t.d}</div>`; tiles.appendChild(d); });
+  document.getElementById("baseline").textContent="Baseline campione 165 (con CA) → "+Object.entries(BASELINE).map(([k,b])=>{const n=c[k]||0;const d=n-b;return `${k} ${n} (Δ${d>=0?"+":""}${d})`;}).join("  ·  "); }
+
+function buildChips(){ const c=countByAction(); const box=document.getElementById("chips"); box.innerHTML="";
+  ["ALL","OK","VERIFICA","DA_VERIFICARE_MANUALE","DA_INTEGRARE_DIZIONARIO","FALLBACK_QUESTIONARIO","COPPIA_INESISTENTE","BANDA_NON_RICONOSCIUTA","CODICE_FISCALE_MANCANTE","CODICE_FISCALE_DUPLICATO","FUORI_PERIMETRO"].forEach(a=>{
+    const n=a==="ALL"?STATE.result.filter(r=>r.azione!=="SCARTATO").length:(c[a]||0); if(a!=="ALL"&&n===0)return;
+    const meta=a==="ALL"?{label:"Tutte"}:ACTION_META[a];
+    const chip=document.createElement("button"); chip.className="chip"+(STATE.filter===a?" on":""); chip.innerHTML=`${meta.label} <span class="cnt">${n}</span>`;
+    chip.addEventListener("click",()=>{ STATE.filter=a; STATE.editing=null; buildChips(); renderTable(); }); box.appendChild(chip); }); }
+
+function confClass(c){ return ["ALTA","MEDIA","BASSA"].includes(c)?c:"NEU"; }
+function visibleRows(){ const q=STATE.query.trim().toLowerCase();
+  return STATE.result.filter(r=>{ if(r.azione==="SCARTATO")return false; if(STATE.filter!=="ALL"&&r.azione!==STATE.filter)return false;
+    if(STATE.onlyTodo&&ACTION_META[r.azione]?.grp!=="todo")return false;
+    if(q){const b=(r.codice_fiscale+" "+r.matricola+" "+r.dipendente+" "+r.mansione_raw+" "+r.archetipo_codice+" "+r.ambito_codice+" "+r.profilo_ruolo_codice).toLowerCase(); if(!b.includes(q))return false;} return true; }); }
+function discardRow(r){ const key=rowKey(r); STATE.overrides.discard.set(key,`scartato manualmente (${new Date().toLocaleString()})`); STATE.overrides.ambito.delete(key); STATE.overrides.confirm.delete(key); STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Persona scartata e rimossa dall'elenco"); }
+function restoreRow(r){ STATE.overrides.discard.delete(rowKey(r)); STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Persona riammessa"); }
+
+function renderTable(){
+  const tb=document.getElementById("tbody"); tb.innerHTML=""; const rows=visibleRows();
+  document.getElementById("visCount").textContent=rows.length;
+  document.getElementById("totCount").textContent=STATE.result.filter(r=>r.azione!=="SCARTATO").length;
+  document.getElementById("resCount").textContent=STATE.result.filter(r=>r.azione!=="SCARTATO"&&ACTION_META[r.azione]?.grp==="done").length;
+  document.getElementById("openCount").textContent=STATE.result.filter(r=>ACTION_META[r.azione]?.grp==="todo").length;
+  document.getElementById("cesCount").textContent=(countByAction().SCARTATO||0)+STATE.cessati;
+  if(!rows.length){ const tr=document.createElement("tr"); tr.innerHTML=`<td colspan="10"><div class="empty"><div class="big">Nessuna riga</div>Nessun dipendente per il filtro corrente.</div></td>`; tb.appendChild(tr); return; }
+  for(const r of rows){ const meta=ACTION_META[r.azione]||{cls:"",label:r.azione,grp:"todo"}; const todo=meta.grp==="todo"; const key=rowKey(r); const isScartato=r.azione==="SCARTATO";
+    const tr=document.createElement("tr"); if(STATE.editing===key)tr.classList.add("editing");
+    tr.innerHTML=`<td><span class="matr">${r.matricola}</span></td><td>${r.nominativo?esc(r.nominativo):"—"}</td><td>${esc(r.mansione_raw||"—")}</td>
+      <td>${esc(r.banda||r.banda_raw||"—")}</td>
+      <td>${r.archetipo_codice?`<span class="code">${r.archetipo_codice}</span>`:'<span class="needs">—</span>'}</td>
+      <td>${r.ambito_codice?`<span class="code">${r.ambito_codice}</span>`:'<span class="needs">—</span>'}</td>
+      <td>${r.profilo_ruolo_codice?`<span class="code">${r.profilo_ruolo_codice}</span>`:'<span class="needs">—</span>'}</td>
+      <td>${r.confidenza?`<span class="conf ${confClass(r.confidenza)}"><span class="dot"></span>${r.confidenza}</span>`:'<span class="conf NEU"><span class="dot"></span>—</span>'}</td>
+      <td><span class="azione ${todo?'needs':''}">${meta.label}</span></td>
+      <td style="text-align:right">${meta.grp==="none"?'<span class="rowbtn muted" style="cursor:default">escluso</span>':`<button class="rowbtn" data-m="${r.matricola}">${todo?'Correggi':(r.azione==='OK'?'Modifica':'Apri')}</button>`}</td>`;
+    tb.appendChild(tr);
+    tr.querySelector("td").innerHTML=`<span class="matr">${esc(r.codice_fiscale||"—")}</span><div class="hint">matr. ${esc(r.matricola||"—")}</div>`;
+    if(r.area_intervento_dominante) tr.children[5].insertAdjacentHTML("beforeend",`<div class="hint">CA: ${esc(r.area_intervento_dominante)}</div>`);
+    const actions=tr.lastElementChild;
+    actions.innerHTML=isScartato
+      ? `<button class="rowbtn" data-restore="${key}">Ripristina</button>`
+      : `${meta.grp==="none"?'<span class="rowbtn muted" style="cursor:default">escluso</span>':`<button class="rowbtn" data-m="${key}">${todo?'Correggi':(r.azione==='OK'?'Modifica':'Apri')}</button>`}<button class="rowbtn" data-discard="${key}">Scarta</button>`;
+    const btn=tr.querySelector("button[data-m]"); if(btn) btn.addEventListener("click",()=>{ STATE.editing=STATE.editing===key?null:key; renderTable(); });
+    const disc=tr.querySelector("button[data-discard]"); if(disc) disc.addEventListener("click",()=>discardRow(r));
+    const rest=tr.querySelector("button[data-restore]"); if(rest) rest.addEventListener("click",()=>restoreRow(r));
+    if(STATE.editing===key) tb.appendChild(buildEditor(r)); }
+}
+
+function buildEditor(r){
+  const tr=document.createElement("tr"); tr.className="editor"; const td=document.createElement("td"); td.colSpan=10; tr.appendChild(td);
+  const banda=r.banda;
+  if(r.azione==="CODICE_FISCALE_DUPLICATO"||r.azione==="CODICE_FISCALE_MANCANTE"){
+    td.innerHTML=`<div class="ed-head">Identificativo persona non valido</div><div class="hint">${esc(r.note)}. Correggi il file sorgente oppure usa Scarta per escludere la persona.</div><div class="ed-actions"><button class="btn ghost sm" id="ed-cancel">Chiudi</button></div>`;
+    td.querySelector("#ed-cancel").addEventListener("click",()=>{STATE.editing=null;renderTable();}); return tr;
+  }
+  if(r.azione==="BANDA_NON_RICONOSCIUTA"){
+    td.innerHTML=`<div class="ed-head">Banda non ricavabile · pos. <span class="raw">${esc(r.posizione||"—")}</span> · area <span class="raw">${esc(r.banda_raw||"—")}</span></div>
+      <div class="ed-grid"><div class="field"><label>Banda canonica</label><select id="ed-band">${['<option value="">— seleziona —</option>'].concat(EMBEDDED.bande.map(b=>`<option>${b}</option>`)).join("")}</select></div></div>
+      <div class="ed-actions"><button class="btn primary sm" id="ed-apply">Applica banda</button><button class="btn sm" id="ed-wizard">🧭 Questionario guidato</button><button class="btn ghost sm" id="ed-cancel">Chiudi</button></div>`;
+    td.querySelector("#ed-apply").addEventListener("click",()=>{ const b=td.querySelector("#ed-band").value; if(!b){toast("Seleziona banda");return;}
+      const row=STATE.anagRows.find(a=>rowKey(a)===rowKey(r)); if(row)row.banda=b; STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Banda impostata"); });
+    const wzb3=td.querySelector("#ed-wizard"); if(wzb3)wzb3.addEventListener("click",()=>{ STATE.editing=null; openWizard(r); });
+    td.querySelector("#ed-cancel").addEventListener("click",()=>{STATE.editing=null;renderTable();}); return tr;
+  }
+  if(r.azione==="DA_INTEGRARE_DIZIONARIO"){
+    const archs=(EMBEDDED.archByBand[banda]||[]).map(c=>({code:c,tit:STATE.dict.archTit.get(c)||""}));
+    td.innerHTML=`<div class="ed-head">Mansione non a dizionario <span class="raw">${esc(r.mansione_norm||"—")}</span> · banda <span class="raw">${esc(banda)}</span></div>
+      <div class="ed-grid">
+        <div class="field"><label>Archetipo ammesso per la banda</label><select id="ed-arch">${['<option value="">— seleziona —</option>'].concat(archs.map(a=>`<option value="${a.code}">${a.code}${a.tit?' · '+esc(a.tit):''}</option>`)).join("")}</select></div>
+        <div class="field"><label>Confidenza</label><select id="ed-conf"><option>ALTA</option><option>MEDIA</option><option>BASSA</option></select></div></div>
+      <div class="hint">Crea una <b>voce di dizionario di sessione</b> per la mansione (band-agnostic): si applica a tutte le matricole con la stessa mansione. Esportabile come delta.</div>
+      <div class="ed-actions"><button class="btn alta sm" id="ed-save">Salva nel dizionario</button><button class="btn sm" id="ed-wizard">🧭 Questionario guidato</button><button class="btn ghost sm" id="ed-cancel">Annulla</button></div>`;
+    td.querySelector("#ed-save").addEventListener("click",()=>{ const a=td.querySelector("#ed-arch").value,cf=td.querySelector("#ed-conf").value; if(!a){toast("Seleziona archetipo");return;}
+      STATE.overrides.mansione.set(r.mansione_norm,{archetipo:a,confidenza:cf}); STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Dizionario esteso · "+a); });
+    const wzb2=td.querySelector("#ed-wizard"); if(wzb2)wzb2.addEventListener("click",()=>{ STATE.editing=null; openWizard(r); });
+    td.querySelector("#ed-cancel").addEventListener("click",()=>{STATE.editing=null;renderTable();}); return tr;
+  }
+  const arch=r.archetipo_codice; const ambiti=arch?ambitiWL(banda,arch).map(a=>({code:a,tit:STATE.dict.ambTit.get(a)||""})):[];
+  const ovAmb=STATE.overrides.ambito.get(rowKey(r)); const cur=r.ambito_codice;
+  const head=r.azione==="FALLBACK_QUESTIONARIO"?"Banda direttiva senza area — seleziona l'ambito":r.azione==="COPPIA_INESISTENTE"?"Coppia fuori whitelist — seleziona un ambito ammesso":"Conferma o correggi l'ambito";
+  td.innerHTML=`<div class="ed-head">${head} · archetipo <span class="raw">${esc(arch||"—")}</span>${r.area_intervento_dominante?` · area dom. <span class="raw">${esc(r.area_intervento_dominante)}</span>`:''}</div>
+    <div class="ed-grid"><div class="field"><label>Ambito (whitelist banda × archetipo)</label>
+      <select id="ed-amb">${['<option value="">— seleziona —</option>'].concat(ambiti.map(a=>`<option value="${a.code}" ${a.code===(ovAmb||cur)?'selected':''}>${a.code}${a.tit?' · '+esc(a.tit):''} → ${esc(STATE.dict.ref.get(banda+SEP+arch+SEP+a.code)||"?")}</option>`)).join("")}</select></div></div>
+    ${ambiti.length===0?'<div class="hint" style="color:var(--bassa)">Nessun ambito in whitelist per questa coppia. Verifica l\'archetipo (mansione).</div>':''}
+    <div class="hint">${r.area_intervento_mix?`Mix area: <b>${esc(r.area_intervento_mix)}</b>`:'Nessun dato Conto Annuale per questa matricola.'}</div>
+    <div class="ed-actions">
+      ${(r.azione==="VERIFICA"||r.azione==="DA_VERIFICARE_MANUALE")?`<button class="btn alta sm" id="ed-confirm">Conferma ambito (${esc(cur||"—")})</button>`:''}
+      <button class="btn sm" id="ed-wizard">🧭 Questionario guidato</button>
+      <button class="btn primary sm" id="ed-apply">Applica ambito</button>
+      ${ovAmb?'<button class="btn ghost sm" id="ed-reset">Rimuovi override</button>':''}
+      <button class="btn ghost sm" id="ed-cancel">Chiudi</button></div>`;
+  const cf=td.querySelector("#ed-confirm"); if(cf)cf.addEventListener("click",()=>{ STATE.overrides.confirm.add(rowKey(r)); STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Confermato"); });
+  const wzb=td.querySelector("#ed-wizard"); if(wzb)wzb.addEventListener("click",()=>{ STATE.editing=null; openWizard(r); });
+  td.querySelector("#ed-apply").addEventListener("click",()=>{ const a=td.querySelector("#ed-amb").value; if(!a){toast("Seleziona ambito");return;} STATE.overrides.ambito.set(rowKey(r),a); STATE.overrides.confirm.delete(rowKey(r)); STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Ambito applicato"); });
+  const rs=td.querySelector("#ed-reset"); if(rs)rs.addEventListener("click",()=>{ STATE.overrides.ambito.delete(rowKey(r)); STATE.editing=null; recompute(); buildTiles(); buildChips(); renderTable(); toast("Override rimosso"); });
+  td.querySelector("#ed-cancel").addEventListener("click",()=>{STATE.editing=null;renderTable();}); return tr;
+}
+
+const MAP_COLS=["codice_fiscale","matricola","nominativo","dipendente","mansione_raw","mansione_norm","posizione","banda","archetipo_codice","archetipo_titolo","famiglia_codice","famiglia_titolo","ambito_codice","ambito_titolo","profilo_ruolo_codice","profilo_professionale_codice","area_intervento_prevalente","area_intervento_dominante","area_intervento_mix","confidenza","azione","note"];
+function exportMappatura(){ if(!STATE.result.length){toast("Niente da esportare");return;}
+  const wb=XLSX.utils.book_new();
+  const mapped=STATE.result.filter(r=>r.azione!=="SCARTATO");
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(mapped.map(r=>{const o={};MAP_COLS.forEach(c=>o[c]=r[c]??"");return o;}),{header:MAP_COLS}),"Mappatura");
+  const c=countByAction(); const anagM=new Set(STATE.anagRows.map(a=>a.matricola)),caM=new Set(STATE.caIndex.keys());
+  const diag=Object.keys(c).sort().map(k=>({metrica:k,valore:c[k]}));
+  diag.push({metrica:"attivi_mappati",valore:mapped.length});
+  diag.push({metrica:"cessati_esclusi",valore:STATE.cessati});
+  diag.push({metrica:"righe_senza_chiave_saltate",valore:STATE.vuote});
+  diag.push({metrica:"join_CA_via_matricola",valore:[...anagM].filter(m=>caM.has(m)).length});
+  diag.push({metrica:"matricole_CA_orfane",valore:[...caM].filter(m=>!anagM.has(m)).length});
+  diag.push({metrica:"codici_fiscali_duplicati",valore:STATE.duplicateCf.size});
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(diag,{header:["metrica","valore"]}),"Diagnostica");
+  const scartati=STATE.result.filter(r=>r.azione==="SCARTATO").map(r=>({codice_fiscale:r.codice_fiscale,matricola:r.matricola,dipendente:r.dipendente,mansione:r.mansione_raw,note:r.note}));
+  if(scartati.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(scartati),"Scartati");
+  const manOpen=new Map(); for(const r of STATE.result) if(r.azione==="DA_INTEGRARE_DIZIONARIO") manOpen.set(r.mansione_norm,(manOpen.get(r.mansione_norm)||0)+1);
+  if(manOpen.size) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([...manOpen.entries()].sort((a,b)=>b[1]-a[1]).map(([m,n])=>({mansione_norm:m,occorrenze:n}))),"Mansioni_da_integrare");
+  XLSX.writeFile(wb,"Minerva_estrazione_mappata.xlsx"); toast("Mappatura esportata"); markDone(4); markDone(5); document.querySelector('.step[data-step="5"]').classList.add("active"); }
+
+function exportDictDelta(){ if(!STATE.overrides.mansione.size&&!STATE.overrides.ambito.size&&!STATE.overrides.confirm.size&&!STATE.overrides.discard.size&&!STATE.overrides.profilo.size){toast("Nessun delta");return;}
+  const wb=XLSX.utils.book_new();
+  const man=[...STATE.overrides.mansione.entries()].map(([k,v])=>({mansione_grezza:k,archetipo_codice:v.archetipo,archetipo_titolo:STATE.dict.archTit.get(v.archetipo)||"",confidenza:v.confidenza}));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(man.length?man:[{mansione_grezza:"",archetipo_codice:"",archetipo_titolo:"",confidenza:""}]),"Dizionario_Mansione_ADD");
+  const amb=[...STATE.overrides.ambito.entries()].map(([k,a])=>{ const r=STATE.result.find(x=>rowKey(x)===k)||{}; return {codice_fiscale:r.codice_fiscale||k,matricola:r.matricola||"",ambito_codice_override:a,profilo_ruolo:r.profilo_ruolo_codice||""}; });
+  [...STATE.overrides.confirm].forEach(k=>{ const r=STATE.result.find(x=>rowKey(x)===k)||{}; amb.push({codice_fiscale:r.codice_fiscale||k,matricola:r.matricola||"",ambito_codice_override:"(confermato)",profilo_ruolo:r.profilo_ruolo_codice||""}); });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(amb.length?amb:[{codice_fiscale:"",matricola:"",ambito_codice_override:"",profilo_ruolo:""}]),"Override_CodiceFiscale");
+  const scartati=[...STATE.overrides.discard.entries()].map(([k,note])=>{ const r=STATE.result.find(x=>rowKey(x)===k)||{}; return {codice_fiscale:r.codice_fiscale||k,matricola:r.matricola||"",dipendente:r.dipendente||"",note}; });
+  if(scartati.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(scartati),"Persone_Scartate");
+  const prof=[...STATE.overrides.profilo.entries()].map(([k,p])=>{ const r=STATE.result.find(x=>rowKey(x)===k)||{}; return {codice_fiscale:r.codice_fiscale||k,matricola:r.matricola||"",nominativo:r.nominativo||"",banda:p.banda||"",archetipo_codice:p.archetipo||"",ambito_codice:p.ambito||"",profilo_ruolo:p.profilo_ruolo||""}; });
+  if(prof.length) XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(prof),"Profili_Questionario");
+  XLSX.writeFile(wb,"Minerva_delta_correzioni.xlsx"); toast("Delta esportato"); }
+
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let toastT=null; function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200); }
+function showErr(id,m){ const e=document.getElementById(id); e.textContent=m; e.classList.remove("hidden"); }
+
+function onUpload(key){ return async e=>{ const f=e.target.files[0]; if(!f)return;
+  try{ STATE.raw[key]=await readWB(f); STATE.files[key]=f.name; }catch(err){ showErr("s1err","Errore "+f.name+": "+err.message); return; }
+  if(key==="anag"){ document.getElementById("fn-anag").textContent=f.name; document.getElementById("drop-anag").classList.add("loaded"); }
+  renderSources();
+  if(key==="anag"){ tryAutoRun(); }
+  else { if(key==="ca" && !autoMapCA()){ openMapping(); return; }
+    if(STATE.raw.anag && STATE.headers.anag.codice_fiscale){ execute(); } }
+}; }
+
+(function(){ const m=Object.keys(EMBEDDED.man||{}).length, pr=(EMBEDDED.ref||[]).length, ar=Object.keys(EMBEDDED.ar_to_fam||{}).length, b=(EMBEDDED.bande||[]).length;
+  document.getElementById("embStats").innerHTML=`Dizionario Minerva integrato — <b>${m}</b> mansioni · <b>${pr}</b> profili di ruolo · <b>${ar}</b> ambiti · <b>${b}</b> bande. Carica solo l'anagrafica.`; })();
+
+["f-anag","f-anag3"].forEach(id=>document.getElementById(id).addEventListener("change",onUpload("anag")));
+["f-ca","f-ca2","f-ca3"].forEach(id=>document.getElementById(id).addEventListener("change",onUpload("ca")));
+["f-dz","f-dz2","f-dz3"].forEach(id=>document.getElementById(id).addEventListener("change",onUpload("dz")));
+document.getElementById("runEngineBtn").addEventListener("click",()=>{ const h=STATE.headers.anag; if(!(h.codice_fiscale&&h.mansione&&(h.posizione||h.banda))){ showErr("s2err","Mappa Codice fiscale, Mansione e almeno una tra Posizione economica/Area. La matricola serve solo al collegamento con il Conto Annuale."); return; } execute(); });
+document.getElementById("q").addEventListener("input",e=>{STATE.query=e.target.value;renderTable();});
+document.getElementById("onlyTodo").addEventListener("change",e=>{STATE.onlyTodo=e.target.checked;renderTable();});
+document.getElementById("exportMap").addEventListener("click",exportMappatura);
+document.getElementById("exportDict").addEventListener("click",exportDictDelta);
+document.getElementById("resetBtn").addEventListener("click",resetAll);
+document.getElementById("resetRail").addEventListener("click",resetAll);
+
+/* =========================================================================
+   WIZARD GUIDATO — cascata Banda -> Famiglia -> Ambito -> Archetipo -> PP-AR.
+   Tutte le opzioni derivano da STATE.dict (EMBEDDED), unica fonte di verita'
+   gia' usata dalla transcodifica massiva. Niente dataset duplicato.
+   ========================================================================= */
+const FAMILY_DESC = {
+  ELL_FP001: "Chi si occupa dei soldi dell'ente: bilancio e contabilita', tributi e tasse locali, fondi europei/nazionali, controllo delle societa' partecipate.",
+  ELL_FP002: "Chi gestisce il personale: stipendi e contratti dei dipendenti, formazione, organizzazione degli uffici, performance, sicurezza sul lavoro, inclusione.",
+  ELL_FP003: "Chi si occupa di informatica e digitale: computer e reti, software e siti web, sicurezza informatica, intelligenza artificiale, digitalizzazione dei servizi.",
+  ELL_FP004: "Chi fa funzionare la macchina dell'ente: gestione di immobili e magazzini, logistica, supporto a sindaco e consiglio, trasparenza e anticorruzione.",
+  ELL_FP005: "Chi si occupa di norme e diritto: regolamenti, gare e appalti, privacy, contenzioso e affari legali.",
+  ELL_FP006: "Chi comunica verso cittadini e media: ufficio stampa, sito e social, eventi e progetti partecipati, relazioni internazionali.",
+  ELL_FP007: "Chi eroga servizi diretti alla persona: anagrafe e stato civile, scuola e asili, servizi sociali e welfare, cultura.",
+  ELL_FP008: "Chi si occupa del territorio: urbanistica ed edilizia, ambiente, mobilita' e trasporti, turismo, polizia locale, protezione civile, opere pubbliche, sviluppo economico."
+};
+const AMB_SYNONYMS = {
+  ELL_AR001:"ragioneria contabilita mandati reversali bilancio", ELL_AR002:"pnrr fondi europei progetti finanziati finanziamenti",
+  ELL_AR003:"tributi tasse imu tari imposte riscossione tributario", ELL_AR004:"societa partecipate aziende controllate municipalizzate",
+  ELL_AR005:"stipendi paghe cedolino previdenza pensioni assunzioni giuridico personale", ELL_AR006:"performance valutazione obiettivi indicatori",
+  ELL_AR008:"formazione corsi aggiornamento", ELL_AR009:"organizzazione organigramma riorganizzazione uffici dotazione",
+  ELL_AR012:"spid pagopa app io digitale servizi online", ELL_AR013:"server reti hardware sistemista assistenza pc infrastruttura",
+  ELL_AR014:"cybersecurity sicurezza informatica antivirus hacker", ELL_AR015:"sito web portale internet intranet applicativi software",
+  ELL_AR016:"immobili patrimonio beni demanio inventario", ELL_AR018:"sindaco giunta consiglio organi segreteria",
+  ELL_AR019:"anticorruzione trasparenza accesso civico foia integrita", ELL_AR021:"gare appalti mepa rup capitolato fornitori contratti",
+  ELL_AR022:"privacy gdpr dati personali", ELL_AR023:"avvocatura legale contenzioso cause ricorsi tar",
+  ELL_AR024:"ufficio stampa urp comunicati informazione", ELL_AR025:"social facebook instagram comunicazione web",
+  ELL_AR028:"anagrafe stato civile carta identita residenza elettorale demografici", ELL_AR029:"scuola asilo nido mensa scolastica istruzione educativi",
+  ELL_AR030:"welfare servizi sociali assistenza disabili anziani", ELL_AR031:"cultura biblioteca musei eventi culturali",
+  ELL_AR032:"ambiente rifiuti raccolta differenziata ecologia economia circolare", ELL_AR033:"edilizia urbanistica permessi costruire scia pratiche edilizie prg",
+  ELL_AR034:"trasporti mobilita tpl autobus parcheggi viabilita", ELL_AR035:"turismo proloco promozione eventi",
+  ELL_AR036:"multe verbali vigili polizia municipale locale autovelox sicurezza urbana", ELL_AR037:"protezione civile emergenze calamita alluvione terremoto",
+  ELL_AR038:"commercio suap attivita produttive imprese sviluppo economico", ELL_AR039:"opere pubbliche lavori pubblici cantieri llpp",
+  ELL_AR047:"intelligenza artificiale ia ai algoritmi"
+};
+function wzNorm(x){ return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim(); }
+
+let WZ=null;
+function wzFamigliesForBanda(banda){ const fams=new Set();
+  for(const key of STATE.dict.ref.keys()){ const p=key.split(SEP); if(p[0]!==banda)continue; const f=STATE.dict.ar_to_fam.get(p[2]); if(f)fams.add(f); }
+  return [...fams].sort().map(c=>({code:c,title:STATE.dict.famTit.get(c)||c})); }
+function wzAmbitiFor(banda,fam){ const ars=new Set();
+  for(const key of STATE.dict.ref.keys()){ const p=key.split(SEP); if(p[0]!==banda)continue; if(STATE.dict.ar_to_fam.get(p[2])!==fam)continue; ars.add(p[2]); }
+  return [...ars].sort().map(c=>({code:c,title:STATE.dict.ambTit.get(c)||c})); }
+function wzArchFor(banda,ar){ const pps=new Set();
+  for(const key of STATE.dict.ref.keys()){ const p=key.split(SEP); if(p[0]!==banda||p[2]!==ar)continue; pps.add(p[1]); }
+  return [...pps].sort().map(c=>({code:c,title:STATE.dict.archTit.get(c)||c})); }
+function wzProfilo(banda,pp,ar){ return STATE.dict.ref.get(banda+SEP+pp+SEP+ar)||""; }
+
+function openWizard(r){
+  if(!STATE.dict){ toast("Esegui prima la transcodifica"); return; }
+  WZ={ rowKey:r?rowKey(r):null, nominativo:r?(r.nominativo||""):"", mansione:r?(r.mansione_raw||""):"",
+       banda:r&&r.banda?r.banda:"", fam:"", ambito:"", arch:r&&r.archetipo_codice?r.archetipo_codice:"",
+       archHint:r&&r.archetipo_codice?r.archetipo_codice:"", step:(r&&r.banda)?2:1 };
+  document.getElementById("wzModal").classList.remove("hidden");
+  renderWz();
+}
+function closeWizard(){ WZ=null; document.getElementById("wzModal").classList.add("hidden"); }
+function wzGo(step){ if(!WZ)return; WZ.step=step; renderWz(); }
+
+function wzOptions(items, selected){
+  if(!items.length) return `<div class="wzempty">Nessuna opzione per questo percorso. Torna indietro e modifica le scelte.</div>`;
+  return `<div class="wzopts">`+items.map(it=>`<button type="button" class="wzopt${it.code===selected?' sel':''}" data-code="${esc(it.code)}"><span class="wzradio"></span><span class="wzobody"><span class="mono">${esc(it.code)}</span><span>${esc(it.title)}</span></span></button>`).join("")+`</div>`;
+}
+function wzBindOptions(cb){ document.getElementById("wzBody").querySelectorAll(".wzopt").forEach(b=>b.addEventListener("click",()=>cb(b.dataset.code))); }
+
+function renderWz(){
+  if(!WZ)return;
+  const labels=["Banda","Famiglia","Ambito","Archetipo","Esito"];
+  document.getElementById("wzSteps").innerHTML=labels.map((l,i)=>{ const n=i+1; let cls="wzstep"; if(WZ.step>n)cls+=" done"; if(WZ.step===n)cls+=" active"; return `<span class="${cls}"><b>${n}</b>${l}</span>`; }).join("");
+  const body=document.getElementById("wzBody");
+  const idLine=(WZ.nominativo||WZ.mansione)?`<div class="wzwho">${WZ.nominativo?`<b>${esc(WZ.nominativo)}</b>`:""}${WZ.mansione?` &middot; <span class="mono">${esc(WZ.mansione)}</span>`:""}</div>`:"";
+
+  if(WZ.step===1){
+    body.innerHTML=idLine+`<h3>Passo 1 &mdash; Banda (Area contrattuale)</h3><p class="wzhint">Seleziona l'area contrattuale CCNL del dipendente.</p>`+
+      wzOptions(EMBEDDED.bande.map(b=>({code:b,title:b})), WZ.banda);
+    wzBindOptions(code=>{ WZ.banda=code; WZ.fam=""; WZ.ambito=""; WZ.arch=WZ.archHint||""; renderWz(); });
+  } else if(WZ.step===2){
+    const fams=wzFamigliesForBanda(WZ.banda);
+    const cards=fams.map(f=>{ const ambiti=wzAmbitiFor(WZ.banda,f.code); const desc=FAMILY_DESC[f.code]||"";
+      const hay=wzNorm([f.title,desc].concat(ambiti.map(a=>a.title+" "+(AMB_SYNONYMS[a.code]||""))).join(" "));
+      return `<button type="button" class="wzfam${f.code===WZ.fam?' sel':''}" data-code="${esc(f.code)}" data-hay="${esc(hay)}"><span class="wzradio"></span><span class="wzfbody"><span class="mono">${esc(f.code)}</span><b>${esc(f.title)}</b>${desc?`<span class="wzdesc">${esc(desc)}</span>`:""}<span class="wzchips">${ambiti.map(a=>`<span class="wzchip">${esc(a.title)}</span>`).join("")}</span></span></button>`;
+    }).join("");
+    body.innerHTML=idLine+`<h3>Passo 2 &mdash; Famiglia professionale</h3><p class="wzhint">Famiglie disponibili per la banda &laquo;${esc(WZ.banda)}&raquo;. Non sai quale scegliere? Scrivi cosa fa la persona.</p>
+      <input type="text" id="wzFamSearch" class="wzsearch" placeholder="es. multe &middot; welfare &middot; tributi &middot; anagrafe &middot; appalti" autocomplete="off">
+      <div class="wzfamlist" id="wzFamList">${cards}</div>`;
+    body.querySelectorAll(".wzfam").forEach(b=>b.addEventListener("click",()=>{ WZ.fam=b.dataset.code; WZ.ambito=""; renderWz(); }));
+    const sb=document.getElementById("wzFamSearch"); sb.addEventListener("input",e=>{ const q=wzNorm(e.target.value); body.querySelectorAll(".wzfam").forEach(c=>{ c.style.display=(!q||c.dataset.hay.indexOf(q)>=0)?"":"none"; }); });
+  } else if(WZ.step===3){
+    body.innerHTML=idLine+`<h3>Passo 3 &mdash; Ambito di ruolo</h3><p class="wzhint">Ambiti della famiglia selezionata, compatibili con la banda.</p>`+
+      wzOptions(wzAmbitiFor(WZ.banda,WZ.fam), WZ.ambito);
+    wzBindOptions(code=>{ WZ.ambito=code; renderWz(); });
+  } else if(WZ.step===4){
+    const archs=wzArchFor(WZ.banda,WZ.ambito);
+    if(WZ.arch && !archs.some(a=>a.code===WZ.arch)) WZ.arch="";
+    const hint=(WZ.archHint && archs.some(a=>a.code===WZ.archHint))?`<p class="wzhint" style="color:var(--accent-ink)">Archetipo dedotto dalla mansione: <b>${esc(WZ.archHint)} &middot; ${esc(STATE.dict.archTit.get(WZ.archHint)||"")}</b></p>`:"";
+    body.innerHTML=idLine+`<h3>Passo 4 &mdash; Archetipo (Profilo professionale)</h3>${hint}<p class="wzhint">Archetipi compatibili con banda e ambito.</p>`+
+      wzOptions(archs, WZ.arch);
+    wzBindOptions(code=>{ WZ.arch=code; renderWz(); });
+  } else {
+    const pr=wzProfilo(WZ.banda,WZ.arch,WZ.ambito);
+    body.innerHTML=idLine+`<h3>Esito &mdash; Profilo di ruolo</h3>
+      <div class="wzresult">
+        <div class="wzrr"><span>Banda</span><b>${esc(WZ.banda)}</b></div>
+        <div class="wzrr"><span>Archetipo PP</span><b>${esc(WZ.arch)} &middot; ${esc(STATE.dict.archTit.get(WZ.arch)||"")}</b></div>
+        <div class="wzrr"><span>Ambito AR</span><b>${esc(WZ.ambito)} &middot; ${esc(STATE.dict.ambTit.get(WZ.ambito)||"")}</b></div>
+        <div class="wzrr big"><span>Profilo di ruolo PP-AR</span><b class="code">${esc(pr||"—")}</b></div>
+      </div>
+      ${WZ.rowKey?`<p class="wzhint">Confermando, il profilo viene applicato alla riga del dipendente (esito <b>OK</b>, confidenza ALTA).</p>`:`<p class="wzhint">Modalita' consultazione: nessuna riga selezionata, puoi copiare il codice.</p>`}`;
+  }
+
+  const canNext=(WZ.step===1&&WZ.banda)||(WZ.step===2&&WZ.fam)||(WZ.step===3&&WZ.ambito)||(WZ.step===4&&WZ.arch);
+  document.getElementById("wzFoot").innerHTML=`<button class="btn ghost sm" id="wzBack" ${WZ.step===1?"disabled":""}>&larr; Indietro</button><div style="flex:1"></div>`+
+    (WZ.step<5?`<button class="btn primary sm" id="wzNext" ${canNext?"":"disabled"}>${WZ.step===4?"Vedi esito &rarr;":"Avanti &rarr;"}</button>`
+              :(WZ.rowKey?`<button class="btn alta sm" id="wzConfirm">Applica profilo alla riga</button>`:`<button class="btn primary sm" id="wzCopy">Copia PP-AR</button>`));
+  const bk=document.getElementById("wzBack"); if(bk)bk.addEventListener("click",()=>wzGo(WZ.step-1));
+  const nx=document.getElementById("wzNext"); if(nx)nx.addEventListener("click",()=>wzGo(WZ.step+1));
+  const cf=document.getElementById("wzConfirm"); if(cf)cf.addEventListener("click",wzApply);
+  const cp=document.getElementById("wzCopy"); if(cp)cp.addEventListener("click",()=>{ const pr=wzProfilo(WZ.banda,WZ.arch,WZ.ambito); if(navigator.clipboard)navigator.clipboard.writeText(pr); toast("Copiato: "+(pr||"-")); });
+}
+
+function wzApply(){
+  const pr=wzProfilo(WZ.banda,WZ.arch,WZ.ambito);
+  if(!pr){ toast("Coppia non presente in whitelist"); return; }
+  STATE.overrides.profilo.set(WZ.rowKey,{banda:WZ.banda,archetipo:WZ.arch,ambito:WZ.ambito,profilo_ruolo:pr});
+  STATE.overrides.ambito.delete(WZ.rowKey); STATE.overrides.confirm.delete(WZ.rowKey);
+  STATE.editing=null; closeWizard(); recompute(); buildTiles(); buildChips(); renderTable(); toast("Profilo applicato · "+pr);
+}
+
+document.getElementById("wzClose").addEventListener("click",closeWizard);
+document.getElementById("wzBackdrop").addEventListener("click",closeWizard);
+const _wzOpen=document.getElementById("wzOpenBtn"); if(_wzOpen)_wzOpen.addEventListener("click",()=>{ if(!STATE.dict){toast("Carica ed esegui prima la transcodifica");return;} openWizard(null); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&WZ)closeWizard(); });
+</script>
+</body>
+</html>
