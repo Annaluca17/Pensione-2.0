@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock, Layers, Banknote } from 'lucide-react';
 import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
 import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
@@ -9,8 +9,28 @@ import UltimoMiglioTFRShell from './components/tfr/UltimoMiglioTFRShell';
 
 type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | 'unificato' | 'tfr' | null;
 
+const SERVIZI: Exclude<ServiceType, null>[] = [
+  'pensione', 'tfs_pensione', 'tfs_servizio', 'lettere', 'anticipo_dma', 'unificato', 'tfr',
+];
+
+// Il Portale Strumenti Interni apre un singolo modulo con ?modulo=<id> e chiede
+// con ?embed=1 di non ripetere l'intestazione che il portale gia mostra.
+const PARAMETRI = new URLSearchParams(window.location.search);
+const INCORNICIATO = PARAMETRI.get('embed') === '1';
+
+function servizioIniziale(): ServiceType {
+  const richiesto = PARAMETRI.get('modulo');
+  return SERVIZI.includes(richiesto as never) ? (richiesto as ServiceType) : null;
+}
+
 export default function App() {
-  const [activeService, setActiveService] = useState<ServiceType>(null);
+  const [activeService, setActiveService] = useState<ServiceType>(servizioIniziale);
+
+  // Comunica al portale il modulo aperto, cosi puo tenere l'indirizzo allineato.
+  useEffect(() => {
+    if (window.parent === window) return;
+    window.parent.postMessage({ tipo: 'immedia:modulo', modulo: activeService }, '*');
+  }, [activeService]);
 
   const getServiceTitle = (service: ServiceType) => {
     switch (service) {
@@ -164,7 +184,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {!activeService && (
+      {!activeService && !INCORNICIATO && (
         <header className="bg-white border-b border-slate-200 px-8 py-6">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">XDESK - Gestione Enti Locali</h1>
