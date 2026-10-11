@@ -1,20 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Pensione 2.0
 
-# Run and deploy your AI Studio app
+Strumenti Immedia per l'ultimo miglio INPS PASSWEB (CCNL Funzioni Locali):
+pensione, TFS pensionati, TFS in servizio, lettere, anticipo DMA, calcolo
+unificato e TFR. Pubblicato su https://pensione-2-0.vercel.app ed esposto nel
+Portale Strumenti Interni.
 
-This contains everything you need to run your app locally.
+## Avvio in locale
 
-View your app in AI Studio: https://ai.studio/apps/51ec0b0f-e0a1-4e42-aeb1-8024ba925daa
+```bash
+npm install
+npm run dev
+```
 
-## Run Locally
+Non servono variabili d'ambiente.
 
-**Prerequisites:**  Node.js
+## Struttura
 
+Tutto il codice sta in `src/` (punto d'ingresso `src/main.tsx`): i moduli in
+`src/components/`, gli export Excel/PDF in `src/export*.ts`, le tabelle CCNL in
+`src/data/`.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Il portale apre un modulo direttamente con `?modulo=<id>` (`pensione`,
+`tfs_pensione`, `tfs_servizio`, `lettere`, `anticipo_dma`, `unificato`, `tfr`)
+e riceve il modulo attivo via `postMessage({tipo:'immedia:modulo', modulo})`.
