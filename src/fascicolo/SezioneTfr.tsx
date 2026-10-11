@@ -2,6 +2,7 @@
 // maschera, composizione di ogni riga, avvisi con fonte e, se bloccata, i motivi. Solo lettura.
 import {spiega} from '../motore';
 import type {Avviso, Risultato} from '../motore';
+import type {Chiusura} from './chiusura';
 import {Riquadro} from './campi';
 import {scriviEuro} from './modifiche';
 
@@ -10,11 +11,59 @@ const data = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}
 const mese = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
 const esito = {intero: 'intero', utile: 'utile (almeno 15 giorni)', 'non-utile': 'non utile (meno di 15 giorni)'} as const;
 
-export function SezioneTfr({risultato}: {risultato: Risultato}) {
-  const tfr = risultato.sezioni.tfr;
+export function SezioneTfr({
+  risultato,
+  chiusura,
+  onChiudi,
+  onRiapri,
+}: {
+  risultato: Risultato;
+  chiusura?: Chiusura;
+  onChiudi: () => void;
+  onRiapri: () => void;
+}) {
+  // Sezione chiusa: si mostra ciò che è stato trasmesso (il congelato), con le differenze dal ricalcolo.
+  const congelato = chiusura?.congelato.sezione === 'tfr' ? chiusura.congelato.risultato : undefined;
+  const tfr = congelato ?? risultato.sezioni.tfr;
   const avvisi = risultato.avvisi.filter((a) => CODICI_TFR.includes(a.codice));
+  const stato = chiusura ? (chiusura.daRilavorare ? 'da rilavorare' : 'chiusa') : tfr.esito;
   return (
-    <Riquadro id="tfr" titolo="Ultimo miglio TFR" stato={tfr.esito}>
+    <Riquadro id="tfr" titolo="Ultimo miglio TFR" stato={stato}>
+      {chiusura ? (
+        <div
+          className={`mb-4 rounded-md border p-3 text-sm ${chiusura.daRilavorare ? 'border-orange-300 bg-orange-50 text-orange-900' : 'border-slate-300 bg-slate-50 text-slate-700'}`}
+          role="status"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Sezione chiusa con le tabelle {chiusura.congelato.versioneTabelle}: gli importi qui sotto sono quelli trasmessi.
+              {!chiusura.daRilavorare && ' Il ricalcolo di oggi dà gli stessi valori.'}
+            </span>
+            <button className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-slate-700 hover:bg-slate-50" onClick={onRiapri}>
+              Riapri la sezione
+            </button>
+          </div>
+          {chiusura.daRilavorare && (
+            <>
+              <p className="mt-2 font-medium">Da rilavorare: il ricalcolo cambia questi campi.</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {chiusura.confronto.differenze.map((d) => (
+                  <li key={d.campo}>{spiega(d)}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      ) : (
+        tfr.esito === 'calcolata' && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <span>Quando hai trasmesso questi dati a PASSWEB, chiudi la sezione: gli importi si congelano con la versione delle tabelle.</span>
+            <button className="rounded-md bg-slate-800 px-3 py-1.5 font-medium text-white hover:bg-slate-700" onClick={onChiudi}>
+              Chiudi la sezione
+            </button>
+          </div>
+        )
+      )}
       {tfr.esito === 'bloccata' ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
           <p className="font-medium">La sezione non si può calcolare:</p>

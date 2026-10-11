@@ -5,6 +5,8 @@ import type {Archivio} from '../archivio';
 import {GIORNI_SCADENZA, aggiungiEnte, aggiungiPratica, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
 import type {Filtri, TipoPratica} from './operazioni';
 import {PannelloArchivio, esportaFile} from './PannelloArchivio';
+import {causaInBreve} from '../fascicolo/chiusura';
+import {tabelle} from '../tabelle';
 
 /** Oggi nel fuso dell'operatore, aaaa-mm-gg. */
 const oggi = () => {
@@ -59,7 +61,12 @@ export function Scrivania({
   const [filtri, setFiltri] = useState<Filtri>({soloAperte: true, tipo: 'tutti', enteId: 'tutti'});
 
   const enteScelto = archivio.enti.some((e) => e.id === nuova.enteId) ? nuova.enteId : (archivio.enti[0]?.id ?? '');
-  const righe = useMemo(() => elencoScrivania(archivio, filtri, oggi()), [archivio, filtri]);
+  // Pratiche con una sezione chiusa che il ricalcolo cambia: da rilavorare, con la causa (storia 10).
+  const cause = useMemo(
+    () => new Map(archivio.pratiche.map((p) => [p.id, causaInBreve(p, tabelle)] as const).filter(([, c]) => c !== undefined)),
+    [archivio],
+  );
+  const righe = useMemo(() => elencoScrivania(archivio, filtri, oggi(), (p) => cause.has(p.id)), [archivio, filtri, cause]);
   const contaPratiche = (enteId: string) => archivio.pratiche.filter((p) => p.enteId === enteId).length;
 
   const creaEnte = () => {
@@ -245,7 +252,18 @@ export function Scrivania({
                     </td>
                     <td className="px-5 py-3 text-slate-700">{ente.nome}</td>
                     <td className="px-5 py-3 text-slate-700">{nomeTipo[pratica.tipo]}</td>
-                    <td className="px-5 py-3 text-slate-700">{aperta ? 'Aperta' : 'Chiusa'}</td>
+                    <td className="px-5 py-3 text-slate-700">
+                      {cause.has(pratica.id) ? (
+                        <span className="text-orange-800">
+                          <span className="rounded bg-orange-100 px-1.5 py-0.5 text-xs font-medium">da rilavorare</span>
+                          <span className="mt-1 block text-xs">{cause.get(pratica.id)}</span>
+                        </span>
+                      ) : aperta ? (
+                        'Aperta'
+                      ) : (
+                        'Chiusa'
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex flex-wrap items-center justify-end gap-3">
                         <button className={bottoneTenue} onClick={() => onApri(pratica.id)}>

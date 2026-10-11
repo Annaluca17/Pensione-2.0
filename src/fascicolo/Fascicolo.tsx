@@ -9,6 +9,7 @@ import {Stato} from './campi';
 import type {StatoSezione} from './campi';
 import {SezioneAnagrafica, SezioneForzature, SezioneRetribuzione} from './SezioneDati';
 import {SezioneTfr} from './SezioneTfr';
+import {chiudiSezione, chiusure, riapriSezione} from './chiusura';
 import {LetteraExport} from './uscite/LetteraExport';
 
 export function Fascicolo({
@@ -25,6 +26,7 @@ export function Fascicolo({
   const pratica = archivio.pratiche.find((p) => p.id === praticaId);
   const ente = pratica && archivio.enti.find((e) => e.id === pratica.enteId);
   const risultato = useMemo(() => (pratica ? calcolaPratica(pratica.dati, tabelle) : undefined), [pratica]);
+  const chiuse = useMemo(() => (pratica ? chiusure(pratica, tabelle) : {}), [pratica]);
 
   const percorso = (
     <nav className="mb-4 text-sm text-slate-500" aria-label="Percorso">
@@ -52,11 +54,12 @@ export function Fascicolo({
     );
   }
 
+  const cambiaPratica = (cambia: (p: Pratica) => Pratica) =>
+    aggiorna((a) => ({...a, pratiche: a.pratiche.map((p) => (p.id === praticaId ? cambia(p) : p))}));
   const modifica = (cambia: (dati: DatiPratica) => DatiPratica) =>
-    aggiorna((a) => ({
-      ...a,
-      pratiche: a.pratiche.map((p): Pratica => (p.id === praticaId ? {...p, dati: cambia(p.dati), modificata: new Date().toISOString()} : p)),
-    }));
+    cambiaPratica((p) => ({...p, dati: cambia(p.dati), modificata: new Date().toISOString()}));
+  const statoChiusura = (sezione: 'tfr'): StatoSezione | undefined =>
+    chiuse[sezione] ? (chiuse[sezione].daRilavorare ? 'da rilavorare' : 'chiusa') : undefined;
 
   const a = pratica.dati.anagrafica;
   const statoAnagrafica: StatoSezione = a.nome && a.codiceFiscale && a.posizione && a.assunzione && a.cessazione ? 'completa' : 'da completare';
@@ -65,7 +68,7 @@ export function Fascicolo({
     {id: 'anagrafica', titolo: 'Anagrafica', stato: statoAnagrafica},
     {id: 'retribuzione', titolo: 'Retribuzione', stato: risultato.sezioni.retribuzione.esito},
     {id: 'forzature', titolo: 'Date e mese parziale', stato: risultato.sezioni.meseParziale.esito},
-    ...(cessazione ? [{id: 'tfr', titolo: 'Ultimo miglio TFR', stato: risultato.sezioni.tfr.esito as StatoSezione}] : []),
+    ...(cessazione ? [{id: 'tfr', titolo: 'Ultimo miglio TFR', stato: statoChiusura('tfr') ?? risultato.sezioni.tfr.esito}] : []),
     {id: 'uscite', titolo: 'Lettera ed export'},
   ];
 
@@ -96,7 +99,12 @@ export function Fascicolo({
           <SezioneRetribuzione dati={pratica.dati} tabelle={tabelle} risultato={risultato} modifica={modifica} utilita={cessazione ? 'tfr' : 'pensione'} />
           <SezioneForzature dati={pratica.dati} risultato={risultato} modifica={modifica} />
           {cessazione ? (
-            <SezioneTfr risultato={risultato} />
+            <SezioneTfr
+              risultato={risultato}
+              chiusura={chiuse.tfr}
+              onChiudi={() => cambiaPratica((p) => chiudiSezione(p, 'tfr', tabelle, new Date().toISOString()))}
+              onRiapri={() => cambiaPratica((p) => riapriSezione(p, 'tfr', new Date().toISOString()))}
+            />
           ) : (
             <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
               Le sezioni della pratica di pensione (ultimo miglio, TFS, DMA previste) arrivano col tratto 2.
