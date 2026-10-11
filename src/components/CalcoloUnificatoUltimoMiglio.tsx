@@ -11,6 +11,8 @@ import { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import ImportaRiepilogo from './ImportaRiepilogo';
+import type { Compilazione } from '../cedolino/tipi';
 
 // ─── Props (integrazione ProjectShell) ───────────────────────────────────────
 
@@ -597,10 +599,34 @@ export default function CalcoloUnificatoUltimoMiglio({ onSaveToProject }: Calcol
   const ivcAutoVal = (m: MeseRif) =>
     mcPos && m.anno === 2023 ? (IVC_TABLE_2023[mcPos] ?? 0) : 0;
 
+  /**
+   * Compilazione dal riepilogo PDF. I 12 mesi seguono l'ordine di getUltimi12Mesi:
+   * i mesi con tabellare diverso dalla voce 01 diventano eccezioni, l'IVC letta
+   * va nella colonna "IVC ovr.". I mesi assenti dal PDF restano come sono.
+   */
+  const applicaRiepilogo = (c: Compilazione) => {
+    setAna(p => ({
+      ...p,
+      nome: c.nome || p.nome,
+      cf: c.cf || p.cf,
+      data: c.assunzione || p.data,
+      dataCessazione: c.cessazione || p.dataCessazione,
+    }));
+    setImp(p => ({ ...p, ...c.imp }));
+    if (c.posizione) setMcPos(c.posizione);
+    if (c.mesi.length !== 12) return;
+    const tab01 = r2(parseFloat(c.imp['01']) || 0);
+    const diverso = c.mesi.map(m => m.tabellare != null && r2(m.tabellare) !== tab01);
+    setExc(p => c.mesi.map((m, i) => m.tabellare == null ? p[i] : diverso[i]));
+    setStips(p => c.mesi.map((m, i) => m.tabellare == null ? p[i] : diverso[i] ? String(m.tabellare) : ''));
+    setIvcOvr(p => c.mesi.map((m, i) => m.ivc == null ? p[i] : String(m.ivc)));
+  };
+
   // ── Render Anagrafica ──────────────────────────────────────────────────────
   const renderAna = () => (
     <div className="space-y-4 max-w-xl">
       <h2 className="text-lg font-semibold text-slate-800">Dati Anagrafici</h2>
+      <ImportaRiepilogo dataCessazione={ana.dataCessazione} onCompila={applicaRiepilogo} />
       {(['nome','cf','data','dataCessazione','motivo'] as const).map(k => (
         <div key={k}>
           <label className="block text-sm font-medium text-slate-600 mb-1">
