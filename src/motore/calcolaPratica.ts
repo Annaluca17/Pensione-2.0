@@ -11,6 +11,7 @@ import type {
   MeseISO,
   MeseParziale,
   MeseRetribuzione,
+  NomeSezione,
   Retribuzione,
   Risultato,
   Sezione,
@@ -19,7 +20,7 @@ import type {
   ValoreForzabile,
 } from './tipi';
 
-type NomeSezione = keyof Risultato['sezioni'];
+
 
 /** Unico ingresso del calcolo (spec "Motore"): funzione pura, nessuna eccezione per il dominio. */
 export function calcolaPratica(dati: DatiPratica, tabelle: Tabelle): Risultato {

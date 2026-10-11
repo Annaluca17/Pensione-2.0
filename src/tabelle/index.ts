@@ -14,6 +14,7 @@ import {versioni} from './versioni';
 
 export const tabelle: Tabelle = {
   versione: versioni[versioni.length - 1].id,
+  registro: versioni.map(({id, motivo}) => ({id, motivo})),
   coperturaDal: '2019-01-01',
   posizioni: trasposizione.map((t) => t.posizione),
   contratti: [ccnl201921, ccnl202224, ccnl202527],

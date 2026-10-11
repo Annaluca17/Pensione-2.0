@@ -6,7 +6,8 @@ import {impronta} from './impronta';
 import {tabelle} from './index';
 import {versioni} from './versioni';
 
-const {versione: _versione, ...contenuto} = tabelle;
+// Il registro e l'id della versione descrivono il contenuto: restano fuori dall'impronta.
+const {versione: _versione, registro: _registro, ...contenuto} = tabelle;
 const ultima = versioni[versioni.length - 1];
 
 describe('registro versioni', () => {

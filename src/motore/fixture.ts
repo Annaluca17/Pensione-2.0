@@ -3,6 +3,7 @@ import type {DatiPratica, Tabelle} from './index';
 
 export const tabelleDiProva: Tabelle = {
   versione: '2026-10-11.1',
+  registro: [{id: '2026-10-11.1', motivo: 'Prima versione di prova'}],
   coperturaDal: '2019-01-01',
   posizioni: ['A1', 'B3', 'C1', 'C5', 'D1', 'D3'],
   // Il nucleo non legge ancora contratti, catalogo né parametri: qui sono vuoti o di fantasia.

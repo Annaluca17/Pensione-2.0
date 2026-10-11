@@ -1,5 +1,5 @@
 import {valoreAddendo} from './composizione';
-import type {Avviso, Blocco, CampoData, Composizione, DataISO, MeseISO} from './tipi';
+import type {Avviso, Blocco, CampoData, Composizione, DataISO, Differenza, MeseISO} from './tipi';
 
 const nomeCampo: Record<CampoData, string> = {
   assunzione: 'la data di assunzione',
@@ -22,7 +22,8 @@ const euro = (centesimi: number) => euroDa((centesimi / 100).toFixed(2));
 const euroPieno = (centesimi: number) => euroDa((centesimi / 100).toFixed(4));
 
 /** Il testo italiano di un blocco, di un avviso o di una composizione (spec "Motore"). */
-export function spiega(cosa: Blocco | Avviso | Composizione): string {
+export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): string {
+  if ('cause' in cosa) return spiegaDifferenza(cosa);
   if (!('codice' in cosa)) return spiegaComposizione(cosa);
   switch (cosa.codice) {
     case 'cessazione-mancante':
@@ -76,6 +77,21 @@ export function spiega(cosa: Blocco | Avviso | Composizione): string {
         `iniziale da calcolare a parte.`
       );
   }
+}
+
+function spiegaDifferenza(d: Differenza): string {
+  const valore = (v: Differenza['congelato']) => {
+    if (v === null) return 'nessun valore';
+    if (d.tipo === 'importo') return euro(v as number);
+    if (d.tipo === 'data') return giorno(v as DataISO);
+    return String(v);
+  };
+  const cause = d.cause.map((c) =>
+    c.tipo === 'dati'
+      ? 'dati della pratica modificati dopo la chiusura'
+      : `tabelle aggiornate, ${c.versioni.length === 1 ? 'versione' : 'versioni'} ${c.versioni.map((v) => `${v.id} «${v.motivo}»`).join(', ')}`,
+  );
+  return `${d.etichetta}: da ${valore(d.congelato)} a ${valore(d.attuale)}. Causa: ${cause.join('; ')}.`;
 }
 
 function spiegaComposizione(c: Composizione): string {

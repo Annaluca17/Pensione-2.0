@@ -260,6 +260,8 @@ export interface TestoLettera {
 export interface Tabelle {
   /** Id della versione nel registro versioni (`aaaa-mm-gg.n`). */
   versione: string;
+  /** Il registro versioni in ordine (T7): il motivo è la causa quando una sezione chiusa cambia (ADR 0004). */
+  registro: readonly {id: string; motivo: string}[];
   /** Prima data coperta dalle tabelle (spec: dal 01/01/2019). */
   coperturaDal: DataISO;
   /** Posizioni economiche esistenti. */
@@ -422,3 +424,37 @@ export type Avviso =
       finestraAl: MeseISO;
       fonte: string;
     };
+
+// --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
+
+export type NomeSezione = keyof Risultato['sezioni'];
+
+/** Glossario: Risultato congelato. Ciò che la persistenza salva alla chiusura di una sezione. */
+export interface Congelato<S extends NomeSezione = NomeSezione> {
+  sezione: S;
+  versioneTabelle: string;
+  /** I dati della pratica alla chiusura: servono a distinguere la causa "dati" da "tabelle". */
+  dati: DatiPratica;
+  risultato: Risultato['sezioni'][S];
+}
+
+export type CausaDifferenza = {tipo: 'dati'} | {tipo: 'tabelle'; versioni: {id: string; motivo: string}[]};
+
+/** Un campo PASSWEB (o l'esito) di una sezione chiusa che il ricalcolo cambia. */
+export interface Differenza {
+  /** Es. `decorrenzaEconomica`, `finale/rateo-tredicesima-teorica`, `esito`. */
+  campo: string;
+  etichetta: string;
+  tipo: 'importo' | 'data' | 'numero' | 'esito';
+  /** `null` = il campo non c'è (riga sparita o nuova). */
+  congelato: Centesimi | DataISO | string | null;
+  attuale: Centesimi | DataISO | string | null;
+  cause: CausaDifferenza[];
+}
+
+export interface Confronto {
+  sezione: NomeSezione;
+  versioni: {congelata: string; attuale: string};
+  /** Vuoto: la sezione chiusa è ancora valida; altrimenti è da rilavorare. */
+  differenze: Differenza[];
+}
