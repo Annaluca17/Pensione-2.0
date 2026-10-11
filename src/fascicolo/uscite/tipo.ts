@@ -7,6 +7,8 @@ export interface PropsUscita {
   pratica: Pratica;
   ente: Ente;
   risultato: Risultato;
+  /** Salva sull'ente i dati fissi della lettera (storia 71). */
+  aggiornaEnte: (lettera: NonNullable<Ente['lettera']>) => void;
 }
 
 export type Uscita = FC<PropsUscita>;

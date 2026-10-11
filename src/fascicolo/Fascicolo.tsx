@@ -110,7 +110,12 @@ export function Fascicolo({
               Le sezioni della pratica di pensione (ultimo miglio, TFS, DMA previste) arrivano col tratto 2.
             </p>
           )}
-          <LetteraExport pratica={pratica} ente={ente} risultato={risultato} />
+          <LetteraExport
+            pratica={pratica}
+            ente={ente}
+            risultato={risultato}
+            aggiornaEnte={(lettera) => aggiorna((ar) => ({...ar, enti: ar.enti.map((e) => (e.id === ente.id ? {...e, lettera} : e))}))}
+          />
         </div>
       </div>
     </div>
