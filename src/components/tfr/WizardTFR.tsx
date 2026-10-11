@@ -17,7 +17,7 @@ import {
   calcolaTFR, giorniNelMese, giornoDelMese, giorniResiduiMeseIniziale,
   type InputTFR, type RisultatoTFR,
 } from './logicTFR';
-import { buildPasswebGuide } from './passwebGuide';
+import { buildPasswebGuide } from '../../guida-passweb/costruttore';
 import {
   AVVISO_VERIFICHE,
   CHECKLIST_VOCI, checklistCompleta, emptyChecklist,

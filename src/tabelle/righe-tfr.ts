@@ -1,6 +1,6 @@
 // Mappa voce → riga PASSWEB del TFR (D1, D16). Il TFR non ha una riga per voce: la maschera
 // "Dati retributivi utili al TFR" chiede la retribuzione valutabile del mese pieno e, per il rateo di
-// 13ª, i campi di rateo e di cassa (src/components/tfr/passwebGuide.ts, logicTFR.ts). Le voci qui
+// 13ª, i campi di rateo e di cassa (src/guida-passweb/costruttore.ts, logicTFR.ts). Le voci qui
 // elencate sono quelle con il flag corrispondente nel catalogo: lo verifica righe.test.ts.
 import type {RigaPassweb} from '../motore';
 

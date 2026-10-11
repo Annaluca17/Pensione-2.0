@@ -1,8 +1,8 @@
 /**
- * passwebGuide.ts — Costruttore guida operativa "Inserimento pratica su PASSWEB"
+ * costruttore.ts — Costruttore guida operativa "Inserimento pratica su PASSWEB"
  * Immedia S.p.A. — XDESK
  *
- * Modulo puro (no React): dato il RisultatoTFR dello Step 3, restituisce la
+ * Modulo puro (no React): dato il caso calcolato (CasoGuida), restituisce la
  * sequenza dei passi da eseguire su PASSWEB per inserire e certificare la
  * pratica. La procedura è fissa (11 passi); l'ADATTIVITÀ per casistica
  * (mese iniziale/finale PIENO, ≥15gg, <15gg) si applica ai passi "Decorrenze"
@@ -10,10 +10,25 @@
  *
  * Formato MISTO: ogni passo ha testo + uno slot immagine opzionale (`img`),
  * con nome file stabile sotto /guida-passweb/. Finché il file non è presente
- * l'UI mostra un segnaposto (vedi GuidaImg in WizardTFR).
+ * l'UI mostra un segnaposto (vedi GuidaImg).
  */
 
-import type { RisultatoTFR } from './logicTFR';
+// Spostato dai vecchi moduli TFR (ticket 18): testi e screenshot invariati, nessun legame con spiega().
+// Non importa nulla dei vecchi moduli: il suo ingresso è CasoGuida, che il vecchio RisultatoTFR soddisfa.
+
+export type CasoMese = 'PIENO' | 'PARZIALE_GE15' | 'PARZIALE_LT15';
+
+/** I dati del calcolo che la guida mostra: decorrenze, casistica dei due mesi, importi in euro. */
+export interface CasoGuida {
+  decorrenzaGiuridica: string;
+  decorrenzaEconomica: string;
+  dataCessazione: string;
+  casoIniziale: CasoMese;
+  casoFinale: CasoMese;
+  rateoPrimoAnno?: number;
+  rateoCessazione?: number;
+  tredicesimaEmolumentiCassa?: number;
+}
 
 export interface GuidaStep {
   id: string;
@@ -39,7 +54,7 @@ export interface GuidaFmt {
 
 const IMG = (file: string) => `/guida-passweb/${file}`;
 
-export function buildPasswebGuide(r: RisultatoTFR, fmt: GuidaFmt): GuidaStep[] {
+export function buildPasswebGuide(r: CasoGuida, fmt: GuidaFmt): GuidaStep[] {
   const entrambiPieni = r.casoIniziale === 'PIENO' && r.casoFinale === 'PIENO';
 
   // ── Decorrenze (adattivo) ──────────────────────────────────────────────────
