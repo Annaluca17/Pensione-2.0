@@ -12,7 +12,8 @@ import type {Archivio, Ente, Pratica} from './schema';
  */
 export function esporta(archivio: Archivio, adesso: string, enteId?: string): {archivio: Archivio; file: string} {
   if (enteId === undefined) {
-    const aggiornato = schemaArchivio.parse({...archivio, ultimoExport: adesso});
+    const {modificheNonEsportateDal: _esportate, ...resto} = archivio;
+    const aggiornato = schemaArchivio.parse({...resto, ultimoExport: adesso});
     return {archivio: aggiornato, file: JSON.stringify(aggiornato)};
   }
   const ente = archivio.enti.find((e) => e.id === enteId);

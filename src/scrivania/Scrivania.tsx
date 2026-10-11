@@ -4,6 +4,7 @@ import {useMemo, useState} from 'react';
 import type {Archivio} from '../archivio';
 import {GIORNI_SCADENZA, aggiungiEnte, aggiungiPratica, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
 import type {Filtri, TipoPratica} from './operazioni';
+import {PannelloArchivio, esportaFile} from './PannelloArchivio';
 
 /** Oggi nel fuso dell'operatore, aaaa-mm-gg. */
 const oggi = () => {
@@ -43,10 +44,14 @@ function Elimina({etichetta, avviso, onConferma}: {etichetta: string; avviso: st
 export function Scrivania({
   archivio,
   aggiorna,
+  sostituisci,
+  persistenzaConcessa,
   onApri,
 }: {
   archivio: Archivio;
   aggiorna: (modifica: (a: Archivio) => Archivio) => void;
+  sostituisci: (a: Archivio) => void;
+  persistenzaConcessa: boolean;
   onApri: (praticaId: string) => void;
 }) {
   const [nomeEnte, setNomeEnte] = useState('');
@@ -81,6 +86,8 @@ export function Scrivania({
         <p className="mt-1 text-sm text-slate-500">Le pratiche di tutti gli enti, ordinate per data di cessazione.</p>
       </header>
 
+      <PannelloArchivio archivio={archivio} aggiorna={aggiorna} sostituisci={sostituisci} persistenzaConcessa={persistenzaConcessa} />
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm" aria-labelledby="titolo-enti">
           <h2 id="titolo-enti" className="mb-3 text-base font-semibold text-slate-800">Enti</h2>
@@ -105,11 +112,16 @@ export function Scrivania({
                   <span className="text-sm text-slate-800">
                     {ente.nome} <span className="text-slate-400">· {n} {n === 1 ? 'pratica' : 'pratiche'}</span>
                   </span>
-                  <Elimina
+                  <span className="inline-flex items-center gap-3">
+                    <button className="text-sm text-blue-700 hover:underline" onClick={() => esportaFile(archivio, sostituisci, ente.id)}>
+                      Esporta
+                    </button>
+                    <Elimina
                     etichetta="Elimina ente"
                     avviso={n > 0 ? `Elimina l'ente e le sue ${n === 1 ? 'una pratica' : `${n} pratiche`}?` : "Eliminare l'ente?"}
                     onConferma={() => aggiorna((a) => eliminaEnte(a, ente.id))}
-                  />
+                    />
+                  </span>
                 </li>
               );
             })}

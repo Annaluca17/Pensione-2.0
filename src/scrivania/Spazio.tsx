@@ -8,7 +8,7 @@ import {Scrivania} from './Scrivania';
 export type Rotta = {vista: 'scrivania'} | {vista: 'fascicolo'; praticaId: string};
 
 export function Spazio() {
-  const {esito, aggiorna} = useArchivio();
+  const {esito, aggiorna, sostituisci, persistenzaConcessa} = useArchivio();
   const [rotta, setRotta] = useState<Rotta>({vista: 'scrivania'});
 
   if (esito.stato !== 'valido') {
@@ -49,7 +49,13 @@ export function Spazio() {
       {rotta.vista === 'fascicolo' ? (
         <Fascicolo archivio={esito.archivio} praticaId={rotta.praticaId} onEsci={() => setRotta({vista: 'scrivania'})} />
       ) : (
-        <Scrivania archivio={esito.archivio} aggiorna={aggiorna} onApri={(praticaId) => setRotta({vista: 'fascicolo', praticaId})} />
+        <Scrivania
+          archivio={esito.archivio}
+          aggiorna={aggiorna}
+          sostituisci={sostituisci}
+          persistenzaConcessa={persistenzaConcessa}
+          onApri={(praticaId) => setRotta({vista: 'fascicolo', praticaId})}
+        />
       )}
     </>
   );

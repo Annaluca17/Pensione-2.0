@@ -1,7 +1,7 @@
 // L'archivio nel browser per l'interfaccia: carica all'avvio, ricarica quando un'altra scheda scrive,
 // salva intero a ogni modifica (spec "Persistenza", ticket 10).
 import {useCallback, useEffect, useRef, useState} from 'react';
-import {ascolta, carica, salva} from '../archivio';
+import {ascolta, carica, salva, segnaModifica} from '../archivio';
 import type {Archivio, EsitoLettura} from '../archivio';
 
 export function useArchivio() {
@@ -18,8 +18,13 @@ export function useArchivio() {
     [],
   );
 
-  /** Applica una modifica e la salva; se il salvataggio è rifiutato, rilegge ciò che c'è. */
-  const aggiorna = useCallback((modifica: (archivio: Archivio) => Archivio) => {
+  const [persistenzaConcessa, setPersistenza] = useState(false);
+  useEffect(() => {
+    navigator.storage?.persisted?.().then(setPersistenza, () => setPersistenza(false));
+  }, []);
+
+  /** Scrive l'archivio; se il salvataggio è rifiutato, rilegge ciò che c'è. */
+  const scrivi = useCallback((modifica: (archivio: Archivio) => Archivio) => {
     const prima = corrente.current;
     if (prima.stato !== 'valido') return;
     const archivio = modifica(prima.archivio);
@@ -28,7 +33,16 @@ export function useArchivio() {
     setEsito(nuovo);
   }, []);
 
-  return {esito, aggiorna};
+  /** Una modifica dell'operatore: segna anche da quando ci sono modifiche non esportate (storia 68). */
+  const aggiorna = useCallback(
+    (modifica: (archivio: Archivio) => Archivio) => scrivi((a) => segnaModifica(modifica(a), new Date().toISOString())),
+    [scrivi],
+  );
+
+  /** Sostituisce l'archivio senza segnarlo come modificato (dopo un export, uno svuotamento). */
+  const sostituisci = useCallback((archivio: Archivio) => scrivi(() => archivio), [scrivi]);
+
+  return {esito, aggiorna, sostituisci, persistenzaConcessa};
 }
 
 /** Scarica un testo come file (copia grezza dell'archivio, pratiche scartate). */

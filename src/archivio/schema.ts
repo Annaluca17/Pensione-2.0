@@ -128,6 +128,8 @@ export const schemaInvolucro = z.object({
   enti: z.array(schemaEnte),
   pratiche: z.array(z.unknown()),
   ultimoExport: istante.nullable(),
+  /** Prima modifica dopo l'ultimo export completo; assente = niente da esportare (storia 68). */
+  modificheNonEsportateDal: istante.optional(),
 });
 
 /** L'archivio completo, come si scrive. */
