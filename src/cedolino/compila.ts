@@ -123,7 +123,7 @@ export function compila(riepiloghi: RiepilogoAnnuo[], opz: OpzioniCompila): Comp
   if (posGrezza && !posizione) avvisi.push(`Posizione economica "${posGrezza}" non riconosciuta: selezionala a mano.`);
 
   const pt = piuRecente('partTime');
-  if (pt) avvisi.push(`Part-time indicato nei documenti (${pt}): verifica gli importi prima del calcolo.`);
+  if (pt) avvisi.push(`Dipendente part-time (${pt}): usati gli importi di testata, a tempo pieno.`);
 
   if (haPerequativo) {
     avvisi.push(opz.perequativo

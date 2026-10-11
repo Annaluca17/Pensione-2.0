@@ -4,7 +4,9 @@
  * quindi si confrontano normalizzate (minuscole, senza accenti né punteggiatura).
  *
  * Scelte confermate da Luca (11/10/2026):
- *  - "Ass. ad personam" (cedolino Halley) è la voce 04, come "Ass. pers. non riassorb.".
+ *  - "Ass. ad personam" (cedolino Halley) è la voce 05: assegno assorbibile da
+ *    progressione verticale (vecchio tabellare + differenziale − nuovo tabellare).
+ *    "Ass. pers. non riassorb." resta la 04.
  *  - "Varie pension." 5,38 è la stessa Indennità specifica (08): non si somma.
  *  - "L.E.D. / Integr. Tab." in testata è il differenziale storico (02): nei
  *    riepiloghi 2023 la stessa cifra cambia nome ad aprile.
@@ -28,8 +30,8 @@ const REGOLE: Array<[RegExp, Destinazione]> = [
   [/^stipendio (tabellare|base)/,                 '01'],
   [/^(l e d|led)\b|^diff\w* storico/,             '02'],
   [/^diff\w* stipendial/,                         '03'],
-  [/^ass\w* .*\bassorb/,                          '05'],  // assorbibile; "riassorb" non corrisponde
-  [/^ass\w* (pers|ad personam)/,                  '04'],
+  [/^ass\w* (.*\bassorb|ad personam)/,            '05'],  // assorbibile; "riassorb" non corrisponde
+  [/^ass\w* pers/,                                '04'],
   [/^salario (individuale )?(di )?anzian|^r i a\b|^ria\b/, '06'],
   [/^retr\w* posiz/,                              '07'],
   [/^ind\w* specifica|^varie pension/,            '08'],

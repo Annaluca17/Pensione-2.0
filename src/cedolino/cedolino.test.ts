@@ -26,7 +26,7 @@ describe('classifica', () => {
     ['Stipendio tabellare', '01'], ['STIPENDIO BASE', '01'],
     ['Differenziale storico', '02'], ['DIFF.STORICO', '02'], ['L.E.D. / Integr.Tab.', '02'],
     ['DIFF.STIPENDIALE', '03'],
-    ['Ass.Pers.non riassorb.', '04'], ['ASS.AD PERSONAM', '04'],
+    ['Ass.Pers.non riassorb.', '04'], ['ASS.AD PERSONAM', '05'],
     ['Ass.pers.assorbibile', '05'],
     ['Salario anzianita`', '06'],
     ['Retrib.Posizione(non dir)', '07'], ['RETR.POSIZ.N.DIR.', '07'],
