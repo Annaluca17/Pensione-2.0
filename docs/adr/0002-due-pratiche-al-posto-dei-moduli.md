@@ -8,8 +8,9 @@ pratica sullo stesso dipendente con dati reinseriti e regole divergenti; `letter
 
 ## Consequences
 
-- Gli id `?modulo=` restano tutti validi e aprono la scrivania col filtro corrispondente (pensione
-  o cessazione); il `postMessage` comunica sempre `unificato`, id già noto al portale, finché la
-  migrazione non è finita. Le voci del registro del portale si riducono dopo, nell'altro repo.
-- Il TFS "in servizio" resta solo come situazione d'ingresso del calcolo TFS, migrato per ultimo e
-  abbandonato se nessuno lo chiede.
+- Gli id `?modulo=` restano tutti validi. Durante la costruzione aprono ancora i vecchi moduli (il
+  nuovo sta accanto, con una card sua); nella pulizia finale aprono la scrivania col filtro
+  corrispondente (pensione o cessazione), il `postMessage` passa agli id nuovi e le voci del registro
+  del portale si riducono nello stesso momento, nell'altro repo.
+- Il TFS "in servizio" è abbandonato: nessun modulo, al più una situazione d'ingresso del calcolo
+  TFS se non costa nulla (deciso nella strategia di migrazione, 11/10/2026).

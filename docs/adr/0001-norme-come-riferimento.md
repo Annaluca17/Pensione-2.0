@@ -9,3 +9,9 @@ norma diventa una scelta esplicita con la fonte normativa.
 ## Considered Options
 
 - Il vecchio come oracolo (stessi importi = corretto): scartato, copierebbe gli errori.
+
+## Consequences
+
+- Le norme fanno fede sugli **importi**. La **forma** dell'esposizione (righe, etichette, campi)
+  segue la maschera di Nuova PassWeb così com'è, anche se usa nomi superati (es. "TAB E"): è lì che
+  l'operatore scrive.
