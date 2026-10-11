@@ -1,0 +1,80 @@
+{
+  "descrizione": "Fotografia del modulo TFR attuale (logicTFR.ts): cosa fa il vecchio, non cosa e' giusto (ADR 0001). Dati di fantasia, CF RSSMRA80A01H501U. Uscite calcolate a mano, una volta; le chiavi assenti in 'uscite' valgono undefined.",
+  "casi": [
+    {
+      "id": "tempo-pieno-fine-mese",
+      "descrizione": "Assunzione il 1° del mese e cessazione a fine mese: nessun dato economico richiesto.",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "dataAssunzione": "2015-03-01",
+        "dataCessazione": "2026-10-31"
+      },
+      "uscite": {
+        "decorrenzaGiuridica": "2015-03-01",
+        "decorrenzaEconomica": "2015-03-01",
+        "dataCessazione": "2026-10-31",
+        "casoIniziale": "PIENO",
+        "casoFinale": "PIENO",
+        "inputs": {
+          "dataAssunzione": "2015-03-01",
+          "dataCessazione": "2026-10-31"
+        }
+      }
+    },
+    {
+      "id": "mese-parziale",
+      "descrizione": "Assunzione il 10/04/2024 (21 giorni residui, >=15: rateo) e cessazione il 10/10/2026 (<15: 13a e emolumenti per cassa).",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "dataAssunzione": "2024-04-10",
+        "dataCessazione": "2026-10-10",
+        "retrVirtualePrimoMesePieno": 1800,
+        "tredicesimaAnnua": 2400,
+        "giorniTotaliMaturazione": 283,
+        "giorniUltimoMese": 10,
+        "emolumentiValutabili": 150
+      },
+      "uscite": {
+        "decorrenzaGiuridica": "2024-04-10",
+        "decorrenzaEconomica": "2024-04-10",
+        "dataCessazione": "2026-10-10",
+        "casoIniziale": "PARZIALE_GE15",
+        "casoFinale": "PARZIALE_LT15",
+        "rateoPrimoAnno": 150,
+        "tredicesimaEmolumentiCassa": 2465.19,
+        "inputs": {
+          "dataAssunzione": "2024-04-10",
+          "dataCessazione": "2026-10-10",
+          "retrVirtualePrimoMesePieno": 1800,
+          "tredicesimaAnnua": 2400,
+          "giorniTotaliMaturazione": 283,
+          "giorniUltimoMese": 10,
+          "emolumentiValutabili": 150
+        }
+      }
+    },
+    {
+      "id": "part-time",
+      "descrizione": "Part-time al 50% (retribuzione virtuale a tempo pieno 2.200,00, quindi 1.100,00 inseriti): assunzione il 15/02/2022 (14 giorni residui, <15: decorrenza economica al mese dopo), cessazione il 20/06/2026 (>=15: rateo).",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "dataAssunzione": "2022-02-15",
+        "dataCessazione": "2026-06-20",
+        "retrVirtualeUltimoMesePieno": 1100
+      },
+      "uscite": {
+        "decorrenzaGiuridica": "2022-02-15",
+        "decorrenzaEconomica": "2022-03-01",
+        "dataCessazione": "2026-06-20",
+        "casoIniziale": "PARZIALE_LT15",
+        "casoFinale": "PARZIALE_GE15",
+        "rateoCessazione": 91.67,
+        "inputs": {
+          "dataAssunzione": "2022-02-15",
+          "dataCessazione": "2026-06-20",
+          "retrVirtualeUltimoMesePieno": 1100
+        }
+      }
+    }
+  ]
+}
