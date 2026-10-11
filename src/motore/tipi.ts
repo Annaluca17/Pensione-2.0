@@ -429,14 +429,22 @@ export type Avviso =
 
 export type NomeSezione = keyof Risultato['sezioni'];
 
-/** Glossario: Risultato congelato. Ciò che la persistenza salva alla chiusura di una sezione. */
-export interface Congelato<S extends NomeSezione = NomeSezione> {
-  sezione: S;
-  versioneTabelle: string;
-  /** I dati della pratica alla chiusura: servono a distinguere la causa "dati" da "tabelle". */
-  dati: DatiPratica;
-  risultato: Risultato['sezioni'][S];
-}
+/** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
+export type SezioneCalcolata<S extends NomeSezione> = Extract<Risultato['sezioni'][S], {esito: 'calcolata'}>;
+
+/**
+ * Glossario: Risultato congelato. Ciò che la persistenza salva alla chiusura di una sezione;
+ * un'unione per sezione, così che `risultato` corrisponda a `sezione`.
+ */
+export type Congelato = {
+  [S in NomeSezione]: {
+    sezione: S;
+    versioneTabelle: string;
+    /** I dati della pratica alla chiusura: servono a distinguere la causa "dati" da "tabelle". */
+    dati: DatiPratica;
+    risultato: SezioneCalcolata<S>;
+  };
+}[NomeSezione];
 
 export type CausaDifferenza = {tipo: 'dati'} | {tipo: 'tabelle'; versioni: {id: string; motivo: string}[]};
 

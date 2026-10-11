@@ -25,7 +25,9 @@ const v2: Tabelle = {
 const dati: DatiPratica = conAnagrafica({assunzione: '2010-01-01', cessazione: '2026-06-20'});
 const risultato = calcolaPratica(dati, v1);
 /** Come lo salva la persistenza alla chiusura (ADR 0004). */
-const chiusa: Congelato = {sezione: 'tfr', versioneTabelle: risultato.versioneTabelle, dati, risultato: risultato.sezioni.tfr};
+const sezioneTfr = risultato.sezioni.tfr;
+if (sezioneTfr.esito !== 'calcolata') throw new Error('TFR bloccato');
+const chiusa: Congelato = {sezione: 'tfr', versioneTabelle: risultato.versioneTabelle, dati, risultato: sezioneTfr};
 
 describe('confronta', () => {
   it('congelato uguale al ricalcolo: nessuna riga', () => {
