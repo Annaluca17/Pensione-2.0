@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Calculator, UserMinus, UserCheck, ArrowLeft, Upload, Clock, Layers, Banknote } from 'lucide-react';
+import { Calculator, UserMinus, UserCheck, ArrowLeft, Upload, Clock, Layers, Banknote, LayoutDashboard } from 'lucide-react';
 import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
 import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
 import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
 import AnticipoDMA from './components/AnticipoDMA';
 import ProjectShell from './components/ProjectShell';
 import UltimoMiglioTFRShell from './components/tfr/UltimoMiglioTFRShell';
+import { Spazio } from './scrivania/Spazio';
 
-type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'anticipo_dma' | 'unificato' | 'tfr' | null;
+// 'scrivania' è lo spazio nuovo: non è un id del Portale (non entra in SERVIZI) e comunica 'unificato'.
+type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'anticipo_dma' | 'unificato' | 'tfr' | 'scrivania' | null;
 
 const SERVIZI: Exclude<ServiceType, null>[] = [
   'pensione', 'tfs_pensione', 'tfs_servizio', 'anticipo_dma', 'unificato', 'tfr',
@@ -29,7 +31,8 @@ export default function App() {
   // Comunica al portale il modulo aperto, cosi puo tenere l'indirizzo allineato.
   useEffect(() => {
     if (window.parent === window) return;
-    window.parent.postMessage({ tipo: 'immedia:modulo', modulo: activeService }, '*');
+    const modulo = activeService === 'scrivania' ? 'unificato' : activeService;
+    window.parent.postMessage({ tipo: 'immedia:modulo', modulo }, '*');
   }, [activeService]);
 
   const getServiceTitle = (service: ServiceType) => {
@@ -61,6 +64,12 @@ export default function App() {
 
   const renderServiceSelection = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-12">
+      <ServiceCard
+        title="Scrivania (nuovo)"
+        description="Enti e pratiche di pensione e di cessazione in un unico archivio. In costruzione: le card qui accanto restano disponibili."
+        icon={<LayoutDashboard className="w-8 h-8 text-blue-600" />}
+        onClick={() => setActiveService('scrivania')}
+      />
       <ServiceCard
         title="Calcolo Ultimo Miglio Pensione"
         description="Analisi e calcolo per il trattamento pensionistico."
@@ -142,6 +151,15 @@ export default function App() {
         <>
           <BackButton darkMode />
           <ProjectShell />
+        </>
+      );
+    }
+
+    if (activeService === 'scrivania') {
+      return (
+        <>
+          <BackButton />
+          <Spazio />
         </>
       );
     }
