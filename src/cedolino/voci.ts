@@ -4,10 +4,10 @@
  * quindi si confrontano normalizzate (minuscole, senza accenti né punteggiatura).
  *
  * Scelte confermate da Luca (11/10/2026):
- *  - "Ass. ad personam" (San Mauro) è la voce 04, come "Ass. pers. non riassorb.".
+ *  - "Ass. ad personam" (cedolino Halley) è la voce 04, come "Ass. pers. non riassorb.".
  *  - "Varie pension." 5,38 è la stessa Indennità specifica (08): non si somma.
- *  - "L.E.D. / Integr. Tab." in testata è il differenziale storico (02): nel 2023
- *    di Patti la stessa cifra cambia nome ad aprile.
+ *  - "L.E.D. / Integr. Tab." in testata è il differenziale storico (02): nei
+ *    riepiloghi 2023 la stessa cifra cambia nome ad aprile.
  *  - L'Elemento perequativo si somma al tabellare solo se scelto caso per caso.
  */
 

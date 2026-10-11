@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { compila, posizioneEconomica, ultimi12Mesi } from './compila';
-import { per, paginaTestata, testoPer } from './fixture';
-import { importo, leggiPagina, leggiRiepiloghi } from './leggiRiepilogo';
+import { cedoliniInRiepiloghi, leggiDocumenti } from './documenti';
+import { cedolinoHalley, per, paginaTestata, testoPer } from './fixture';
+import { leggiCedolinoHalley } from './leggiCedolinoHalley';
+import { leggiPagina } from './leggiRiepilogo';
+import { importo } from './testo';
 import { classifica } from './voci';
 
 describe('importo', () => {
@@ -71,7 +74,7 @@ describe('leggiPagina', () => {
   it('scarta le pagine che non sono VOCI DI TESTATA', () => {
     const corpo = paginaTestata({ anno: 2024, sezione: 'VOCI DI CORPO', voci: [['Straordinario', per(10)]] });
     expect(leggiPagina(corpo)).toBeNull();
-    expect(leggiRiepiloghi([corpo, pagina, []])).toHaveLength(1);
+    expect(leggiDocumenti([corpo, pagina, []]).riepiloghi).toHaveLength(1);
   });
 });
 
@@ -186,5 +189,121 @@ describe('compila', () => {
     const c = compila([r], { perequativo: false });
     expect(c.imp['08']).toBe('5.38');
     expect(c.avvisi.filter(a => a.includes('voce 08'))).toHaveLength(12);
+  });
+});
+
+describe('leggiCedolinoHalley', () => {
+  const settembre = cedolinoHalley({
+    mese: 'Settembre', anno: 2026, area: 'FUN/D1/0/TI', assunzione: '09-12-1997',
+    testata: [['STIPENDIO BASE', 2092.84], ['IND.VACANZA CONT.', 20.93], ['ASS.AD PERSONAM', 107.23],
+              ['IND.DI VIGILANZA', 109.24], ['IND.COMPARTO Q.F.', 36.33]],
+  });
+
+  it('legge periodo, anagrafica e caselle', () => {
+    expect(leggiCedolinoHalley(settembre)).toMatchObject({
+      anno: 2026, mese: 8, nome: 'ROSSI MARIO', cf: 'RSSMRA80A01H501U', matricola: '17',
+      straordinaria: false, assunzione: '09-12-1997', cessazione: '', posizione: 'D1', partTime: '',
+    });
+  });
+
+  it('abbina ogni importo della testata alla sua etichetta', () => {
+    expect(leggiCedolinoHalley(settembre)!.voci).toEqual([
+      { etichetta: 'STIPENDIO BASE', importo: 2092.84 },
+      { etichetta: 'IND.VACANZA CONT.', importo: 20.93 },
+      { etichetta: 'ASS.AD PERSONAM', importo: 107.23 },
+      { etichetta: 'IND.DI VIGILANZA', importo: 109.24 },
+      { etichetta: 'IND.COMPARTO Q.F.', importo: 36.33 },
+    ]);
+  });
+
+  it('legge una testata su due righe', () => {
+    const otto: Array<[string, number]> = [
+      ['STIPENDIO BASE', 1646.09], ['IND.VACANZA CONT.', 16.46], ['VARIE PENSION.', 5.38], ['IND.SPECIFICA', 5.38],
+      ['IND.COMPARTO Q.F.', 22.68], ['DIFF.STIPENDIALE', 42.31], ['DIFF.STORICO', 108.38], ['IND.DI VIGILANZA', 109.24],
+    ];
+    const c = leggiCedolinoHalley(cedolinoHalley({ mese: 'Marzo', anno: 2026, testata: otto }))!;
+    expect(c.voci.map(v => [v.etichetta, v.importo])).toEqual(otto);
+  });
+
+  it('legge cessazione, part-time e riconosce le elaborazioni supplementari', () => {
+    const c = leggiCedolinoHalley(cedolinoHalley({
+      mese: 'Aprile', anno: 2026, cessazione: '30-04-2026', partTime: '50', straordinaria: true, testata: [],
+    }))!;
+    expect(c).toMatchObject({ cessazione: '30-04-2026', partTime: '50', straordinaria: true, voci: [] });
+  });
+
+  it('legge la posizione del segretario comunale, poi segnalata come non A-D', () => {
+    const c = leggiCedolinoHalley(cedolinoHalley({
+      mese: 'Maggio', anno: 2026, area: '/SEGRETARIO C/0/TI', cessazione: '31-05-2026',
+      testata: [['STIPENDIO BASE', 3077.28]],
+    }))!;
+    expect(c.posizione).toBe('SEGRETARIO C');
+    const comp = compila(cedoliniInRiepiloghi([c]), { perequativo: false });
+    expect(comp.posizione).toBe('');
+    expect(comp.avvisi).toContain('Posizione economica "SEGRETARIO C" non riconosciuta: selezionala a mano.');
+  });
+
+  it('legge i nomi lunghi, che sporgono oltre la casella dell\'etichetta', () => {
+    const nome = 'BIANCHI MARIA ANTONIETTA GIUSEPPINA';
+    expect(leggiCedolinoHalley(cedolinoHalley({ mese: 'Maggio', anno: 2026, nome, matricola: '1234', testata: [] }))!)
+      .toMatchObject({ nome, matricola: '1234' });
+  });
+
+  it('scarta le pagine che non sono cedolini Halley', () => {
+    expect(leggiCedolinoHalley(paginaTestata({ anno: 2024, voci: [] }))).toBeNull();
+    expect(leggiCedolinoHalley([])).toBeNull();
+  });
+});
+
+describe('cedolini mensili → calcolatore', () => {
+  const mese = (m: string, tab: number, extra: Partial<Parameters<typeof cedolinoHalley>[0]> = {}) =>
+    cedolinoHalley({ mese: m, anno: 2026, area: 'IST/C6/0/TI', assunzione: '09-12-1997',
+      testata: [['STIPENDIO BASE', tab], ['IND.VACANZA CONT.', 19.28], ['IND.COMPARTO Q.F.', 32.06], ['DIFF.STORICO', 271.84]],
+      ...extra });
+
+  it('unisce i mesi dello stesso dipendente in un anno e scarta gli arretrati', () => {
+    const l = leggiDocumenti([
+      mese('Aprile', 1928.23), mese('Luglio', 1928.23),
+      mese('Aprile', 0, { straordinaria: true, testata: [] }),
+      cedolinoHalley({ mese: 'Aprile', anno: 2026, cf: 'VRDLGU75B02F205X', testata: [['STIPENDIO BASE', 1715.27]] }),
+    ]);
+    expect(l.pagine).toEqual({ riepilogo: 0, cedolino: 3, straordinarie: 1, altre: 0 });
+    expect(l.avvisi[0]).toContain('supplementari');
+    const mio = l.riepiloghi.find(r => r.cf === 'RSSMRA80A01H501U')!;
+    expect(mio.anno).toBe(2026);
+    expect(mio.posizione).toBe('C6');
+    expect(mio.voci[0]).toEqual({ etichetta: 'STIPENDIO BASE', mesi: [null, null, null, 1928.23, null, null, 1928.23, null, null, null, null, null] });
+  });
+
+  it('a parità di mese tiene l\'ultimo file e lo segnala se gli importi cambiano', () => {
+    const avvisi: string[] = [];
+    const r = cedoliniInRiepiloghi([
+      leggiCedolinoHalley(mese('Luglio', 1900))!, leggiCedolinoHalley(mese('Luglio', 1928.23))!,
+    ], avvisi);
+    expect(r[0].voci[0].mesi[6]).toBe(1928.23);
+    expect(avvisi).toEqual(['luglio 2026: cedolino caricato due volte con importi diversi (1 dipendente); tenuto quello dell\'ultimo file.']);
+  });
+
+  it('compila il calcolatore da dodici cedolini a cavallo di due anni', () => {
+    const nomi = ['Ottobre', 'Novembre', 'Dicembre'];
+    const pagine = [
+      ...nomi.map(m => cedolinoHalley({ mese: m, anno: 2025, testata: [['STIPENDIO BASE', 1900], ['IND.VACANZA CONT.', 12]] })),
+      ...['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre']
+        .map(m => mese(m, 1928.23, { cessazione: m === 'Settembre' ? '30-09-2026' : undefined })),
+    ];
+    const l = leggiDocumenti(pagine);
+    const c = compila(l.riepiloghi, { perequativo: false });
+    expect(c).toMatchObject({ cessazione: '2026-09-30', posizione: 'C6', assunzione: '1997-12-09', meseVoci: { mese: 8, anno: 2026 } });
+    expect(c.imp).toMatchObject({ '01': '1928.23', '02': '271.84', '09': '19.28', '10': '32.06' });
+    expect(c.mesi.map(m => m.tabellare)).toEqual([1900, 1900, 1900, ...Array(9).fill(1928.23)]);
+    expect(c.mesi.map(m => m.ivc)).toEqual([12, 12, 12, ...Array(9).fill(19.28)]);
+    expect(c.avvisi.some(a => a.startsWith('Mancano'))).toBe(false);
+  });
+
+  it('riepilogo e cedolini dello stesso anno si completano mese per mese', () => {
+    const riep = leggiPagina(paginaTestata({ anno: 2026, voci: [['Stipendio tabellare', per(1928.23, 0, 5)]] }))!;
+    const ced = cedoliniInRiepiloghi([leggiCedolinoHalley(mese('Luglio', 2000, { cessazione: '31-07-2026' }))!]);
+    const c = compila([riep, ...ced], { perequativo: false });
+    expect(c.mesi.slice(-7).map(m => m.tabellare)).toEqual([1928.23, 1928.23, 1928.23, 1928.23, 1928.23, 1928.23, 2000]);
   });
 });

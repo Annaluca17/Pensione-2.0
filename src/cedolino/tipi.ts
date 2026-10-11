@@ -35,6 +35,23 @@ export interface RiepilogoAnnuo {
   partTime: string;
 }
 
+/** Un cedolino mensile (una pagina, un dipendente). */
+export interface CedolinoMensile {
+  anno: number;
+  mese: number;  // 0-11
+  nome: string;
+  cf: string;
+  matricola: string;
+  /** Elaborazione supplementare (arretrati, determine): non ha voci di testata. */
+  straordinaria: boolean;
+  /** Voci di testata: etichetta e importo mensile. */
+  voci: Array<{ etichetta: string; importo: number }>;
+  assunzione: string;  // gg-mm-aaaa, '' se vuota
+  cessazione: string;
+  posizione: string;   // es. 'D1' dal campo Area/ex Pos./Diff./Rapp.
+  partTime: string;
+}
+
 /** Mese della finestra PASSWEB: mese 0-11. */
 export interface MeseFinestra {
   mese: number;

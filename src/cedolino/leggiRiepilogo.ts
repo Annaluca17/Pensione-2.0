@@ -10,12 +10,12 @@
  * Le altre pagine del file (voci di corpo, imponibili, detrazioni) si scartano.
  */
 
+import { codiceFiscale, importo, righe, testoRiga } from './testo';
 import type { PaginaPdf, RiepilogoAnnuo, TestoPdf, VoceLetta } from './tipi';
 
 const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
               'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
 
-const RE_CF   = /^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/;
 const RE_TITOLO = /(\d{4})\s*--\s*VOCI DI TESTATA/i;
 
 /** Righe "anagrafiche" in fondo alla pagina: valori testuali, non importi. */
@@ -26,34 +26,8 @@ const RIGHE_TESTO = {
   partTime:   /part\s*time/i,
 } as const;
 
-/** Tolleranza verticale (pt) per considerare due frammenti sulla stessa riga. */
-const TOLL_RIGA = 3;
 /** Distanza massima (pt) fra un'etichetta e la riga di valori sotto di essa. */
 const DIST_VALORI = 12;
-
-interface Riga { top: number; testi: TestoPdf[] }
-
-function righe(pagina: PaginaPdf): Riga[] {
-  const ord = pagina.filter(t => t.testo.trim()).sort((a, b) => a.top - b.top || a.x - b.x);
-  const out: Riga[] = [];
-  for (const t of ord) {
-    const ultima = out[out.length - 1];
-    if (ultima && t.top - ultima.top <= TOLL_RIGA) ultima.testi.push(t);
-    else out.push({ top: t.top, testi: [t] });
-  }
-  for (const r of out) r.testi.sort((a, b) => a.x - b.x);
-  return out;
-}
-
-/** "1.503,70" → 1503.7; tutto ciò che non è un importo → null. */
-export function importo(s: string): number | null {
-  const m = s.trim().match(/^(-?)(\d{1,3}(?:\.\d{3})*|\d+),(\d{2})$/);
-  if (!m) return null;
-  const v = parseFloat(`${m[2].replace(/\./g, '')}.${m[3]}`);
-  return m[1] ? -v : v;
-}
-
-const testoRiga = (r: Riga) => r.testi.map(t => t.testo).join(' ');
 
 /** Legge una pagina; null se non è una pagina "VOCI DI TESTATA". */
 export function leggiPagina(pagina: PaginaPdf): RiepilogoAnnuo | null {
@@ -68,7 +42,7 @@ export function leggiPagina(pagina: PaginaPdf): RiepilogoAnnuo | null {
     .map(t => t.testo.trim()).join(' ').replace(/\s+/g, ' ');
   const matricola = testoRiga(rTitolo).match(/matr\.?\s*(\d+)/i)?.[1] ?? '';
 
-  const cf = pagina.flatMap(t => t.testo.trim().split(/\s+/)).find(p => RE_CF.test(p)) ?? '';
+  const cf = codiceFiscale(pagina);
 
   // Colonne: centro dell'intestazione di ciascun mese, più "totale" da scartare.
   const iIntest = rs.findIndex(r =>
@@ -131,7 +105,3 @@ export function leggiPagina(pagina: PaginaPdf): RiepilogoAnnuo | null {
   return { anno, nome, cf, matricola, voci, ...testi };
 }
 
-/** Tutte le pagine "VOCI DI TESTATA" di uno o più file. */
-export function leggiRiepiloghi(pagine: PaginaPdf[]): RiepilogoAnnuo[] {
-  return pagine.map(leggiPagina).filter((r): r is RiepilogoAnnuo => r !== null);
-}

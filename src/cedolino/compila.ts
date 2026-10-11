@@ -83,11 +83,18 @@ export function compila(riepiloghi: RiepilogoAnnuo[], opz: OpzioniCompila): Comp
   const ord = [...riepiloghi].sort((a, b) => a.anno - b.anno);
   const ultimo = ord[ord.length - 1];
 
+  // Più fonti per lo stesso anno (riepilogo e cedolini) si uniscono mese per mese:
+  // un mese già letto non viene sovrascritto da uno vuoto.
   const perAnno = new Map<number, VociMensili>();
   for (const r of ord) {
     const v = vociAnno(r, nonRiconosciute, avvisi);
     const gia = perAnno.get(r.anno);
-    perAnno.set(r.anno, gia ? { ...gia, ...v } : v);
+    if (!gia) { perAnno.set(r.anno, v); continue; }
+    const mesiGia = new Set(Array.from({ length: 12 }, (_, i) => i).filter(i => gia['01']?.[i] != null));
+    for (const [dest, valori] of Object.entries(v) as Array<[Destinazione, (number | null)[]]>) {
+      const acc = gia[dest] ??= Array(12).fill(null);
+      valori.forEach((x, i) => { if (x != null && !mesiGia.has(i)) acc[i] = x; });
+    }
   }
   const valore = (dest: Destinazione, m: MeseFinestra): number | null =>
     perAnno.get(m.anno)?.[dest]?.[m.mese] ?? null;
@@ -107,8 +114,8 @@ export function compila(riepiloghi: RiepilogoAnnuo[], opz: OpzioniCompila): Comp
   const cessazione = cessazionePdf || opz.dataCessazione || '';
   if (!cessazionePdf) {
     avvisi.push(cessazione
-      ? 'Data di cessazione non presente nel riepilogo: usata quella già inserita.'
-      : 'Data di cessazione non presente nel riepilogo: inseriscila e ricarica il file per compilare i 12 mesi.');
+      ? 'Data di cessazione non presente nei documenti: usata quella già inserita.'
+      : 'Data di cessazione non presente nei documenti: inseriscila qui sotto per compilare i 12 mesi.');
   }
 
   const posGrezza = piuRecente('posizione');
@@ -116,12 +123,12 @@ export function compila(riepiloghi: RiepilogoAnnuo[], opz: OpzioniCompila): Comp
   if (posGrezza && !posizione) avvisi.push(`Posizione economica "${posGrezza}" non riconosciuta: selezionala a mano.`);
 
   const pt = piuRecente('partTime');
-  if (pt) avvisi.push(`Il riepilogo indica un part-time (${pt}): gli importi sono quelli del cedolino, verificali.`);
+  if (pt) avvisi.push(`Part-time indicato nei documenti (${pt}): verifica gli importi prima del calcolo.`);
 
   if (haPerequativo) {
     avvisi.push(opz.perequativo
       ? 'Elemento perequativo sommato al tabellare.'
-      : 'Il riepilogo contiene l\'Elemento perequativo, non sommato al tabellare.');
+      : 'I documenti contengono l\'Elemento perequativo, non sommato al tabellare.');
   }
 
   const finestra = cessazione ? ultimi12Mesi(cessazione) : [];
@@ -132,7 +139,7 @@ export function compila(riepiloghi: RiepilogoAnnuo[], opz: OpzioniCompila): Comp
   const mancanti = mesi.filter(m => m.tabellare == null);
   if (finestra.length && mancanti.length) {
     avvisi.push(`Mancano i dati di ${mancanti.length} mesi (${mancanti.map(nomeMese).join(', ')}): `
-      + 'carica anche il riepilogo dell\'anno che manca, oppure compilali a mano.');
+      + 'carica anche quei cedolini o il riepilogo dell\'anno, oppure compilali a mano.');
   }
 
   // Mese da cui leggere le voci: l'ultimo con il tabellare, ma non un mese
@@ -158,7 +165,7 @@ export function compila(riepiloghi: RiepilogoAnnuo[], opz: OpzioniCompila): Comp
     const cambi = mesi.filter(m => m.anno >= 2024 && m.tabellare != null && m.tabellare !== base);
     if (cambi.length) {
       avvisi.push(`Tabellare diverso da quello di ${nomeMese(meseVoci)} in ${cambi.map(nomeMese).join(', ')}: `
-        + 'quei mesi diventano eccezioni e nello scenario MC restano col valore del riepilogo.');
+        + 'quei mesi diventano eccezioni e nello scenario MC restano col valore letto.');
     }
   }
 
