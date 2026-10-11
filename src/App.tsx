@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calculator, UserMinus, UserCheck, FileText, ArrowLeft, Upload, Clock, Layers, Banknote } from 'lucide-react';
+import { Calculator, UserMinus, UserCheck, ArrowLeft, Upload, Clock, Layers, Banknote } from 'lucide-react';
 import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
 import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
 import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
@@ -7,10 +7,10 @@ import AnticipoDMA from './components/AnticipoDMA';
 import ProjectShell from './components/ProjectShell';
 import UltimoMiglioTFRShell from './components/tfr/UltimoMiglioTFRShell';
 
-type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'lettere' | 'anticipo_dma' | 'unificato' | 'tfr' | null;
+type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'anticipo_dma' | 'unificato' | 'tfr' | null;
 
 const SERVIZI: Exclude<ServiceType, null>[] = [
-  'pensione', 'tfs_pensione', 'tfs_servizio', 'lettere', 'anticipo_dma', 'unificato', 'tfr',
+  'pensione', 'tfs_pensione', 'tfs_servizio', 'anticipo_dma', 'unificato', 'tfr',
 ];
 
 // Il Portale Strumenti Interni apre un singolo modulo con ?modulo=<id> e chiede
@@ -37,7 +37,6 @@ export default function App() {
       case 'pensione': return 'Calcolo Ultimo Miglio Pensione';
       case 'tfs_pensione': return 'Ultimo miglio TFS Personale in Pensione';
       case 'tfs_servizio': return 'Ultimo miglio TFS In Servizio';
-      case 'lettere': return 'Modelli Lettere';
       case 'anticipo_dma': return 'Anticipo DMA';
       case 'unificato': return 'Gestione Progetti PASSWEB';
       case 'tfr': return 'Calcolo Ultimo Miglio TFR';
@@ -79,12 +78,6 @@ export default function App() {
         description="Gestione TFS per personale attualmente in servizio."
         icon={<UserCheck className="w-8 h-8 text-blue-600" />}
         onClick={() => setActiveService('tfs_servizio')}
-      />
-      <ServiceCard
-        title="Modelli Lettere"
-        description="Generazione e gestione della modulistica e lettere."
-        icon={<FileText className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('lettere')}
       />
       <ServiceCard
         title="Anticipo DMA"
