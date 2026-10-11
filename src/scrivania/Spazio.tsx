@@ -2,7 +2,7 @@
 // ticket successivi riempiano le viste senza toccare l'App. Un solo archivio per entrambe.
 import {useState} from 'react';
 import {useArchivio, scaricaTesto} from './useArchivio';
-import {Fascicolo} from './Fascicolo';
+import {Fascicolo} from '../fascicolo/Fascicolo';
 import {Scrivania} from './Scrivania';
 
 export type Rotta = {vista: 'scrivania'} | {vista: 'fascicolo'; praticaId: string};
@@ -47,7 +47,7 @@ export function Spazio() {
         </div>
       )}
       {rotta.vista === 'fascicolo' ? (
-        <Fascicolo archivio={esito.archivio} praticaId={rotta.praticaId} onEsci={() => setRotta({vista: 'scrivania'})} />
+        <Fascicolo archivio={esito.archivio} praticaId={rotta.praticaId} aggiorna={aggiorna} onEsci={() => setRotta({vista: 'scrivania'})} />
       ) : (
         <Scrivania
           archivio={esito.archivio}
