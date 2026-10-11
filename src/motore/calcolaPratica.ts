@@ -1,3 +1,4 @@
+import {calcolaTfr} from './tfr';
 import {data, giornoDellaSettimana, giorniDelMese, leggiData, meseDi, spostaMese} from './date';
 import type {
   Avviso,
@@ -14,10 +15,9 @@ import type {
   Risultato,
   Sezione,
   Tabelle,
+  Tfr,
   ValoreForzabile,
 } from './tipi';
-
-const TETTO_GIORNI = 26;
 
 type NomeSezione = keyof Risultato['sezioni'];
 
@@ -38,7 +38,7 @@ export function calcolaPratica(dati: DatiPratica, tabelle: Tabelle): Risultato {
   };
 
   // Anagrafica: le date reggono tutto il resto.
-  const tutte: NomeSezione[] = ['retribuzione', 'meseParziale'];
+  const tutte: NomeSezione[] = ['retribuzione', 'meseParziale', 'tfr'];
   const valida = (campo: 'assunzione' | 'cessazione', valore: DataISO | undefined, ...sezioni: NomeSezione[]) => {
     if (valore === undefined || leggiData(valore)) return valore;
     blocca({tipo: 'blocco', codice: 'data-non-valida', campo, valore}, ...sezioni);
@@ -47,18 +47,20 @@ export function calcolaPratica(dati: DatiPratica, tabelle: Tabelle): Risultato {
   const assunzione = valida('assunzione', dati.anagrafica.assunzione, ...tutte);
   const cessazione = valida('cessazione', dati.anagrafica.cessazione, ...tutte);
   if (dati.anagrafica.cessazione === undefined) blocca({tipo: 'blocco', codice: 'cessazione-mancante'}, ...tutte);
+  // Decorrenza giuridica obbligatoria nell'ultimo miglio TFR (C185 §2.1).
+  if (dati.anagrafica.assunzione === undefined) blocca({tipo: 'blocco', codice: 'assunzione-mancante'}, 'tfr');
   if (assunzione && cessazione && assunzione > cessazione) {
     blocca(incoerenti('assunzione', assunzione, 'non-dopo', 'cessazione', cessazione), ...tutte);
   }
   if (cessazione && cessazione < tabelle.coperturaDal) {
-    blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: 'cessazione', data: cessazione, coperturaDal: tabelle.coperturaDal});
+    blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: 'cessazione', data: cessazione, coperturaDal: tabelle.coperturaDal}, 'tfr');
   }
 
   const posizione = dati.anagrafica.posizione;
   if (!/^[A-D]\d+$/.test(posizione)) {
-    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'fuori-aree-a-d'});
+    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'fuori-aree-a-d'}, 'tfr');
   } else if (!tabelle.posizioni.includes(posizione)) {
-    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'inesistente'});
+    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'inesistente'}, 'tfr');
   }
 
   // Date di riferimento: proposte = cessazione (D19, situazione ordinaria), forzabili.
@@ -73,13 +75,13 @@ export function calcolaPratica(dati: DatiPratica, tabelle: Tabelle): Risultato {
       else if (assunzione && forzata < assunzione) {
         blocca(incoerenti(chiave, forzata, 'non-prima-di', 'assunzione', assunzione), ...sezioni);
       } else if (forzata < tabelle.coperturaDal) {
-        blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: chiave, data: forzata, coperturaDal: tabelle.coperturaDal});
+        blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: chiave, data: forzata, coperturaDal: tabelle.coperturaDal}, ...sezioni);
       }
       return valore;
     };
     dateRiferimento = {
       pensione: riferimento('dataRiferimentoPensione'),
-      fineServizio: riferimento('dataRiferimentoFineServizio', 'retribuzione'),
+      fineServizio: riferimento('dataRiferimentoFineServizio', 'retribuzione', 'tfr'),
     };
   }
 
@@ -99,20 +101,29 @@ export function calcolaPratica(dati: DatiPratica, tabelle: Tabelle): Risultato {
     ];
     for (const [mese, percentuale] of daControllare) {
       if (!(percentuale > 0 && percentuale <= 100)) {
-        blocca({tipo: 'blocco', codice: 'part-time-fuori-range', mese, percentuale}, 'retribuzione');
+        blocca({tipo: 'blocco', codice: 'part-time-fuori-range', mese, percentuale}, 'retribuzione', 'tfr');
       }
     }
   }
 
-  // Mese parziale (D9): giorni proposti, forzabili fra 0 e 26 interi.
+  // Mese parziale (D9): giorni proposti, forzabili fra 0 e il tetto (26) interi.
+  const TETTO_GIORNI = tabelle.parametri.tettoGiorniMeseParziale.valore;
   const giorniForzati = dati.forzature.giorniMeseParziale;
   if (giorniForzati !== undefined && !(Number.isInteger(giorniForzati) && giorniForzati >= 0 && giorniForzati <= TETTO_GIORNI)) {
     blocca({tipo: 'blocco', codice: 'giorni-forzati-non-validi', giorni: giorniForzati, massimo: TETTO_GIORNI}, 'meseParziale');
   }
   let meseParziale: Sezione<MeseParziale> | undefined;
   if (cessazione && !bloccata('meseParziale')) {
-    const parziale = calcolaMeseParziale(cessazione, assunzione);
+    const parziale = calcolaMeseParziale(cessazione, assunzione, TETTO_GIORNI);
     meseParziale = {...parziale, esito: 'calcolata', giorni: forza('giorniMeseParziale', parziale.giorni)};
+  }
+
+  // Ultimo miglio TFR fino alla data di riferimento di TFS/TFR (D19: di default la cessazione).
+  let tfr: Sezione<Tfr> = {esito: 'bloccata', motivi: motivi('tfr')};
+  if (!bloccata('tfr') && !bloccata('retribuzione') && assunzione && dateRiferimento) {
+    const calcolo = calcolaTfr({assunzione, cessazione: dateRiferimento.fineServizio.usato, posizione, mesi, tabelle});
+    tfr = {esito: 'calcolata', ...calcolo.tfr};
+    avvisi.push(...calcolo.avvisi);
   }
 
   const retribuzione: Sezione<Retribuzione> = bloccata('retribuzione')
@@ -127,6 +138,7 @@ export function calcolaPratica(dati: DatiPratica, tabelle: Tabelle): Risultato {
     sezioni: {
       retribuzione,
       meseParziale: meseParziale ?? {esito: 'bloccata', motivi: motivi('meseParziale')},
+      tfr,
     },
   };
 }
@@ -142,7 +154,7 @@ function incoerenti(
 }
 
 /** D9: giorni lun-sab dal 1° (o dall'assunzione) alla cessazione, tetto 26, mese intero = 26. */
-function calcolaMeseParziale(cessazione: DataISO, assunzione: DataISO | undefined) {
+function calcolaMeseParziale(cessazione: DataISO, assunzione: DataISO | undefined, tetto: number) {
   const c = leggiData(cessazione)!;
   const assuntoNelMese = assunzione !== undefined && meseDi(assunzione) === meseDi(cessazione);
   const primo = assuntoNelMese ? leggiData(assunzione)!.giorno : 1;
@@ -153,7 +165,7 @@ function calcolaMeseParziale(cessazione: DataISO, assunzione: DataISO | undefine
     mese: meseDi(cessazione),
     dal: data(c.anno, c.mese, primo),
     al: cessazione,
-    giorni: meseIntero ? TETTO_GIORNI : Math.min(giorni, TETTO_GIORNI),
+    giorni: meseIntero ? tetto : Math.min(giorni, tetto),
   };
 }
 

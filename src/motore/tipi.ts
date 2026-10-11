@@ -19,7 +19,12 @@ export type CodiceVoce = string;
 export interface Addendo {
   voce: CodiceVoce;
   mese: MeseISO;
+  /** Valore della voce a tempo pieno. */
   importo: Centesimi;
+  /** % di part-time del mese applicata alla voce (D4); assente = 100. */
+  percentuale?: number;
+  /** Giorni che moltiplicano la voce (es. 365esimi di un rateo); assente = 1. */
+  giorni?: number;
 }
 
 /** Un'operazione applicata, in ordine, alla somma degli addendi. */
@@ -301,6 +306,37 @@ export interface MeseRetribuzione {
   partTime: PartTime;
 }
 
+/** Mese di assunzione o di cessazione per l'ultimo miglio TFR (glossario: Mese utile). */
+export interface EstremoTfr {
+  mese: MeseISO;
+  esito: 'intero' | 'utile' | 'non-utile';
+  /** Giorni continuativi nel mese, con le due conte (D10); assente se il mese è intero. */
+  giorni?: {lavorativiLunSab: number; calendario: number};
+  /** Mese in cui si paga il rateo di 13ª (C185 §2.1), per un mese utile non intero. */
+  pagamentoTredicesima?: 'dicembre' | 'cessazione';
+  misura?: 'parziale';
+}
+
+export type IdRigaTfr = 'retribuzione-valutabile' | 'rateo-tredicesima-teorica' | 'tredicesima-emolumenti-cassa';
+
+export interface RigaTfr {
+  estremo: 'iniziale' | 'finale';
+  id: IdRigaTfr;
+  etichetta: string;
+  composizione: Composizione;
+}
+
+/** Ultimo miglio TFR (C185 §2.1): dati utili e dati retributivi dei mesi non interi. */
+export interface Tfr {
+  decorrenzaGiuridica: DataISO;
+  decorrenzaEconomica: DataISO;
+  dataCessazione: DataISO;
+  soglia: {giorni: number; conteggio: 'lavorativi-lun-sab' | 'calendario'; fonte: string};
+  meseIniziale: EstremoTfr;
+  meseFinale: EstremoTfr;
+  righe: RigaTfr[];
+}
+
 export interface Retribuzione {
   /** I 12 mesi fino al mese della data di riferimento di TFS/TFR, dal mese di assunzione se dopo. */
   mesi: MeseRetribuzione[];
@@ -316,6 +352,7 @@ export interface Risultato {
   sezioni: {
     retribuzione: Sezione<Retribuzione>;
     meseParziale: Sezione<MeseParziale>;
+    tfr: Sezione<Tfr>;
   };
 }
 
@@ -328,6 +365,7 @@ export type ChiaveDataRiferimento = 'dataRiferimentoPensione' | 'dataRiferimento
 /** Glossario: Blocco. Il motivo codificato per cui una sezione non si può calcolare. */
 export type Blocco =
   | {tipo: 'blocco'; codice: 'cessazione-mancante'}
+  | {tipo: 'blocco'; codice: 'assunzione-mancante'}
   | {tipo: 'blocco'; codice: 'data-non-valida'; campo: CampoData; valore: string}
   | {
       tipo: 'blocco';
@@ -343,11 +381,44 @@ export type Blocco =
   | {tipo: 'blocco'; codice: 'tabelle-non-disponibili'; campo: CampoData; data: DataISO; coperturaDal: DataISO}
   | {tipo: 'blocco'; codice: 'giorni-forzati-non-validi'; giorni: number; massimo: number};
 
-export type Avviso = {
-  tipo: 'avviso';
-  codice: 'eccezioni-fuori-periodo';
-  /** Mesi con eccezioni (di voce o di part-time) fuori dalla finestra, ignorate. */
-  mesi: MeseISO[];
-  dal: MeseISO;
-  al: MeseISO;
-};
+export type Avviso =
+  | {
+      tipo: 'avviso';
+      codice: 'eccezioni-fuori-periodo';
+      /** Mesi con eccezioni (di voce o di part-time) fuori dalla finestra, ignorate. */
+      mesi: MeseISO[];
+      dal: MeseISO;
+      al: MeseISO;
+    }
+  | {
+      tipo: 'avviso';
+      /** Con l'altra conta dei giorni il mese avrebbe un esito diverso (D10). */
+      codice: 'soglia-quindici-giorni-altra-regola';
+      estremo: 'iniziale' | 'finale';
+      mese: MeseISO;
+      lavorativiLunSab: number;
+      calendario: number;
+      esitoUsato: 'utile' | 'non-utile';
+      esitoAltraRegola: 'utile' | 'non-utile';
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** IVC inserita diversa da quella del contratto applicato: si usa la tabella, non la somma (D8). */
+      codice: 'ivc-incompatibile';
+      mese: MeseISO;
+      inserita: Centesimi;
+      daTabella: Centesimi;
+      /** Id dell'ultimo contratto definitivo in vigore nel mese. */
+      contrattoApplicato: string;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** Mese di assunzione utile non intero senza voci nella pratica: rateo iniziale da fare a parte (C07-4). */
+      codice: 'mese-iniziale-fuori-finestra';
+      mese: MeseISO;
+      finestraDal: MeseISO;
+      finestraAl: MeseISO;
+      fonte: string;
+    };

@@ -73,7 +73,7 @@ describe('espansione dei 12 mesi', () => {
       partTime: {base: {percentuale: 100}, eccezioni: {'2024-12': {percentuale: 50, tipo: 'O'}}},
     });
     const r = calcolaPratica(dati, tabelleDiProva);
-    expect(r.avvisi).toEqual([
+    expect(r.avvisi.filter((a) => a.codice === 'eccezioni-fuori-periodo')).toEqual([
       {tipo: 'avviso', codice: 'eccezioni-fuori-periodo', mesi: ['2024-12', '2025-03', '2026-04'], dal: '2025-04', al: '2026-03'},
     ]);
     const {mesi} = retribuzione(r);
@@ -83,7 +83,7 @@ describe('espansione dei 12 mesi', () => {
   });
 
   it('senza eccezioni fuori periodo nessun avviso', () => {
-    expect(calcolaPratica(pratica(), tabelleDiProva).avvisi).toEqual([]);
+    expect(calcolaPratica(pratica(), tabelleDiProva).avvisi.filter((a) => a.codice === 'eccezioni-fuori-periodo')).toEqual([]);
   });
 });
 

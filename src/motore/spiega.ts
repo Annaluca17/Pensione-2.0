@@ -1,3 +1,4 @@
+import {valoreAddendo} from './composizione';
 import type {Avviso, Blocco, CampoData, Composizione, DataISO, MeseISO} from './tipi';
 
 const nomeCampo: Record<CampoData, string> = {
@@ -26,6 +27,8 @@ export function spiega(cosa: Blocco | Avviso | Composizione): string {
   switch (cosa.codice) {
     case 'cessazione-mancante':
       return 'Manca la data di cessazione.';
+    case 'assunzione-mancante':
+      return 'Manca la data di assunzione.';
     case 'data-non-valida':
       return `${maiuscola(nomeCampo[cosa.campo])} «${cosa.valore}» non è una data valida.`;
     case 'date-incoerenti': {
@@ -55,12 +58,35 @@ export function spiega(cosa: Blocco | Avviso | Composizione): string {
         `Eccezioni ignorate perché fuori dai mesi considerati (da ${mese(cosa.dal)} a ${mese(cosa.al)}): ` +
         `${cosa.mesi.map(mese).join(', ')}.`
       );
+    case 'soglia-quindici-giorni-altra-regola':
+      return (
+        `Mese di ${cosa.estremo === 'iniziale' ? 'assunzione' : 'cessazione'} ${mese(cosa.mese)}: ` +
+        `${cosa.lavorativiLunSab} giorni lavorativi lun-sab e ${cosa.calendario} di calendario. ` +
+        `Con la regola usata il mese è ${cosa.esitoUsato.replace('-', ' ')}; con l'altra sarebbe ${cosa.esitoAltraRegola.replace('-', ' ')} (D10).`
+      );
+    case 'ivc-incompatibile':
+      return (
+        `IVC di ${mese(cosa.mese)} inserita ${euro(cosa.inserita)}, ma col contratto ` +
+        `${cosa.contrattoApplicato} vale ${euro(cosa.daTabella)}: si usa il valore della tabella (D8).`
+      );
+    case 'mese-iniziale-fuori-finestra':
+      return (
+        `Il mese di assunzione ${mese(cosa.mese)} è utile ma non intero, e le voci inserite vanno da ` +
+        `${mese(cosa.finestraDal)} a ${mese(cosa.finestraAl)}: retribuzione del mese pieno e rateo di 13ª ` +
+        `iniziale da calcolare a parte.`
+      );
   }
 }
 
 function spiegaComposizione(c: Composizione): string {
-  const righe = c.addendi.map((a) => `voce ${a.voce}, ${mese(a.mese)}: ${euro(a.importo)}`);
-  if (c.addendi.length > 1) righe.push(`somma: ${euro(c.addendi.reduce((s, a) => s + a.importo, 0))}`);
+  const righe = c.addendi.map(
+    (a) =>
+      `voce ${a.voce}, ${mese(a.mese)}: ${euro(a.importo)}` +
+      `${a.percentuale !== undefined ? ` × ${String(a.percentuale).replace('.', ',')}%` : ''}` +
+      `${a.giorni !== undefined ? ` × ${a.giorni} gg` : ''}`,
+  );
+  const somma = c.addendi.reduce((s, a) => s + valoreAddendo(a), 0);
+  if (c.addendi.length > 1) righe.push(`somma: ${Number.isInteger(somma) ? euro(somma) : euroPieno(somma)}`);
   for (const op of c.operazioni) {
     righe.push(`${op.tipo === 'moltiplica' ? '×' : '÷'} ${op.per}: ${op.motivo}${op.fonte ? ` (${op.fonte})` : ''}`);
   }
