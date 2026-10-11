@@ -5,6 +5,24 @@ export const tabelleDiProva: Tabelle = {
   versione: '2026-10-11.1',
   coperturaDal: '2019-01-01',
   posizioni: ['A1', 'B3', 'C1', 'C5', 'D1', 'D3'],
+  // Il nucleo non legge ancora contratti, catalogo né parametri: qui sono vuoti o di fantasia.
+  contratti: [],
+  trasposizione: [],
+  differenzialiArt14: {
+    'funzionari-eq': {annuo: 0, mensile: 0, massimo: 0, fonte: 'prova'},
+    istruttori: {annuo: 0, mensile: 0, massimo: 0, fonte: 'prova'},
+    'operatori-esperti': {annuo: 0, mensile: 0, massimo: 0, fonte: 'prova'},
+    operatori: {annuo: 0, mensile: 0, massimo: 0, fonte: 'prova'},
+  },
+  catalogoVoci: [],
+  righeTfr: [],
+  parametri: {
+    sogliaGiorniTfr: {valore: {giorni: 15, conteggio: 'lavorativi-lun-sab'}, fonte: 'prova'},
+    divisoreGiornaliera: {valore: 26, fonte: 'prova'},
+    tettoGiorniMeseParziale: {valore: 26, fonte: 'prova'},
+    divisoreRateoTredicesima: {valore: 365, fonte: 'prova'},
+  },
+  lettere: {tfr: {oggetto: 'prova', riferimentoNormativo: 'prova', fonte: 'prova'}},
 };
 
 /** Pratica di fantasia a tempo pieno; `modifica` sovrascrive i campi di primo livello. */

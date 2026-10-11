@@ -15,6 +15,10 @@ const dentroMotore = [
     group: ['**/utils/math', '**/utils/math.*'],
     message: 'Il vecchio utils/math non si riusa nel motore (ADR 0001): importi in centesimi interi, una sola arrotonda.',
   },
+  {
+    group: ['**/tabelle', '**/tabelle/**'],
+    message: 'Il motore riceve Tabelle per iniezione: non importa mai i dati (spec "Tabelle CCNL versionate").',
+  },
 ];
 
 // Da fuori si importa solo l'indice del motore.
@@ -24,6 +28,8 @@ const versoMotore = [
     message: 'Dal motore si importa solo l\'indice pubblico (src/motore).',
   },
 ];
+
+// I dati delle tabelle importano dal motore solo l'indice pubblico (tipi e arrotonda): da `versoMotore`.
 
 // Per ora la configurazione fa rispettare solo il confine del motore: il codice esistente non passa
 // ancora le regole generali (no-explicit-any, no-unused-vars...), da aggiungere con un ticket a parte.

@@ -98,9 +98,159 @@ export interface DatiPratica {
 
 // --- Tabelle ------------------------------------------------------------------------------------
 
+/** Le quattro aree del CCNL Funzioni Locali 2019-21 (art. 12). */
+export type Area = 'funzionari-eq' | 'istruttori' | 'operatori-esperti' | 'operatori';
+
+/** Un importo mensile in centesimi, con l'annuo pubblicato dalla fonte quando esiste (T2). */
+export interface Importo {
+  mensile: Centesimi;
+  /** Annuo della fonte in centesimi; `mensile` = `arrotonda(annuo / divisore)`. */
+  annuo?: Centesimi;
+  /** Fonte propria; se manca vale quella dell'insieme che lo contiene. */
+  fonte?: string;
+  /** Valore da riscontrare su un documento reale. */
+  verifica?: {stato: 'da-verificare'; motivo: string};
+}
+
 /**
- * Le tabelle iniettate nel motore. Per ora solo ciò che serve al nucleo; contratti, catalogo voci,
- * righe PASSWEB e parametri arrivano col modulo `tabelle` (ticket 05).
+ * Un insieme di importi con la stessa decorrenza: il tabellare di quella data (`tabellare`) oppure
+ * un aumento da sommare al tabellare in vigore (`incremento`). Le chiavi di `importi` sono posizioni
+ * (D7, C5…) o aree secondo `chiave`.
+ */
+export interface Scaglionamento {
+  decorrenza: DataISO;
+  chiave: 'posizione' | 'area';
+  tipo: 'tabellare' | 'incremento';
+  /** Mensilità dell'annuo della fonte: 12 per i tabellari. Presente se gli importi hanno l'annuo. */
+  divisoreAnnuo?: 12 | 13;
+  importi: Readonly<Record<string, Importo>>;
+  fonte: string;
+}
+
+/** IVC di un periodo. Vale 0 quando si applica il contratto in `anticipa` (T6, D8). */
+export interface IvcPeriodo {
+  dal: DataISO;
+  al?: DataISO;
+  chiave: 'posizione' | 'area';
+  /** Percentuale del tabellare, solo informativa. */
+  percentuale: number;
+  /** Id del contratto che la riassorbe. */
+  anticipa: string;
+  importi: Readonly<Record<string, Importo>>;
+  fonte: string;
+}
+
+/** Indennità di comparto (voce 10) per area dalla decorrenza indicata. */
+export interface ScaglionamentoComparto {
+  decorrenza: DataISO;
+  importi: Readonly<Record<Area, Importo>>;
+  /** Quota entrata nel tabellare con il conglobamento, divisa per carico (art. 60 CCNL 2022-24). */
+  quotaConglobata?: Readonly<Record<Area, {bilancio: Centesimi; fondo: Centesimi}>>;
+  fonte: string;
+}
+
+interface ContrattoComune {
+  id: string;
+  nome: string;
+  firma: DataISO;
+  vigenza: {dal: DataISO; al: DataISO};
+  fonte: string;
+}
+
+/** Un contratto firmato in via definitiva: produce importi. */
+export interface ContrattoDefinitivo extends ContrattoComune {
+  stato: 'definitivo';
+  scaglionamenti: readonly Scaglionamento[];
+  ivc: readonly IvcPeriodo[];
+  indennitaComparto: readonly ScaglionamentoComparto[];
+}
+
+/**
+ * Un'ipotesi: i suoi valori stanno sotto `proposta`, e non sotto le chiavi che il motore legge per
+ * gli importi. Alla firma si passa a `ContrattoDefinitivo` (T5).
+ */
+export interface ContrattoIpotesi extends ContrattoComune {
+  stato: 'ipotesi';
+  proposta: {
+    scaglionamenti: readonly Scaglionamento[];
+    indennitaComparto: readonly ScaglionamentoComparto[];
+  };
+}
+
+export type Contratto = ContrattoDefinitivo | ContrattoIpotesi;
+
+/** Da vecchia posizione economica ad area, con il differenziale storico (voce 02). */
+export interface Trasposizione {
+  posizione: string;
+  area: Area;
+  /** Posizione d'ingresso della categoria (A1, B1, C1, D1): base del differenziale. */
+  ingresso: string;
+  /** Valore prima del parere ARAN 37607: tabellare 2023 della posizione meno quello d'ingresso. */
+  differenzialeBase: Centesimi;
+  /** Valore da usare dal 01/04/2023: base + IVC 2023 posizione - IVC 2023 d'ingresso. */
+  differenzialeStorico: Importo;
+}
+
+/** Differenziale stipendiale dell'art. 14, tabulato solo per il controllo della voce 03 (T9). */
+export interface DifferenzialeArt14 {
+  /** Misura annua lorda su 13 mensilità, in centesimi. */
+  annuo: Centesimi;
+  mensile: Centesimi;
+  massimo: number;
+  fonte: string;
+}
+
+/** Utilità di una voce del catalogo per le prestazioni (D1). */
+export interface UtilitaVoce {
+  pensione: boolean;
+  tredicesima: boolean;
+  tfs: boolean;
+  tfr: boolean;
+}
+
+export interface VoceCatalogo {
+  codice: CodiceVoce;
+  descrizione: string;
+  mensilita: 10 | 12;
+  utile: UtilitaVoce;
+  /** Validità: dal 01/01/2019 se non diversamente fissato. */
+  dal: DataISO;
+  al?: DataISO;
+  fonte: string;
+}
+
+/** Una riga della maschera PASSWEB e le voci che vi finiscono (D1, D16). */
+export interface RigaPassweb {
+  id: string;
+  etichetta: string;
+  voci: readonly CodiceVoce[];
+  fonte: string;
+}
+
+export interface ParametroConFonte<T> {
+  valore: T;
+  fonte: string;
+}
+
+export interface Parametri {
+  /** Soglia dei giorni del mese iniziale/finale del TFR e come si contano (D10). */
+  sogliaGiorniTfr: ParametroConFonte<{giorni: number; conteggio: 'lavorativi-lun-sab' | 'calendario'}>;
+  divisoreGiornaliera: ParametroConFonte<number>;
+  tettoGiorniMeseParziale: ParametroConFonte<number>;
+  /** Giorni dell'anno per il rateo di 13ª: di calendario. */
+  divisoreRateoTredicesima: ParametroConFonte<number>;
+}
+
+/** Il riferimento normativo e l'oggetto predefinito di una lettera (spec "Uscite"). */
+export interface TestoLettera {
+  oggetto: string;
+  riferimentoNormativo: string;
+  fonte: string;
+}
+
+/**
+ * Le tabelle iniettate nel motore: contratti, catalogo voci, righe PASSWEB del TFR, parametri.
+ * I dati stanno in `src/tabelle`; il motore non li importa mai.
  */
 export interface Tabelle {
   /** Id della versione nel registro versioni (`aaaa-mm-gg.n`). */
@@ -109,6 +259,14 @@ export interface Tabelle {
   coperturaDal: DataISO;
   /** Posizioni economiche esistenti. */
   posizioni: readonly string[];
+  contratti: readonly Contratto[];
+  trasposizione: readonly Trasposizione[];
+  differenzialiArt14: Readonly<Record<Area, DifferenzialeArt14>>;
+  catalogoVoci: readonly VoceCatalogo[];
+  /** Mappa voce → riga PASSWEB del TFR. */
+  righeTfr: readonly RigaPassweb[];
+  parametri: Parametri;
+  lettere: {tfr: TestoLettera};
 }
 
 // --- Uscita: Risultato --------------------------------------------------------------------------
