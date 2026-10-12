@@ -1,12 +1,12 @@
 // Ticket 26: le DMA previste del nuovo motore confrontate con la fotografia del vecchio Anticipo DMA
-// (ticket 19; glossario: Fotografia del vecchio, Differenza attesa). Legge solo i dati congelati, non il
-// reperto: resta dopo la pulizia (ticket 36, che sposterà fotografia.json e questo import).
+// (ticket 19; glossario: Fotografia del vecchio, Differenza attesa). Legge solo i dati congelati
+// (./fotografie/): il reperto è sparito nella pulizia (ticket 36), gli importi restano.
 // Passa se i campi non elencati valgono come il vecchio (±1 centesimo, D17) e se ogni campo elencato vale
 // il nuovo importo, giustificato da decisione e fonte. Una sola versione per tempo pieno e part-time.
 import {describe, expect, it} from 'vitest';
 import {calcolaPratica} from '../motore';
 import type {DatiPraticaDma, RegimeFineServizio, VociMese} from '../motore';
-import fotografia from '../reperti/anticipo-dma/fotografia.json';
+import fotografia from './fotografie/anticipo-dma.json';
 import {tabelle} from '../tabelle';
 
 /** Dall'etichetta della voce del vecchio al codice del catalogo (D15). */

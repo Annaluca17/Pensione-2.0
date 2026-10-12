@@ -1,202 +1,25 @@
-import React, { useEffect, useState } from 'react';
-import { Calculator, UserMinus, UserCheck, ArrowLeft, Upload, Clock, Layers, Banknote, LayoutDashboard } from 'lucide-react';
-import UltimoMiglioTFSPensione from './components/UltimoMiglioTFSPensione';
-import CalcoloUltimoMiglioPensione from './components/CalcoloUltimoMiglioPensione';
-import UltimoMiglioTFSServizio from './components/UltimoMiglioTFSServizio';
-import AnticipoDMA from './components/AnticipoDMA';
-import ProjectShell from './components/ProjectShell';
-import UltimoMiglioTFRShell from './components/tfr/UltimoMiglioTFRShell';
+import { useEffect, useState } from 'react';
 import { Spazio } from './scrivania/Spazio';
 import ScaricaVecchioSito from './vecchio-sito/ScaricaVecchioSito';
+import { filtroDaModulo, idPortale, type FiltroTipo } from './portale/portale';
 
-// 'scrivania' è lo spazio nuovo: non è un id del Portale (non entra in SERVIZI) e comunica 'unificato'.
-type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'anticipo_dma' | 'unificato' | 'tfr' | 'scrivania' | null;
-
-const SERVIZI: Exclude<ServiceType, null>[] = [
-  'pensione', 'tfs_pensione', 'tfs_servizio', 'anticipo_dma', 'unificato', 'tfr',
-];
-
-// Il Portale Strumenti Interni apre un singolo modulo con ?modulo=<id> e chiede
-// con ?embed=1 di non ripetere l'intestazione che il portale gia mostra.
+// Il Portale Strumenti Interni apre il sito con ?modulo=<id> (vecchio o nuovo: sempre la scrivania,
+// filtrata) e chiede con ?embed=1 di non ripetere l'intestazione che il portale gia mostra.
 const PARAMETRI = new URLSearchParams(window.location.search);
 const INCORNICIATO = PARAMETRI.get('embed') === '1';
 
-function servizioIniziale(): ServiceType {
-  const richiesto = PARAMETRI.get('modulo');
-  return SERVIZI.includes(richiesto as never) ? (richiesto as ServiceType) : null;
-}
-
 export default function App() {
-  const [activeService, setActiveService] = useState<ServiceType>(servizioIniziale);
+  const [tipo, setTipo] = useState<FiltroTipo>(() => filtroDaModulo(PARAMETRI.get('modulo')));
 
-  // Comunica al portale il modulo aperto, cosi puo tenere l'indirizzo allineato.
+  // Comunica al portale l'id che il sito sta mostrando, cosi puo tenere l'indirizzo allineato.
   useEffect(() => {
     if (window.parent === window) return;
-    const modulo = activeService === 'scrivania' ? 'unificato' : activeService;
-    window.parent.postMessage({ tipo: 'immedia:modulo', modulo }, '*');
-  }, [activeService]);
-
-  const getServiceTitle = (service: ServiceType) => {
-    switch (service) {
-      case 'pensione': return 'Calcolo Ultimo Miglio Pensione';
-      case 'tfs_pensione': return 'Ultimo miglio TFS Personale in Pensione';
-      case 'tfs_servizio': return 'Ultimo miglio TFS In Servizio';
-      case 'anticipo_dma': return 'Anticipo DMA';
-      case 'unificato': return 'Gestione Progetti PASSWEB';
-      case 'tfr': return 'Calcolo Ultimo Miglio TFR';
-      default: return '';
-    }
-  };
-
-  // Pulsante back unificato per tutti i servizi (posizionamento fisso)
-  const BackButton = ({ darkMode = false }: { darkMode?: boolean }) => (
-    <button
-      onClick={() => setActiveService(null)}
-      className={`fixed top-4 left-4 z-30 flex items-center text-sm font-medium px-3 py-1.5 rounded-md shadow-sm backdrop-blur transition-colors ${
-        darkMode
-          ? 'text-slate-200 hover:text-white bg-slate-800/90 hover:bg-slate-700'
-          : 'text-slate-600 hover:text-slate-900 bg-white/90 border border-slate-200 hover:bg-slate-50'
-      }`}
-    >
-      <ArrowLeft className="w-4 h-4 mr-2" />
-      Torna alla selezione
-    </button>
-  );
-
-  const renderServiceSelection = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto mt-12">
-      <ServiceCard
-        title="Scrivania (nuovo)"
-        description="Enti e pratiche di pensione e di cessazione in un unico archivio. In costruzione: le card qui accanto restano disponibili."
-        icon={<LayoutDashboard className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('scrivania')}
-      />
-      <ServiceCard
-        title="Calcolo Ultimo Miglio Pensione"
-        description="Analisi e calcolo per il trattamento pensionistico."
-        icon={<Calculator className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('pensione')}
-      />
-      <ServiceCard
-        title="Ultimo miglio TFS Personale in Pensione"
-        description="Gestione TFS per personale già in quiescenza."
-        icon={<UserMinus className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('tfs_pensione')}
-      />
-      <ServiceCard
-        title="Ultimo miglio TFS In Servizio"
-        description="Gestione TFS per personale attualmente in servizio."
-        icon={<UserCheck className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('tfs_servizio')}
-      />
-      <ServiceCard
-        title="Anticipo DMA"
-        description="Gestione Anticipo DMA per Dipendente Tempo Pieno e Part Time/TFR."
-        icon={<Clock className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('anticipo_dma')}
-      />
-      <ServiceCard
-        title="Calcolo Unificato Ultimo Miglio"
-        description="Gestione progetti per Ente/Comune. Conteggi PASSWEB con export lettera INPS Art. 57 c.2 CCNL 2022/2024."
-        icon={<Layers className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('unificato')}
-      />
-      <ServiceCard
-        title="Calcolo Ultimo Miglio TFR"
-        description="Gestione e calcolo ultimo miglio TFR (pensione, mobilità, fine T.D.). Progetti per Comune, schede PASSWEB e lettera INPS."
-        icon={<Banknote className="w-8 h-8 text-blue-600" />}
-        onClick={() => setActiveService('tfr')}
-      />
-    </div>
-  );
-
-  const renderActiveService = () => {
-    if (activeService === 'pensione') {
-      return (
-        <>
-          <BackButton darkMode />
-          <CalcoloUltimoMiglioPensione />
-        </>
-      );
-    }
-
-    if (activeService === 'tfs_servizio') {
-      return (
-        <>
-          <BackButton darkMode />
-          <UltimoMiglioTFSServizio />
-        </>
-      );
-    }
-
-    if (activeService === 'tfs_pensione') {
-      return (
-        <>
-          <BackButton darkMode />
-          <UltimoMiglioTFSPensione />
-        </>
-      );
-    }
-
-    if (activeService === 'anticipo_dma') {
-      return (
-        <div className="pt-14">
-          <BackButton />
-          <AnticipoDMA />
-        </div>
-      );
-    }
-
-    if (activeService === 'unificato') {
-      return (
-        <>
-          <BackButton darkMode />
-          <ProjectShell />
-        </>
-      );
-    }
-
-    if (activeService === 'scrivania') {
-      return (
-        <>
-          <BackButton />
-          <Spazio />
-        </>
-      );
-    }
-
-    if (activeService === 'tfr') {
-      return (
-        <>
-          <BackButton darkMode />
-          <UltimoMiglioTFRShell />
-        </>
-      );
-    }
-
-    return (
-      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-8 max-w-4xl mx-auto pt-14">
-        <BackButton />
-        <h2 className="text-2xl font-semibold text-slate-800 mb-6">
-          {getServiceTitle(activeService)}
-        </h2>
-        <div className="border-2 border-dashed border-slate-300 rounded-lg p-12 text-center bg-slate-50">
-          <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-600 font-medium text-lg">Area di caricamento dati</p>
-          <p className="text-slate-500 text-sm mt-2 max-w-md mx-auto">
-            In questa sezione verranno implementati i campi di input e le logiche di calcolo attualmente presenti nei file Excel.
-          </p>
-          <button className="mt-6 px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
-            Carica file Excel
-          </button>
-        </div>
-      </div>
-    );
-  };
+    window.parent.postMessage({ tipo: 'immedia:modulo', modulo: idPortale(tipo) }, '*');
+  }, [tipo]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {!activeService && !INCORNICIATO && (
+      {!INCORNICIATO && (
         <header className="bg-white border-b border-slate-200 px-8 py-6">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">XDESK - Gestione Enti Locali</h1>
@@ -204,30 +27,13 @@ export default function App() {
           </div>
         </header>
       )}
-      <main className={!activeService ? "max-w-6xl mx-auto px-8 py-8" : ""}>
-        {!activeService ? (
-          <>
-            {renderServiceSelection()}
-            {/* Prima della pulizia (ticket 35): salva le tre chiavi vecchie grezze, senza toccarle. */}
-            <ScaricaVecchioSito />
-          </>
-        ) : renderActiveService()}
+      <main>
+        <Spazio tipo={tipo} onTipo={setTipo} />
+        {/* Le tre chiavi del vecchio sito non si cancellano mai: si possono sempre scaricare (ticket 35). */}
+        <div className="px-4 pb-12 sm:px-8">
+          <ScaricaVecchioSito />
+        </div>
       </main>
     </div>
-  );
-}
-
-function ServiceCard({ title, description, icon, onClick }: { title: string, description: string, icon: React.ReactNode, onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-start p-6 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all text-left group"
-    >
-      <div className="p-3 bg-blue-50 rounded-lg mb-4 group-hover:bg-blue-100 transition-colors">
-        {icon}
-      </div>
-      <h3 className="text-lg font-semibold text-slate-800 mb-2">{title}</h3>
-      <p className="text-slate-500 text-sm leading-relaxed">{description}</p>
-    </button>
   );
 }

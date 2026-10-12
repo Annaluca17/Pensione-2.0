@@ -1,12 +1,12 @@
 // Ticket 08: il nuovo motore confrontato con la fotografia del vecchio TFR (ticket 06; glossario:
-// Fotografia del vecchio, Differenza attesa). Legge solo i dati congelati, non il reperto: resta dopo
-// la pulizia (ticket 36, che sposterà fotografia.json e questo import).
+// Fotografia del vecchio, Differenza attesa). Legge solo i dati congelati (./fotografie/):
+// il reperto è sparito nella pulizia (ticket 36), gli importi restano.
 // Passa se le righe non elencate valgono come il vecchio (±1 centesimo, D17) e se ogni riga elencata
 // vale il nuovo importo, giustificato da decisione, fonte e caso normativo.
 import {describe, expect, it} from 'vitest';
 import {calcolaPratica} from '../motore';
 import type {DatiPratica, Risultato, Tfr} from '../motore';
-import fotografia from '../reperti/tfr/fotografia.json';
+import fotografia from './fotografie/tfr.json';
 import {tabelle} from '../tabelle';
 
 type Uscite = (typeof fotografia.casi)[number]['uscite'] & {

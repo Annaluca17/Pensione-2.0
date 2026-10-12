@@ -7,7 +7,7 @@ import {tabelle} from '../tabelle';
 import {casoDaTfr} from './caso';
 import {buildPasswebGuide} from './costruttore';
 import type {CasoGuida} from './costruttore';
-import fotografia from '../reperti/tfr/fotografia.json';
+import fotografia from '../casi-normativi/fotografie/tfr.json';
 
 const tfr = (id: string): Tfr => {
   const s = calcolaPratica(casiNormativiTfr.find((c) => c.id === id)!.dati, tabelle).sezioni.tfr;

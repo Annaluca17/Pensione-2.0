@@ -1,11 +1,11 @@
-# Screenshot guida PASSWEB (Step 4 — Ultimo Miglio TFR)
+# Screenshot guida PASSWEB (Ultimo Miglio TFR)
 
-Questa cartella contiene gli screenshot mostrati nello **Step 4** del wizard TFR
-(`src/components/tfr/passwebGuide.ts`).
+Questa cartella contiene gli screenshot della guida PASSWEB che si apre dal
+fascicolo della pratica (`src/guida-passweb/costruttore.ts`).
 
 ## Come aggiungere le immagini
 
-Inserire i file con **esattamente** questi nomi (il wizard li carica per nome):
+Inserire i file con **esattamente** questi nomi (la guida li carica per nome):
 
 | File         | Passo della guida                                            |
 |--------------|--------------------------------------------------------------|
@@ -26,7 +26,7 @@ Inserire i file con **esattamente** questi nomi (il wizard li carica per nome):
 - Formati supportati dal browser: `.png`, `.jpg`/`.jpeg`, `.webp`. Se si usa un
   formato diverso da `.png`, aggiornare anche il percorso in `passwebGuide.ts`
   (funzione `IMG`).
-- Finché un file non è presente, il wizard mostra automaticamente un segnaposto
+- Finché un file non è presente, la guida mostra automaticamente un segnaposto
   ("Screenshot in arrivo — …"): nessun errore, l'immagine compare appena viene
   caricata con il nome corretto.
 - Sono serviti come asset statici da Vite: il percorso pubblico è

@@ -12,10 +12,6 @@ const dentroMotore = [
     message: 'Il motore non importa componenti né l\'applicazione.',
   },
   {
-    group: ['**/utils/math', '**/utils/math.*'],
-    message: 'Il vecchio utils/math non si riusa nel motore (ADR 0001): importi in centesimi interi, una sola arrotonda.',
-  },
-  {
     group: ['**/tabelle', '**/tabelle/**'],
     message: 'Il motore riceve Tabelle per iniezione: non importa mai i dati (spec "Tabelle CCNL versionate").',
   },

@@ -2,7 +2,7 @@
 // la Proposta si vede in anteprima con gli avvisi e solo "Applica" tocca la pratica.
 import {useMemo, useState} from 'react';
 import type {ChangeEvent} from 'react';
-import {estraiPagine} from '../cedolino/pdf';
+import {estraiPagine} from '../lettore/pdf';
 import {applicaProposta, leggiProposte, scegliProposta} from '../lettore';
 import type {PaginaPdf, Proposta} from '../lettore';
 import type {DatiPratica, Tabelle} from '../motore';

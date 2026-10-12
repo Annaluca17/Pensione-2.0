@@ -50,7 +50,7 @@ export function Fascicolo({
   );
   if (!pratica || !ente || !risultato) {
     return (
-      <div className="mx-auto max-w-6xl px-4 pb-12 pt-16 sm:px-8">
+      <div className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:px-8">
         {percorso}
         <p className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
           La pratica non è più nell'archivio (forse cancellata da un'altra scheda).
@@ -102,7 +102,7 @@ export function Fascicolo({
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pb-12 pt-16 sm:px-8">
+    <div className="mx-auto max-w-6xl px-4 pb-12 pt-8 sm:px-8">
       {percorso}
       <header className="mb-4">
         <h1 className="text-xl font-semibold text-slate-900">{a.nome || 'Senza nome'}</h1>

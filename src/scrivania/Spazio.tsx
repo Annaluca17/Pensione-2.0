@@ -4,17 +4,18 @@ import {useState} from 'react';
 import {useArchivio, scaricaTesto} from './useArchivio';
 import {Fascicolo} from '../fascicolo/Fascicolo';
 import {Scrivania} from './Scrivania';
+import type {Filtri} from './operazioni';
 
 export type Rotta = {vista: 'scrivania'} | {vista: 'fascicolo'; praticaId: string};
 
-export function Spazio() {
+export function Spazio({tipo, onTipo}: {tipo: Filtri['tipo']; onTipo: (tipo: Filtri['tipo']) => void}) {
   const {esito, aggiorna, sostituisci, persistenzaConcessa} = useArchivio();
   const [rotta, setRotta] = useState<Rotta>({vista: 'scrivania'});
 
   if (esito.stato !== 'valido') {
     // Archivio non valido o di una versione futura: mai sovrascritto, scrivania bloccata (spec "Persistenza").
     return (
-      <div className="mx-auto max-w-3xl px-4 pt-16 sm:px-8">
+      <div className="mx-auto max-w-3xl px-4 pt-8 sm:px-8">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6">
           <h1 className="text-lg font-semibold text-red-900">L'archivio nel browser non si può aprire</h1>
           <p className="mt-2 text-sm text-red-800">
@@ -37,7 +38,7 @@ export function Spazio() {
   return (
     <>
       {esito.scartate.length > 0 && (
-        <div className="mx-auto max-w-6xl px-4 pt-16 sm:px-8" role="status">
+        <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-8" role="status">
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
             {esito.scartate.length === 1 ? 'Una pratica malformata è stata scartata' : `${esito.scartate.length} pratiche malformate sono state scartate`}.{' '}
             <button className="underline" onClick={() => scaricaTesto('pratiche-scartate.json', JSON.stringify(esito.scartate, null, 2))}>
@@ -55,6 +56,8 @@ export function Spazio() {
           sostituisci={sostituisci}
           persistenzaConcessa={persistenzaConcessa}
           onApri={(praticaId) => setRotta({vista: 'fascicolo', praticaId})}
+          tipo={tipo}
+          onTipo={onTipo}
         />
       )}
     </>

@@ -1,13 +1,13 @@
 // Ticket 23 e 25: l'UM pensione e l'UM TFS (resTFS) del nuovo motore confrontati con la fotografia del
 // vecchio Unificato (ticket 19; glossario: Fotografia del vecchio, Differenza attesa); dal ticket 27 anche il
-// miglioramento contrattuale (pensioneMC, tfsMC). Legge solo i dati congelati, non il reperto: resta
-// dopo la pulizia (ticket 36, che sposterà fotografia.json e questo import).
+// miglioramento contrattuale (pensioneMC, tfsMC). Legge solo i dati congelati (./fotografie/): il
+// reperto è sparito nella pulizia (ticket 36), gli importi restano.
 // Passa se le righe non elencate valgono come il vecchio (±1 centesimo, D17) e se ogni riga elencata vale
 // il nuovo importo, giustificato da decisione e fonte.
 import {describe, expect, it} from 'vitest';
 import {calcolaPratica} from '../motore';
 import type {DatiPraticaPensione, MeseISO, Miglioramento, Risultato, Tfs, TfsMigliorato, UmPensione, VociMese} from '../motore';
-import fotografia from '../reperti/unificato/fotografia.json';
+import fotografia from './fotografie/unificato.json';
 import {tabelle} from '../tabelle';
 
 /**

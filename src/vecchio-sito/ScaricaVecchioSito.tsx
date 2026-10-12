@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { contenutoVecchioSito, nomeFileVecchioSito } from './scarica';
 
-// Pulsante della selezione: salva le tre chiavi grezze del vecchio sito prima della pulizia (ticket 35).
+// Salva le tre chiavi grezze del vecchio sito (ticket 35); resta dopo la pulizia, le chiavi non si cancellano.
 export default function ScaricaVecchioSito() {
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -25,7 +25,7 @@ export default function ScaricaVecchioSito() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto mt-10 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+    <div className="max-w-6xl mx-auto bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-800 mb-2">Dati del vecchio sito</h2>
       <p className="text-slate-500 text-sm leading-relaxed mb-4">
         Scarica in un file JSON i dati salvati dai vecchi moduli in questo browser, così come sono.

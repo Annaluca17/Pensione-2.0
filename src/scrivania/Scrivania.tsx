@@ -49,16 +49,22 @@ export function Scrivania({
   sostituisci,
   persistenzaConcessa,
   onApri,
+  tipo,
+  onTipo,
 }: {
   archivio: Archivio;
   aggiorna: (modifica: (a: Archivio) => Archivio) => void;
   sostituisci: (a: Archivio) => void;
   persistenzaConcessa: boolean;
   onApri: (praticaId: string) => void;
+  /** Il filtro per tipo sta fuori: lo apre il ?modulo= del Portale e il postMessage lo comunica (ticket 36). */
+  tipo: Filtri['tipo'];
+  onTipo: (tipo: Filtri['tipo']) => void;
 }) {
   const [nomeEnte, setNomeEnte] = useState('');
   const [nuova, setNuova] = useState({enteId: '', tipo: 'pensione' as TipoPratica, nome: '', codiceFiscale: '', cessazione: ''});
-  const [filtri, setFiltri] = useState<Filtri>({soloAperte: true, tipo: 'tutti', enteId: 'tutti'});
+  const [altriFiltri, setFiltri] = useState<Omit<Filtri, 'tipo'>>({soloAperte: true, enteId: 'tutti'});
+  const filtri: Filtri = useMemo(() => ({...altriFiltri, tipo}), [altriFiltri, tipo]);
 
   const enteScelto = archivio.enti.some((e) => e.id === nuova.enteId) ? nuova.enteId : (archivio.enti[0]?.id ?? '');
   // Pratiche con una sezione chiusa che il ricalcolo cambia: da rilavorare, con la causa (storia 10).
@@ -92,7 +98,7 @@ export function Scrivania({
   };
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-12 pt-16 sm:px-8">
+    <div className="mx-auto max-w-6xl space-y-6 px-4 pb-12 pt-8 sm:px-8">
       <header>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Scrivania</h1>
         <p className="mt-1 text-sm text-slate-500">Le pratiche di tutti gli enti, ordinate per data di cessazione.</p>
@@ -203,18 +209,18 @@ export function Scrivania({
                   key={String(solo)}
                   className={`px-3 py-1.5 ${filtri.soloAperte === solo ? 'bg-slate-800 text-white' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
                   aria-pressed={filtri.soloAperte === solo}
-                  onClick={() => setFiltri({...filtri, soloAperte: solo})}
+                  onClick={() => setFiltri({...altriFiltri, soloAperte: solo})}
                 >
                   {solo ? 'Aperte' : 'Tutte'}
                 </button>
               ))}
             </div>
-            <select className="rounded-md border border-slate-300 px-2 py-1.5" aria-label="Filtro per tipo" value={filtri.tipo} onChange={(e) => setFiltri({...filtri, tipo: e.target.value as Filtri['tipo']})}>
+            <select className="rounded-md border border-slate-300 px-2 py-1.5" aria-label="Filtro per tipo" value={filtri.tipo} onChange={(e) => onTipo(e.target.value as Filtri['tipo'])}>
               <option value="tutti">Tutti i tipi</option>
               <option value="pensione">Pensione</option>
               <option value="cessazione">Cessazione</option>
             </select>
-            <select className="rounded-md border border-slate-300 px-2 py-1.5" aria-label="Filtro per ente" value={filtri.enteId} onChange={(e) => setFiltri({...filtri, enteId: e.target.value})}>
+            <select className="rounded-md border border-slate-300 px-2 py-1.5" aria-label="Filtro per ente" value={filtri.enteId} onChange={(e) => setFiltri({...altriFiltri, enteId: e.target.value})}>
               <option value="tutti">Tutti gli enti</option>
               {archivio.enti.map((e) => (
                 <option key={e.id} value={e.id}>
