@@ -4,6 +4,7 @@ import type {Avviso, Blocco, CampoData, Composizione, DataISO, Differenza, MeseI
 const nomeCampo: Record<CampoData, string> = {
   assunzione: 'la data di assunzione',
   cessazione: 'la data di cessazione',
+  situazione: 'la data di inizio della situazione',
   dataRiferimentoPensione: 'la data di riferimento della pensione',
   dataRiferimentoFineServizio: 'la data di riferimento di TFS/TFR',
 };
@@ -54,6 +55,8 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
       );
     case 'giorni-forzati-non-validi':
       return `I giorni forzati del mese parziale (${cosa.giorni}) devono essere un numero intero fra 0 e ${cosa.massimo} (D9).`;
+    case 'situazione-non-gestita':
+      return "Optante TFR in regime TFR: la sezione TFR dell'optante non è gestita dal sito, va calcolata a parte.";
     case 'eccezioni-fuori-periodo':
       return (
         `Eccezioni ignorate perché fuori dai mesi considerati (da ${mese(cosa.dal)} a ${mese(cosa.al)}): ` +
@@ -69,6 +72,11 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
       return (
         `IVC di ${mese(cosa.mese)} inserita ${euro(cosa.inserita)}, ma col contratto ` +
         `${cosa.contrattoApplicato} vale ${euro(cosa.daTabella)}: si usa il valore della tabella (D8).`
+      );
+    case 'contratto-in-ipotesi':
+      return (
+        `La pensione cade nella vigenza dell'ipotesi ${cosa.contratto} (dal ${giorno(cosa.vigenzaDal)}), che non ` +
+        `produce importi: alla firma la pratica tornerà da rilavorare (T5).`
       );
     case 'mese-iniziale-fuori-finestra':
       return (

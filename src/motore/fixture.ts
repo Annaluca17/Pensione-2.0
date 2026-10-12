@@ -17,6 +17,7 @@ export const tabelleDiProva: Tabelle = {
   },
   catalogoVoci: [],
   righeTfr: [],
+  righePassweb: {pensione: {righe: [], tredicesima: {id: 'tredicesima', etichetta: '13ª', voci: [], fonte: 'prova'}}, tfs: [], dma: []},
   parametri: {
     sogliaGiorniTfr: {valore: {giorni: 15, conteggio: 'lavorativi-lun-sab'}, fonte: 'prova'},
     divisoreGiornaliera: {valore: 26, fonte: 'prova'},

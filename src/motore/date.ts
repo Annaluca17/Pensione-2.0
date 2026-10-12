@@ -23,6 +23,14 @@ const due = (n: number) => String(n).padStart(2, '0');
 export const data = (anno: number, mese: number, giorno: number): DataISO => `${anno}-${due(mese)}-${due(giorno)}`;
 export const meseDi = (d: DataISO): MeseISO => d.slice(0, 7);
 
+/** Il giorno prima di una data valida. */
+export function giornoPrima(d: DataISO): DataISO {
+  const {anno, mese, giorno} = leggiData(d)!;
+  if (giorno > 1) return data(anno, mese, giorno - 1);
+  const [a, m] = mese === 1 ? [anno - 1, 12] : [anno, mese - 1];
+  return data(a, m, giorniDelMese(a, m));
+}
+
 /** Il mese `n` mesi dopo (o prima, se negativo) di un mese ISO. */
 export function spostaMese(m: MeseISO, n: number): MeseISO {
   const progressivo = Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7)) - 1 + n;

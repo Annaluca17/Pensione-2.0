@@ -23,7 +23,7 @@ interface Campo {
 const ESTREMO = {iniziale: 'mese di assunzione', finale: 'mese di cessazione'} as const;
 
 /** I campi confrontabili di una sezione calcolata, nell'ordine della maschera. */
-function campi(sezione: Risultato['sezioni'][NomeSezione]): Map<string, Campo> {
+function campi(sezione: NonNullable<Risultato['sezioni'][NomeSezione]>): Map<string, Campo> {
   const out = new Map<string, Campo>();
   if (sezione.esito !== 'calcolata') return out;
   if ('righe' in sezione) {
@@ -66,8 +66,10 @@ function versioniNuove(tabelle: Tabelle, congelata: string) {
 /** Righe cambiate fra il congelato e il ricalcolo con i dati e le tabelle di oggi, con la causa. */
 export function confronta(congelato: Congelato, attuale: {dati: DatiPratica; tabelle: Tabelle}): Confronto {
   const {sezione} = congelato;
-  const conTabelleNuove = calcolaPratica(congelato.dati, attuale.tabelle).sezioni[sezione];
-  const ricalcolo = calcolaPratica(attuale.dati, attuale.tabelle).sezioni[sezione];
+  // Una sezione che il ricalcolo non ha più (es. cambio di regime) vale come bloccata senza motivi.
+  const sezioneDi = (dati: DatiPratica) => calcolaPratica(dati, attuale.tabelle).sezioni[sezione] ?? {esito: 'bloccata' as const, motivi: []};
+  const conTabelleNuove = sezioneDi(congelato.dati);
+  const ricalcolo = sezioneDi(attuale.dati);
   const causaTabelle: CausaDifferenza = {tipo: 'tabelle', versioni: versioniNuove(attuale.tabelle, congelato.versioneTabelle)};
 
   const cause = (prima: Valore, mezzo: Valore, dopo: Valore): CausaDifferenza[] => [

@@ -82,6 +82,18 @@ export interface Forzature {
 
 export type ChiaveForzatura = keyof Forzature;
 
+/** Regime di fine servizio del dipendente: decide se la pratica di pensione ha TFS o TFR (ADR 0002). */
+export type RegimeFineServizio = 'TFS' | 'TFR';
+
+/**
+ * Situazione del dipendente (D19, C20-1): propone le date di riferimento. `dal` = primo giorno di
+ * sospensione, trattenuta, congedo o opzione; la cessazione in anagrafica è quella definitiva.
+ */
+export type Situazione =
+  | {tipo: 'ordinaria'}
+  | {tipo: 'sospensione-cautelare' | 'trattenuta-malattia' | 'congedo-104' | 'optante-tfr'; dal: DataISO};
+
+/** Dati della pratica di cessazione (solo TFR, ADR 0002); la pratica di pensione li estende. */
 export interface DatiPratica {
   anagrafica: {
     nome: string;
@@ -99,6 +111,12 @@ export interface DatiPratica {
   iscrittoCredito: boolean;
   /** Totali facoltativi della pensione erogata (storia 19). */
   pensioneErogata?: {fissi: Centesimi; tredicesima: Centesimi};
+}
+
+/** Dati della pratica di pensione: UM pensione e, secondo il regime, TFS oppure TFR (ADR 0002). */
+export interface DatiPraticaPensione extends DatiPratica {
+  regime: RegimeFineServizio;
+  situazione: Situazione;
 }
 
 // --- Tabelle ------------------------------------------------------------------------------------
@@ -232,6 +250,33 @@ export interface RigaPassweb {
   fonte: string;
 }
 
+/** Riga con il nome del campo nella maschera di PASSWEB, dove la maschera ne ha uno proprio. */
+export interface RigaConCampo extends RigaPassweb {
+  campoPassweb?: string;
+}
+
+/** Un campo della DMA prevista (manuale PASSWEB v1.20 pp. 66-67; D1, D6, D11, R1-R5). */
+export interface CampoDma extends RigaPassweb {
+  /** Voci del rateo di 13ª che entra nel campo (solo nel mese di dicembre e di cessazione, D11). */
+  tredicesima: readonly CodiceVoce[];
+  /** Quota della base che il campo dichiara: 80 per gli imponibili TFS e TFR (D17, R4). */
+  percentuale: 80 | 100;
+  /** Il campo c'è solo con quel regime di fine servizio (un periodo dichiara TFS o TFR, mai entrambi). */
+  regime?: RegimeFineServizio;
+  /** Il campo c'è solo se il dipendente è iscritto al Credito (R5). */
+  condizione?: 'iscritto-credito';
+}
+
+/** Mappe voce → riga PASSWEB di pensione, TFS e DMA previste (D1, D16); il TFR ha `righeTfr`. */
+export interface RighePassweb {
+  /** UM pensione: una riga per voce (mensile × mensilità) e la riga della 13ª. */
+  pensione: {righe: readonly RigaPassweb[]; tredicesima: RigaPassweb};
+  /** UM TFS: le 9 righe della maschera, nell'ordine di PASSWEB. */
+  tfs: readonly RigaConCampo[];
+  /** Campi delle DMA previste. */
+  dma: readonly CampoDma[];
+}
+
 export interface ParametroConFonte<T> {
   valore: T;
   fonte: string;
@@ -272,6 +317,8 @@ export interface Tabelle {
   catalogoVoci: readonly VoceCatalogo[];
   /** Mappa voce → riga PASSWEB del TFR. */
   righeTfr: readonly RigaPassweb[];
+  /** Mappe voce → riga PASSWEB di pensione, TFS e DMA previste. */
+  righePassweb: RighePassweb;
   parametri: Parametri;
   lettere: {tfr: TestoLettera};
 }
@@ -339,8 +386,31 @@ export interface Tfr {
   righe: RigaTfr[];
 }
 
+/** Una riga dell'UM pensione: una voce del mese × mensilità (D16). */
+export interface RigaPensione {
+  id: string;
+  etichetta: string;
+  voce: CodiceVoce;
+  composizione: Composizione;
+}
+
+/** Ultimo miglio di pensione sul mese della data di riferimento della pensione (storia 39). */
+export interface UmPensione {
+  mese: MeseISO;
+  righe: RigaPensione[];
+  /** 13ª = somma dei mensili delle voci con 13ª. */
+  tredicesima: {id: string; etichetta: string; composizione: Composizione};
+  /** Somma delle righe annue arrotondate (D17). */
+  totaleAnnui: Centesimi;
+  /** Annui + 13ª. */
+  totale: Centesimi;
+}
+
 export interface Retribuzione {
-  /** I 12 mesi fino al mese della data di riferimento di TFS/TFR, dal mese di assunzione se dopo. */
+  /**
+   * I 12 mesi fino al mese della data di riferimento di TFS/TFR, dal mese di assunzione se dopo; nella
+   * pratica di pensione fino al mese della pensione, se dopo (C20-2).
+   */
   mesi: MeseRetribuzione[];
 }
 
@@ -351,17 +421,21 @@ export interface Risultato {
   avvisi: Avviso[];
   forzature: ForzaturaApplicata[];
   dateRiferimento?: {pensione: ValoreForzabile<DataISO>; fineServizio: ValoreForzabile<DataISO>};
+  /** Le sezioni non pertinenti alla pratica mancano (spec "Motore"; ADR 0002). */
   sezioni: {
     retribuzione: Sezione<Retribuzione>;
     meseParziale: Sezione<MeseParziale>;
-    tfr: Sezione<Tfr>;
+    /** Solo nella pratica di pensione. */
+    umPensione?: Sezione<UmPensione>;
+    /** Pratica di cessazione, o pratica di pensione in regime TFR. */
+    tfr?: Sezione<Tfr>;
   };
 }
 
 // --- Blocchi e avvisi ---------------------------------------------------------------------------
 
 /** I campi data di una pratica, come li nominano blocchi e avvisi. */
-export type CampoData = 'assunzione' | 'cessazione' | ChiaveDataRiferimento;
+export type CampoData = 'assunzione' | 'cessazione' | 'situazione' | ChiaveDataRiferimento;
 export type ChiaveDataRiferimento = 'dataRiferimentoPensione' | 'dataRiferimentoFineServizio';
 
 /** Glossario: Blocco. Il motivo codificato per cui una sezione non si può calcolare. */
@@ -381,7 +455,9 @@ export type Blocco =
   | {tipo: 'blocco'; codice: 'part-time-fuori-range'; mese: MeseISO | 'base'; percentuale: number}
   | {tipo: 'blocco'; codice: 'posizione-non-valida'; posizione: string; motivo: 'inesistente' | 'fuori-aree-a-d'}
   | {tipo: 'blocco'; codice: 'tabelle-non-disponibili'; campo: CampoData; data: DataISO; coperturaDal: DataISO}
-  | {tipo: 'blocco'; codice: 'giorni-forzati-non-validi'; giorni: number; massimo: number};
+  | {tipo: 'blocco'; codice: 'giorni-forzati-non-validi'; giorni: number; massimo: number}
+  /** Storia 58: una situazione che il calcolo della sezione non gestisce (deciso nel ticket 23). */
+  | {tipo: 'blocco'; codice: 'situazione-non-gestita'; situazione: 'optante-tfr'; regime: 'TFR'};
 
 export type Avviso =
   | {
@@ -423,14 +499,27 @@ export type Avviso =
       finestraDal: MeseISO;
       finestraAl: MeseISO;
       fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** La pensione cade nella vigenza di un'ipotesi: nessun importo, alla firma la pratica torna da rilavorare (T5). */
+      codice: 'contratto-in-ipotesi';
+      /** Id dell'ipotesi. */
+      contratto: string;
+      vigenzaDal: DataISO;
+      fonte: string;
     };
 
 // --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
 
-export type NomeSezione = keyof Risultato['sezioni'];
+/**
+ * Le sezioni che si chiudono oggi. L'UM pensione ne resta fuori finché la persistenza non conserva la
+ * pratica di pensione (regime e situazione): la chiusura arriva col suo fascicolo.
+ */
+export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione'>;
 
 /** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
-export type SezioneCalcolata<S extends NomeSezione> = Extract<Risultato['sezioni'][S], {esito: 'calcolata'}>;
+export type SezioneCalcolata<S extends NomeSezione> = Extract<NonNullable<Risultato['sezioni'][S]>, {esito: 'calcolata'}>;
 
 /**
  * Glossario: Risultato congelato. Ciò che la persistenza salva alla chiusura di una sezione;

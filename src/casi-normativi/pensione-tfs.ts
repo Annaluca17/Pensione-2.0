@@ -20,19 +20,17 @@
 //   di fine TFS fino al mese della pensione: il TFS prende i suoi 12 mesi, la pensione il suo mese.
 // - C20-3: "un solo mese inserito" (D2) = voci con la sola base, senza eccezioni: il TFS annualizza
 //   la base (× 12) e dà l'avviso `tfs-annualizzato`.
-//
-// `DatiPraticaPensione` aggiunge a `DatiPratica` regime e situazione, che il motore non ha ancora:
-// entrano nel tipo del motore col ticket 23 (decisione del ticket 20: tipo locale).
-import type {Centesimi, CodiceVoce, DataISO, DatiPratica, MeseISO, PartTime, VociMese} from '../motore';
-
-export type Situazione =
-  | {tipo: 'ordinaria'}
-  | {tipo: 'sospensione-cautelare' | 'trattenuta-malattia' | 'congedo-104' | 'optante-tfr'; dal: DataISO};
-
-export interface DatiPraticaPensione extends DatiPratica {
-  regime: 'TFS' | 'TFR';
-  situazione: Situazione;
-}
+import type {
+  Centesimi,
+  CodiceVoce,
+  DataISO,
+  DatiPratica,
+  DatiPraticaPensione,
+  MeseISO,
+  PartTime,
+  Situazione,
+  VociMese,
+} from '../motore';
 
 /** Una riga dell'UM pensione: una per voce presente nel mese, mensile × mensilità. */
 export interface RigaPensioneAttesa {

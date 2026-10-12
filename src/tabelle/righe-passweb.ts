@@ -1,37 +1,8 @@
 // Mappe voce → riga PASSWEB per pensione, TFS e DMA previste (D1, D16). Le righe sono i campi della
 // maschera di Nuova PassWeb com'è, anche se la nomenclatura è vecchia; quali voci vi finiscono lo
 // decidono i flag del catalogo (D15), e righe-passweb.test.ts li confronta con le liste scritte a
-// mano dalle decisioni. Il TFR ha la sua mappa in `righe-tfr.ts`.
-//
-// Fuori dal motore: i tipi di questo file stanno qui e non in `src/motore/tipi.ts` (ticket 22: il
-// motore non si tocca). Le sezioni di motore dei ticket 23-26 li porteranno in `Tabelle`.
-import type {CodiceVoce, RigaPassweb} from '../motore';
-
-/** Riga con il nome del campo nella maschera di PASSWEB, dove la maschera ne ha uno proprio. */
-export interface RigaConCampo extends RigaPassweb {
-  campoPassweb?: string;
-}
-
-/** Un campo della DMA prevista (manuale PASSWEB v1.20 pp. 66-67; D1, D6, D11, R1-R5). */
-export interface CampoDma extends RigaPassweb {
-  /** Voci del rateo di 13ª che entra nel campo (solo nel mese di dicembre e di cessazione, D11). */
-  tredicesima: readonly CodiceVoce[];
-  /** Quota della base che il campo dichiara: 80 per gli imponibili TFS e TFR (D17, R4). */
-  percentuale: 80 | 100;
-  /** Il campo c'è solo con quel regime di fine servizio (un periodo dichiara TFS o TFR, mai entrambi). */
-  regime?: 'TFS' | 'TFR';
-  /** Il campo c'è solo se il dipendente è iscritto al Credito (R5). */
-  condizione?: 'iscritto-credito';
-}
-
-export interface RighePassweb {
-  /** UM pensione: una riga per voce (mensile × mensilità) e la riga della 13ª. */
-  pensione: {righe: readonly RigaPassweb[]; tredicesima: RigaPassweb};
-  /** UM TFS: le 9 righe della maschera, nell'ordine di PASSWEB. */
-  tfs: readonly RigaConCampo[];
-  /** Campi delle DMA previste. */
-  dma: readonly CampoDma[];
-}
+// mano dalle decisioni. Il TFR ha la sua mappa in `righe-tfr.ts`. I tipi stanno nel motore (`Tabelle`).
+import type {RighePassweb} from '../motore';
 
 const fontePensione =
   'D16 (righe di Nuova PassWeb: UM pensione per voce) e D15 (flag di utilità) di "Regole comuni"; Guida pratica UM pensione §2 regole 1-3; maschera "Calcolo unificato ultimo miglio" (CalcoloUnificatoUltimoMiglio.tsx)';

@@ -8,7 +8,7 @@ import type {Confronto, Congelato, NomeSezione, Tabelle} from '../motore';
 export function chiudiSezione(pratica: Pratica, sezione: NomeSezione, tabelle: Tabelle, adesso: string): Pratica {
   const risultato = calcolaPratica(pratica.dati, tabelle);
   const calcolata = risultato.sezioni[sezione];
-  if (calcolata.esito !== 'calcolata') throw new Error(`chiudiSezione: la sezione ${sezione} è bloccata`);
+  if (calcolata?.esito !== 'calcolata') throw new Error(`chiudiSezione: la sezione ${sezione} è bloccata`);
   const congelato = {sezione, versioneTabelle: risultato.versioneTabelle, dati: pratica.dati, risultato: calcolata} as Congelato;
   return {...pratica, congelati: [...pratica.congelati.filter((c) => c.sezione !== sezione), congelato], modificata: adesso};
 }

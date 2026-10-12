@@ -50,6 +50,17 @@ describe('spiega: blocchi', () => {
       {tipo: 'blocco', codice: 'giorni-forzati-non-validi', giorni: 27, massimo: 26},
       'I giorni forzati del mese parziale (27) devono essere un numero intero fra 0 e 26 (D9).',
     ],
+    [
+      {
+        tipo: 'blocco', codice: 'date-incoerenti', campo: 'situazione', data: '2024-12-01',
+        regola: 'non-dopo', rispetto: 'cessazione', dataRispetto: '2024-11-30',
+      },
+      'La data di inizio della situazione (01/12/2024) non può essere successiva alla data di cessazione (30/11/2024).',
+    ],
+    [
+      {tipo: 'blocco', codice: 'situazione-non-gestita', situazione: 'optante-tfr', regime: 'TFR'},
+      "Optante TFR in regime TFR: la sezione TFR dell'optante non è gestita dal sito, va calcolata a parte.",
+    ],
   ] as const)('%o', (blocco, testo) => {
     expect(spiega(blocco)).toBe(testo);
   });
@@ -60,6 +71,14 @@ describe('spiega: avvisi', () => {
     expect(
       spiega({tipo: 'avviso', codice: 'eccezioni-fuori-periodo', mesi: ['2024-12', '2025-03'], dal: '2025-04', al: '2026-03'}),
     ).toBe('Eccezioni ignorate perché fuori dai mesi considerati (da 04/2025 a 03/2026): 12/2024, 03/2025.');
+  });
+});
+
+describe('spiega: avvisi della pensione', () => {
+  it('contratto in ipotesi (T5)', () => {
+    expect(spiega({tipo: 'avviso', codice: 'contratto-in-ipotesi', contratto: 'ccnl-2025-27', vigenzaDal: '2025-01-01', fonte: 'T5'})).toBe(
+      "La pensione cade nella vigenza dell'ipotesi ccnl-2025-27 (dal 01/01/2025), che non produce importi: alla firma la pratica tornerà da rilavorare (T5).",
+    );
   });
 });
 

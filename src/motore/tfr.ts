@@ -1,12 +1,12 @@
 // Ultimo miglio TFR (Circ. INPS 185/2021 §2.1; storie 42-43; decisioni D4, D8, D9, D10, D17 e C07-1…4
 // del ticket 07). Interno al motore: lo chiama solo calcolaPratica.
 import {componi} from './composizione';
+import {conIvcDaTabella} from './contratti';
 import {data, giornoDellaSettimana, giorniDelMese, leggiData, meseDi, spostaMese} from './date';
 import type {
   Addendo,
   Avviso,
   CodiceVoce,
-  ContrattoDefinitivo,
   DataISO,
   EstremoTfr,
   IdRigaTfr,
@@ -26,11 +26,8 @@ const FONTE_RATEO =
   'Circ. INPS 185/2021 §2.1, misura "parziale"; CCNL Funzioni Locali 2019-21 art. 75 c. 3 e 5: 365esimi dei giorni di servizio (C07-1)';
 const FONTE_CASSA =
   'Circ. INPS 185/2021 §2.1: somma dei ratei di 13ª dei mesi precedenti la cessazione (arretrati per cassa fuori perimetro); CCNL Funzioni Locali 2019-21 art. 75 c. 3 e 5; mese per mese (C07-3)';
-const FONTE_IVC = 'D8: IVC del mese = quella del contratto successivo a quello applicato (CCNL 2022-24 art. 56; Ipotesi 2025-27 art. 35 c. 3)';
 const FONTE_FUORI_FINESTRA =
   'C07-4; Circ. INPS 185/2021 §2.1: il rateo del mese iniziale va inserito, ma le voci di quel mese non sono nella pratica';
-
-const VOCE_IVC = '09';
 
 interface Ingresso {
   assunzione: DataISO;
@@ -55,14 +52,9 @@ export function calcolaTfr({assunzione, cessazione, posizione, mesi, tabelle}: I
   const vociDel = (mese: MeseISO): [CodiceVoce, number][] | undefined => {
     const m = mesi.find((x) => x.mese === mese);
     if (!m) return undefined;
-    const voci = {...m.voci};
-    const ivc = ivcDaTabella(tabelle, posizione, mese);
-    const inserita = voci[VOCE_IVC];
-    if (inserita !== undefined && inserita !== ivc.importo && !ivcVista.has(mese)) {
-      avvisi.push({tipo: 'avviso', codice: 'ivc-incompatibile', mese, inserita, daTabella: ivc.importo, contrattoApplicato: ivc.contratto, fonte: FONTE_IVC});
-    }
+    const {voci, avviso} = conIvcDaTabella(m.voci, mese, posizione, tabelle);
+    if (avviso && !ivcVista.has(mese)) avvisi.push(avviso);
     ivcVista.add(mese);
-    if (inserita !== undefined) voci[VOCE_IVC] = ivc.importo;
     return Object.entries(voci).filter((e): e is [CodiceVoce, number] => e[1] !== undefined);
   };
   const percentualeDel = (mese: MeseISO) => mesi.find((x) => x.mese === mese)!.partTime.percentuale;
@@ -177,26 +169,4 @@ export function calcolaTfr({assunzione, cessazione, posizione, mesi, tabelle}: I
     },
     avvisi,
   };
-}
-
-/** Contratti definitivi = quelli applicati con tutti i loro scaglionamenti (D8). */
-const definitivi = (tabelle: Tabelle) =>
-  tabelle.contratti.filter((c): c is ContrattoDefinitivo => c.stato === 'definitivo');
-
-/**
- * IVC utile del mese (D8): un periodo di IVC vale solo se il contratto che anticipa non è applicato;
- * quella di un contratto definitivo è riassorbita nel suo tabellare.
- */
-function ivcDaTabella(tabelle: Tabelle, posizione: string, mese: MeseISO): {importo: number; contratto: string} {
-  const primo = `${mese}-01`;
-  const applicati = definitivi(tabelle);
-  const ids = new Set(applicati.map((c) => c.id));
-  const contratto = applicati.filter((c) => c.vigenza.dal <= primo).sort((x, y) => x.vigenza.dal.localeCompare(y.vigenza.dal)).at(-1);
-  const area = tabelle.trasposizione.find((t) => t.posizione === posizione)?.area;
-  const periodo = applicati
-    .flatMap((c) => c.ivc)
-    .find((i) => !ids.has(i.anticipa) && i.dal <= primo && (!i.al || i.al >= primo));
-  const chiave = periodo?.chiave === 'posizione' ? posizione : area;
-  const importo = periodo && chiave ? (periodo.importi[chiave]?.mensile ?? 0) : 0;
-  return {importo, contratto: contratto?.id ?? ''};
 }
