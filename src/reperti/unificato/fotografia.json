@@ -1,0 +1,806 @@
+{
+  "descrizione": "Fotografia del modulo Unificato attuale (CalcoloUnificatoUltimoMiglio.tsx, pensione + TFS pensionati): cosa fa il vecchio, non cosa e' giusto (ADR 0001). Dati di fantasia, CF RSSMRA80A01H501U. Uscite calcolate a mano, una volta. Ingressi = lo stato React letto dal calcolo (importi come stringhe, come nei campi); uscite = resPensione, resTFS, resPensioneMC, resTFSMC (null quando il vecchio non li calcola). I 12 mesi di stips/exc/ivcOvr seguono la finestra PASSWEB, dal piu' vecchio al mese di cessazione.",
+  "casi": [
+    {
+      "id": "base-senza-mc",
+      "descrizione": "Cessazione 15/10/2026, finestra nov 2025 - ott 2026, niente MC ne' eccezioni: IVC voce 09 su tutti i mesi, 13a TFS con l'IVC dell'ultimo mese.",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "dataCessazione": "2026-10-15",
+        "imp": {
+          "01": "1928.23",
+          "02": "146.52",
+          "04": "30",
+          "06": "40",
+          "07": "500",
+          "08": "5.38",
+          "09": "13.41",
+          "10": "45.80",
+          "11": "78",
+          "12": "55.40"
+        },
+        "mcOn": false,
+        "mcPos": "",
+        "mcDec": "2024",
+        "peoInBase": false,
+        "stips": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "exc": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "ivcOvr": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "uscite": {
+        "pensione": {
+          "a": 34112.88,
+          "t": 2658.16,
+          "voci": [
+            {
+              "id": "01",
+              "n": "Stipendio tabellare",
+              "v13": true,
+              "m": 1928.23,
+              "a": 23138.76
+            },
+            {
+              "id": "02",
+              "n": "Differenziale storico (ex PEO)",
+              "v13": true,
+              "m": 146.52,
+              "a": 1758.24
+            },
+            {
+              "id": "03",
+              "n": "Differenziale stipendiale CCNL 2019-2021",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "04",
+              "n": "Assegno ad personam non riassorbibile IIS (art. 29 c.4 CCNL 2004)",
+              "v13": true,
+              "m": 30,
+              "a": 360
+            },
+            {
+              "id": "05",
+              "n": "Assegno ad personam assorbibile prog. verticale",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "06",
+              "n": "Salario Individuale di Anzianità (ex R.I.A.)",
+              "v13": true,
+              "m": 40,
+              "a": 480
+            },
+            {
+              "id": "07",
+              "n": "Retribuzione di Posizione",
+              "v13": true,
+              "m": 500,
+              "a": 6000
+            },
+            {
+              "id": "08",
+              "n": "Indennità specifica ex art.4 CCNL (€ 5,38/mese)",
+              "v13": false,
+              "m": 5.38,
+              "a": 64.56
+            },
+            {
+              "id": "09",
+              "n": "Indennità di Vacanza Contrattuale (IVC)",
+              "v13": true,
+              "m": 13.41,
+              "a": 160.92
+            },
+            {
+              "id": "10",
+              "n": "Indennità di Comparto",
+              "v13": false,
+              "m": 45.8,
+              "a": 549.6
+            },
+            {
+              "id": "11",
+              "n": "Indennità di vigilanza",
+              "v13": false,
+              "m": 78,
+              "a": 936
+            },
+            {
+              "id": "12",
+              "n": "Ind. Professionale asili nido (€ 55,40/mese)",
+              "v13": false,
+              "m": 55.4,
+              "a": 664.8
+            },
+            {
+              "id": "13",
+              "n": "Ind. Aggiuntiva asili nido (€ 28,41/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "14",
+              "n": "Ind. Tempo potenziato scolastico (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "15",
+              "n": "Trattamento accessorio asili nido (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            }
+          ]
+        },
+        "tfs": {
+          "tabG": 23299.68,
+          "ria": 480,
+          "tred": 2158.21,
+          "assAss": 0,
+          "asili": 664.8,
+          "assNonRiass": 360,
+          "ind64": 64.56,
+          "vig": 936,
+          "diff": 1758.24,
+          "tot": 29721.49
+        },
+        "pensioneMC": null,
+        "tfsMC": null
+      }
+    },
+    {
+      "id": "mc-finestra-2023-2024",
+      "descrizione": "Cessazione 30/06/2024, finestra lug 2023 - giu 2024. MC attivo, C3, decorrenza 2024, PEO non in base. Luglio 2023 in eccezione (1800,00), IVC di giugno 2024 forzata a 15,00: IVC 2023 da tabella, 2024 dalla voce 09; TFS MC col tabellare nuovo solo sui mesi 2024.",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "dataCessazione": "2024-06-30",
+        "imp": {
+          "01": "1850",
+          "02": "80",
+          "06": "25",
+          "09": "13.20",
+          "10": "45.80"
+        },
+        "mcOn": true,
+        "mcPos": "C3",
+        "mcDec": "2024",
+        "peoInBase": false,
+        "stips": [
+          "1800.00",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "exc": [
+          true,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "ivcOvr": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "15"
+        ]
+      },
+      "uscite": {
+        "pensione": {
+          "a": 24168,
+          "t": 1968.2,
+          "voci": [
+            {
+              "id": "01",
+              "n": "Stipendio tabellare",
+              "v13": true,
+              "m": 1850,
+              "a": 22200
+            },
+            {
+              "id": "02",
+              "n": "Differenziale storico (ex PEO)",
+              "v13": true,
+              "m": 80,
+              "a": 960
+            },
+            {
+              "id": "03",
+              "n": "Differenziale stipendiale CCNL 2019-2021",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "04",
+              "n": "Assegno ad personam non riassorbibile IIS (art. 29 c.4 CCNL 2004)",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "05",
+              "n": "Assegno ad personam assorbibile prog. verticale",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "06",
+              "n": "Salario Individuale di Anzianità (ex R.I.A.)",
+              "v13": true,
+              "m": 25,
+              "a": 300
+            },
+            {
+              "id": "07",
+              "n": "Retribuzione di Posizione",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "08",
+              "n": "Indennità specifica ex art.4 CCNL (€ 5,38/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "09",
+              "n": "Indennità di Vacanza Contrattuale (IVC)",
+              "v13": true,
+              "m": 13.2,
+              "a": 158.4
+            },
+            {
+              "id": "10",
+              "n": "Indennità di Comparto",
+              "v13": false,
+              "m": 45.8,
+              "a": 549.6
+            },
+            {
+              "id": "11",
+              "n": "Indennità di vigilanza",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "12",
+              "n": "Ind. Professionale asili nido (€ 55,40/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "13",
+              "n": "Ind. Aggiuntiva asili nido (€ 28,41/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "14",
+              "n": "Ind. Tempo potenziato scolastico (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "15",
+              "n": "Trattamento accessorio asili nido (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            }
+          ]
+        },
+        "tfs": {
+          "tabG": 22287.16,
+          "ria": 300,
+          "tred": 1965.87,
+          "assAss": 0,
+          "asili": 0,
+          "assNonRiass": 0,
+          "ind64": 0,
+          "vig": 0,
+          "diff": 960,
+          "tot": 25513.03
+        },
+        "pensioneMC": {
+          "a": 25071.48,
+          "t": 2043.49,
+          "voci": [
+            {
+              "id": "01",
+              "n": "Stipendio tabellare",
+              "v13": true,
+              "m": 1915.55,
+              "a": 22986.6
+            },
+            {
+              "id": "02",
+              "n": "Differenziale storico (ex PEO)",
+              "v13": true,
+              "m": 89.74,
+              "a": 1076.88
+            },
+            {
+              "id": "03",
+              "n": "Differenziale stipendiale CCNL 2019-2021",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "04",
+              "n": "Assegno ad personam non riassorbibile IIS (art. 29 c.4 CCNL 2004)",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "05",
+              "n": "Assegno ad personam assorbibile prog. verticale",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "06",
+              "n": "Salario Individuale di Anzianità (ex R.I.A.)",
+              "v13": true,
+              "m": 25,
+              "a": 300
+            },
+            {
+              "id": "07",
+              "n": "Retribuzione di Posizione",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "08",
+              "n": "Indennità specifica ex art.4 CCNL (€ 5,38/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "09",
+              "n": "Indennità di Vacanza Contrattuale (IVC)",
+              "v13": true,
+              "m": 13.2,
+              "a": 158.4
+            },
+            {
+              "id": "10",
+              "n": "Indennità di Comparto",
+              "v13": false,
+              "m": 45.8,
+              "a": 549.6
+            },
+            {
+              "id": "11",
+              "n": "Indennità di vigilanza",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "12",
+              "n": "Ind. Professionale asili nido (€ 55,40/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "13",
+              "n": "Ind. Aggiuntiva asili nido (€ 28,41/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "14",
+              "n": "Ind. Tempo potenziato scolastico (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "15",
+              "n": "Trattamento accessorio asili nido (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            }
+          ]
+        },
+        "tfsMC": {
+          "tabG": 22680.46,
+          "ria": 300,
+          "tred": 2008.37,
+          "assAss": 0,
+          "asili": 0,
+          "assNonRiass": 0,
+          "ind64": 0,
+          "vig": 0,
+          "diff": 1076.88,
+          "tot": 26065.71
+        }
+      }
+    },
+    {
+      "id": "mc-solo-pensione",
+      "descrizione": "Cessazione 31/05/2023, finestra giu 2022 - mag 2023. MC attivo, B4, decorrenza 2024, PEO in base: la 02 diventa 110,83 anche nella base; MC solo sulla pensione (tfsMC null); IVC 0 nei mesi 2022, da tabella nei mesi 2023.",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "dataCessazione": "2023-05-31",
+        "imp": {
+          "01": "1650",
+          "02": "100",
+          "05": "20",
+          "08": "5.38",
+          "09": "12",
+          "13": "28.41"
+        },
+        "mcOn": true,
+        "mcPos": "B4",
+        "mcDec": "2024",
+        "peoInBase": true,
+        "stips": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "exc": [
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false,
+          false
+        ],
+        "ivcOvr": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      },
+      "uscite": {
+        "pensione": {
+          "a": 21919.44,
+          "t": 1792.83,
+          "voci": [
+            {
+              "id": "01",
+              "n": "Stipendio tabellare",
+              "v13": true,
+              "m": 1650,
+              "a": 19800
+            },
+            {
+              "id": "02",
+              "n": "Differenziale storico (ex PEO)",
+              "v13": true,
+              "m": 110.83,
+              "a": 1329.96
+            },
+            {
+              "id": "03",
+              "n": "Differenziale stipendiale CCNL 2019-2021",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "04",
+              "n": "Assegno ad personam non riassorbibile IIS (art. 29 c.4 CCNL 2004)",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "05",
+              "n": "Assegno ad personam assorbibile prog. verticale",
+              "v13": true,
+              "m": 20,
+              "a": 240
+            },
+            {
+              "id": "06",
+              "n": "Salario Individuale di Anzianità (ex R.I.A.)",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "07",
+              "n": "Retribuzione di Posizione",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "08",
+              "n": "Indennità specifica ex art.4 CCNL (€ 5,38/mese)",
+              "v13": false,
+              "m": 5.38,
+              "a": 64.56
+            },
+            {
+              "id": "09",
+              "n": "Indennità di Vacanza Contrattuale (IVC)",
+              "v13": true,
+              "m": 12,
+              "a": 144
+            },
+            {
+              "id": "10",
+              "n": "Indennità di Comparto",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "11",
+              "n": "Indennità di vigilanza",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "12",
+              "n": "Ind. Professionale asili nido (€ 55,40/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "13",
+              "n": "Ind. Aggiuntiva asili nido (€ 28,41/mese)",
+              "v13": false,
+              "m": 28.41,
+              "a": 340.92
+            },
+            {
+              "id": "14",
+              "n": "Ind. Tempo potenziato scolastico (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "15",
+              "n": "Trattamento accessorio asili nido (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            }
+          ]
+        },
+        "tfs": {
+          "tabG": 19842.45,
+          "ria": 0,
+          "tred": 1789.32,
+          "assAss": 240,
+          "asili": 340.92,
+          "assNonRiass": 0,
+          "ind64": 64.56,
+          "vig": 0,
+          "diff": 1329.96,
+          "tot": 23607.21
+        },
+        "pensioneMC": {
+          "a": 22572,
+          "t": 1847.21,
+          "voci": [
+            {
+              "id": "01",
+              "n": "Stipendio tabellare",
+              "v13": true,
+              "m": 1704.38,
+              "a": 20452.56
+            },
+            {
+              "id": "02",
+              "n": "Differenziale storico (ex PEO)",
+              "v13": true,
+              "m": 110.83,
+              "a": 1329.96
+            },
+            {
+              "id": "03",
+              "n": "Differenziale stipendiale CCNL 2019-2021",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "04",
+              "n": "Assegno ad personam non riassorbibile IIS (art. 29 c.4 CCNL 2004)",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "05",
+              "n": "Assegno ad personam assorbibile prog. verticale",
+              "v13": true,
+              "m": 20,
+              "a": 240
+            },
+            {
+              "id": "06",
+              "n": "Salario Individuale di Anzianità (ex R.I.A.)",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "07",
+              "n": "Retribuzione di Posizione",
+              "v13": true,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "08",
+              "n": "Indennità specifica ex art.4 CCNL (€ 5,38/mese)",
+              "v13": false,
+              "m": 5.38,
+              "a": 64.56
+            },
+            {
+              "id": "09",
+              "n": "Indennità di Vacanza Contrattuale (IVC)",
+              "v13": true,
+              "m": 12,
+              "a": 144
+            },
+            {
+              "id": "10",
+              "n": "Indennità di Comparto",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "11",
+              "n": "Indennità di vigilanza",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "12",
+              "n": "Ind. Professionale asili nido (€ 55,40/mese)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "13",
+              "n": "Ind. Aggiuntiva asili nido (€ 28,41/mese)",
+              "v13": false,
+              "m": 28.41,
+              "a": 340.92
+            },
+            {
+              "id": "14",
+              "n": "Ind. Tempo potenziato scolastico (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            },
+            {
+              "id": "15",
+              "n": "Trattamento accessorio asili nido (× 10 mesi)",
+              "v13": false,
+              "m": 0,
+              "a": 0
+            }
+          ]
+        },
+        "tfsMC": null
+      }
+    }
+  ]
+}

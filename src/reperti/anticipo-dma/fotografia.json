@@ -1,0 +1,66 @@
+{
+  "descrizione": "Fotografia del modulo Anticipo DMA attuale (AnticipoDMATempoPieno.tsx e AnticipoDMAPartTime.tsx): cosa fa il vecchio, non cosa e' giusto (ADR 0001). Dati di fantasia, CF RSSMRA80A01H501U. Uscite calcolate a mano, una volta. I flag TFR/TFS/13a non sono ingressi: il vecchio li ricava dall'etichetta della voce. data_competenza e' solo mostrata, non entra nel calcolo.",
+  "casi": [
+    {
+      "id": "tempo-pieno",
+      "variante": "tempo-pieno",
+      "descrizione": "14 giorni su 26 e 196 su 365. Posizione (TFR e 13a, non TFS), comparto (nessuna base), indennita' specifica (senza 13a).",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "giorni_tredicesima": 196,
+        "giorni_mensili": 14,
+        "voci": [
+          { "voce_retributiva": "Stipendio tabellare per 13 mensilità", "importo_mensile": 1915.55 },
+          { "voce_retributiva": "Indennità di Vacanza Contrattuale (compreso Anticipo IVC) per 13 mensilità", "importo_mensile": 13.41 },
+          { "voce_retributiva": "Retribuzione di posizione per 13 mensilità", "importo_mensile": 600 },
+          { "voce_retributiva": "Indennità di Comparto per 12 mensilità", "importo_mensile": 45.8 },
+          { "voce_retributiva": "Indennità specifica (ex art.4 comma 3 CCNL 16/07/1996) per 12 mensilità 5,38", "importo_mensile": 5.38 }
+        ]
+      },
+      "uscite": {
+        "totaleMensile": 2580.14,
+        "totale365": 2580.14,
+        "totale26": 1389.31,
+        "tredicesimaCPDEL": 1358.02,
+        "tredicesimaTFS": 1035.83,
+        "tredicesimaTFR": 1358.02,
+        "imponibileCPDEL": 2747.33,
+        "imponibileFondoCredito": 2747.33,
+        "imponibileTFS80": 1661.92,
+        "imponibileTFR80": 2178.13
+      }
+    },
+    {
+      "id": "part-time",
+      "variante": "part-time",
+      "descrizione": "83,33%, 9 giorni su 26 e 120 su 365. % voce per voce con arrotondamento; CPDEL senza arrotondare prima il totale su 26; Una Tantum solo nella 13a; TFR teorico e rivalutato.",
+      "codiceFiscale": "RSSMRA80A01H501U",
+      "ingressi": {
+        "giorni_tredicesima": 120,
+        "giorni_mensili": 9,
+        "percentuale_part_time": 83.33,
+        "voci": [
+          { "voce_retributiva": "Stipendio tabellare per 13 mensilità", "valore_intero": 1704.38 },
+          { "voce_retributiva": "Differenziale storico (ex PEO) per 13 mensilità", "valore_intero": 110.83 },
+          { "voce_retributiva": "Retribuzione di posizione per 13 mensilità", "valore_intero": 400 },
+          { "voce_retributiva": "Indennità di Comparto per 12 mensilità", "valore_intero": 45.8 },
+          { "voce_retributiva": "Una Tantum 1,5%", "valore_intero": 25.5 }
+        ]
+      },
+      "uscite": {
+        "totaleMensile": 1905.35,
+        "totale365": 1905.35,
+        "totale26": 659.54,
+        "tredicesimaCPDEL": 613.87,
+        "tredicesimaTFS": 497.3,
+        "tredicesimaTFR": 606.88,
+        "imponibileCPDEL": 1273.41,
+        "imponibileFondoCredito": 1273.41,
+        "imponibileTFS80": 816.72,
+        "imponibileTFR80": 996.68,
+        "tfrTabellareTeorico": 1845.93,
+        "tfrRivalutato": 1245.85
+      }
+    }
+  ]
+}
