@@ -8,7 +8,7 @@ import {casiNormativiPensioneTfs} from '../casi-normativi/pensione-tfs';
 import {casiNormativiDma} from '../casi-normativi/dma-previste';
 import {casiNormativiMiglioramento} from '../casi-normativi/miglioramento';
 import {tabelle} from '../tabelle';
-import {causaInBreve, chiudiSezione, chiusure, riapriSezione} from './chiusura';
+import {causaInBreve, chiudiSezione, chiusure, ipotesiInBreve, riapriSezione} from './chiusura';
 
 const ADESSO = '2026-10-12T10:00:00.000Z';
 const n02 = casiNormativiTfr.find((c) => c.id === 'TFR-N02')!;
@@ -169,5 +169,62 @@ describe('chiudere DMA previste e miglioramento della pratica di pensione (ticke
     const esito = preparaImport(vuoto, esporta(archivio, ADESSO).file);
     if (esito.stato !== 'pronto') throw new Error(esito.stato);
     expect(applicaImport(vuoto, esito.riepilogo).pratiche).toEqual(pratiche);
+  });
+});
+
+describe("contratto in ipotesi e passaggio a definitivo (ticket 32, storie 11 e 88)", () => {
+  const n10 = casiNormativiPensioneTfs.find((c) => c.id === 'PT-N10')!;
+  const n01 = casiNormativiPensioneTfs.find((c) => c.id === 'PT-N01')!;
+  const pensione = (id: string, dati: Pratica['dati']): Pratica => ({id, enteId: 'e1', tipo: 'pensione', dati: dati as never, congelati: [], creata: ADESSO, modificata: ADESSO});
+
+  it("la pratica toccata da un'ipotesi porta l'avviso col nome del contratto e l'inizio della vigenza", () => {
+    expect(ipotesiInBreve(pensione('p8', n10.dati), tabelle)).toBe("l'Ipotesi CCNL Funzioni Locali 2025-2027 si applicherà dal 01/01/2025");
+  });
+
+  it("una pratica fuori dalla vigenza di ogni ipotesi non ha l'avviso", () => {
+    expect(ipotesiInBreve(pensione('p9', n01.dati), tabelle)).toBeUndefined();
+  });
+
+  it("anche un miglioramento scelto su un'ipotesi porta l'avviso (MC-N05)", () => {
+    const mc = casiNormativiMiglioramento.find((c) => c.id === 'MC-N05')!;
+    expect(ipotesiInBreve(pensione('p10', mc.dati), tabelle)).toBe("l'Ipotesi CCNL Funzioni Locali 2025-2027 si applicherà dal 01/01/2025");
+  });
+
+  /**
+   * Il passaggio di prova a definitivo come lo farà il manutentore (storia 88): solo dati e registro. Stato
+   * 'definitivo', i valori di `proposta` sotto le chiavi lette dal motore, nessuna IVC propria, una riga nuova.
+   */
+  const ipotesi = tabelle.contratti.find((c) => c.id === 'ccnl-2025-27')!;
+  if (ipotesi.stato !== 'ipotesi') throw new Error('atteso ipotesi');
+  const {proposta, ...comune} = ipotesi;
+  const firmate: Tabelle = {
+    ...tabelle,
+    versione: '2099-01-01.1',
+    registro: [...tabelle.registro, {id: '2099-01-01.1', motivo: 'CCNL 2025-27 definitivo (prova)'}],
+    contratti: tabelle.contratti.map((c) => (c.id === comune.id ? {...comune, stato: 'definitivo', ...proposta, ivc: []} : c)),
+  };
+
+  it("alla firma la pratica chiusa torna da rilavorare con la causa del registro, e l'avviso sparisce (PT-N10)", () => {
+    const chiusa = chiudiSezione(chiudiSezione(pensione('p11', n10.dati), 'umPensione', tabelle, ADESSO), 'tfs', tabelle, ADESSO);
+    const stato = chiusure(chiusa, firmate);
+    // L'IVC 2025 di 19,28 € anticipava il 2025-27: firmato, è riassorbita (D8).
+    expect(stato.umPensione?.confronto.differenze.map((d) => [d.campo, d.congelato, d.attuale])).toEqual([
+      ['voce-09', 23136, null],
+      ['tredicesima', 206720, 204792],
+    ]);
+    expect(stato.tfs?.confronto.differenze.map((d) => [d.campo, d.congelato, d.attuale])).toEqual([
+      ['tab-e', 2334476, 2311340],
+      ['tredicesima', 206509, 204581],
+    ]);
+    expect(causaInBreve(chiusa, firmate)).toBe('CCNL 2025-27 definitivo (prova)');
+    expect(ipotesiInBreve(chiusa, firmate)).toBeUndefined();
+  });
+
+  it('alla firma il miglioramento in ipotesi ha importi e si chiude (MC-N05)', () => {
+    const mc = pensione('p12', casiNormativiMiglioramento.find((c) => c.id === 'MC-N05')!.dati);
+    expect(() => chiudiSezione(mc, 'miglioramento', tabelle, ADESSO)).toThrow(/ipotesi/);
+    const chiusa = chiudiSezione(mc, 'miglioramento', firmate, ADESSO);
+    expect(chiusa.congelati[0]).toMatchObject({sezione: 'miglioramento', versioneTabelle: '2099-01-01.1', risultato: {stato: 'definitivo'}});
+    expect(chiusure(chiusa, firmate).miglioramento?.daRilavorare).toBe(false);
   });
 });

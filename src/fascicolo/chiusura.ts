@@ -51,3 +51,15 @@ export function causaInBreve(pratica: Pratica, tabelle: Tabelle): string | undef
   return cause.size > 0 ? [...cause].join('; ') : undefined;
 }
 
+
+const giorno = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+
+/**
+ * L'avviso in breve delle ipotesi che toccano la pratica, per la scrivania (storia 11): alla firma la pratica
+ * tornerà da rilavorare. Il nome viene dalla tabella dei contratti, la data è l'inizio della vigenza.
+ */
+export function ipotesiInBreve(pratica: Pratica, tabelle: Tabelle): string | undefined {
+  const avvisi = calcolaPratica(pratica.dati, tabelle).avvisi.flatMap((a) => (a.codice === 'contratto-in-ipotesi' ? [a] : []));
+  const nome = (id: string) => tabelle.contratti.find((c) => c.id === id)?.nome ?? id;
+  return avvisi.length > 0 ? avvisi.map((a) => `l'${nome(a.contratto)} si applicherà dal ${giorno(a.vigenzaDal)}`).join('; ') : undefined;
+}

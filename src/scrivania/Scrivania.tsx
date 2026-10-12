@@ -5,7 +5,7 @@ import type {Archivio} from '../archivio';
 import {GIORNI_SCADENZA, aggiungiEnte, aggiungiPratica, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
 import type {Filtri, TipoPratica} from './operazioni';
 import {PannelloArchivio, esportaFile} from './PannelloArchivio';
-import {causaInBreve} from '../fascicolo/chiusura';
+import {causaInBreve, ipotesiInBreve} from '../fascicolo/chiusura';
 import {tabelle} from '../tabelle';
 
 /** Oggi nel fuso dell'operatore, aaaa-mm-gg. */
@@ -64,6 +64,11 @@ export function Scrivania({
   // Pratiche con una sezione chiusa che il ricalcolo cambia: da rilavorare, con la causa (storia 10).
   const cause = useMemo(
     () => new Map(archivio.pratiche.map((p) => [p.id, causaInBreve(p, tabelle)] as const).filter(([, c]) => c !== undefined)),
+    [archivio],
+  );
+  // Pratiche toccate da un contratto non ancora firmato: alla firma torneranno da rilavorare (storia 11).
+  const ipotesi = useMemo(
+    () => new Map(archivio.pratiche.map((p) => [p.id, ipotesiInBreve(p, tabelle)] as const).filter(([, c]) => c !== undefined)),
     [archivio],
   );
   const righe = useMemo(() => elencoScrivania(archivio, filtri, oggi(), (p) => cause.has(p.id)), [archivio, filtri, cause]);
@@ -262,6 +267,12 @@ export function Scrivania({
                         'Aperta'
                       ) : (
                         'Chiusa'
+                      )}
+                      {ipotesi.has(pratica.id) && (
+                        <span className="mt-1 block text-amber-900">
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium">ipotesi</span>
+                          <span className="mt-1 block text-xs">{ipotesi.get(pratica.id)}</span>
+                        </span>
                       )}
                     </td>
                     <td className="px-5 py-3 text-right">
