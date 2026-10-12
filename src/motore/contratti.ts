@@ -24,7 +24,7 @@ const definitivi = (tabelle: Tabelle) =>
  * IVC utile del mese (D8): un periodo di IVC vale solo se il contratto che anticipa non è applicato;
  * quella di un contratto definitivo è riassorbita nel suo tabellare.
  */
-export function ivcDaTabella(tabelle: Tabelle, posizione: string, mese: MeseISO): {importo: number; contratto: string} {
+export function ivcDaTabella(tabelle: Tabelle, posizione: string, mese: MeseISO): {importo: number; contratto: string; mancante?: {chiave: string; fonte: string}} {
   const primo = `${mese}-01`;
   const applicati = definitivi(tabelle);
   const ids = new Set(applicati.map((c) => c.id));
@@ -34,8 +34,10 @@ export function ivcDaTabella(tabelle: Tabelle, posizione: string, mese: MeseISO)
     .flatMap((c) => c.ivc)
     .find((i) => !ids.has(i.anticipa) && i.dal <= primo && (!i.al || i.al >= primo));
   const chiave = periodo?.chiave === 'posizione' ? posizione : area;
-  const importo = periodo && chiave ? (periodo.importi[chiave]?.mensile ?? 0) : 0;
-  return {importo, contratto: contratto?.id ?? ''};
+  const valore = periodo && chiave ? periodo.importi[chiave] : undefined;
+  // Un periodo non riassorbito senza il valore per la chiave: la tabella non lo ha (ticket 24), diverso da 'riassorbita' (0).
+  const mancante = periodo && !valore ? {chiave: chiave ?? posizione, fonte: periodo.fonte} : undefined;
+  return {importo: valore?.mensile ?? 0, contratto: contratto?.id ?? '', ...(mancante && {mancante})};
 }
 
 /**
@@ -49,6 +51,8 @@ export function conIvcDaTabella(voci: VociMese, mese: MeseISO, posizione: string
   const avviso: Avviso | undefined =
     inserita === ivc.importo
       ? undefined
-      : {tipo: 'avviso', codice: 'ivc-incompatibile', mese, inserita, daTabella: ivc.importo, contrattoApplicato: ivc.contratto, fonte: FONTE_IVC};
+      : ivc.mancante
+        ? {tipo: 'avviso', codice: 'ivc-non-tabulata', mese, inserita, chiave: ivc.mancante.chiave, contrattoApplicato: ivc.contratto, fonte: ivc.mancante.fonte}
+        : {tipo: 'avviso', codice: 'ivc-incompatibile', mese, inserita, daTabella: ivc.importo, contrattoApplicato: ivc.contratto, fonte: FONTE_IVC};
   return {voci: {...voci, [VOCE_IVC]: ivc.importo}, ...(avviso && {avviso})};
 }

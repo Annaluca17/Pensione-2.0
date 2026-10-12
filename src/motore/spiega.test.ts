@@ -205,3 +205,41 @@ describe('spiega: composizione', () => {
     expect(spiega(riga).split('\n')[0]).toBe('voce 05, 01/2026: -0,05 €');
   });
 });
+
+describe('spiega: avvisi di coerenza con le tabelle (ticket 24)', () => {
+  const base = {tipo: 'avviso' as const, mese: '2024-11', contrattoApplicato: 'ccnl-2022-24', fonte: 'Tabella B'};
+
+  it('tabellare diverso', () => {
+    expect(spiega({...base, codice: 'tabellare-diverso', inserito: 200000, daTabella: 190000})).toBe(
+      'Tabellare di 11/2024 inserito 2.000,00 €, ma la tabella del contratto ccnl-2022-24 dà 1.900,00 €: l\'importo inserito resta, da verificare.',
+    );
+  });
+
+  it('differenziale storico diverso', () => {
+    expect(spiega({...base, codice: 'differenziale-storico-diverso', inserito: 21000, daTabella: 20000})).toBe(
+      'Differenziale storico di 11/2024 inserito 210,00 €, ma la tabella del contratto ccnl-2022-24 dà 200,00 €: l\'importo inserito resta, da verificare.',
+    );
+  });
+
+  it('comparto diverso', () => {
+    expect(spiega({...base, codice: 'comparto-diverso', inserito: 5000, daTabella: 4580})).toBe(
+      'Indennità di comparto di 11/2024 inserita 50,00 €, ma la tabella del contratto ccnl-2022-24 dà 45,80 €: l\'importo inserito resta, da verificare.',
+    );
+  });
+
+  it('differenziale art. 14: non multiplo e oltre il massimo', () => {
+    const art14 = {...base, codice: 'differenziale-art14-incoerente' as const, area: 'istruttori' as const, misura: 5769, massimo: 5};
+    expect(spiega({...art14, inserito: 8000, motivo: 'non-multiplo'})).toBe(
+      'Differenziale art. 14 di 11/2024 inserito 80,00 €: non è un multiplo della misura di 57,69 € dell\'area Istruttori. L\'importo inserito resta, da verificare.',
+    );
+    expect(spiega({...art14, inserito: 34614, motivo: 'oltre-massimo'})).toBe(
+      'Differenziale art. 14 di 11/2024 inserito 346,14 €: supera il massimo di 5 differenziali (57,69 € ciascuno) dell\'area Istruttori. L\'importo inserito resta, da verificare.',
+    );
+  });
+
+  it('IVC non tabulata', () => {
+    expect(spiega({...base, codice: 'ivc-non-tabulata', inserita: 500, chiave: 'istruttori'})).toBe(
+      'IVC di 11/2024 inserita 5,00 €, ma la tabella del contratto ccnl-2022-24 non ha il valore per istruttori: non si somma, da verificare.',
+    );
+  });
+});

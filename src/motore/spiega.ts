@@ -16,6 +16,13 @@ const nomeSituazione = {
   'optante-tfr': "l'opzione per il TFR",
 } as const;
 
+const nomeArea = {
+  'funzionari-eq': 'Funzionari ed EQ',
+  istruttori: 'Istruttori',
+  'operatori-esperti': 'Operatori esperti',
+  operatori: 'Operatori',
+} as const;
+
 const maiuscola = (s: string) => s[0].toUpperCase() + s.slice(1);
 const giorno = (d: DataISO) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 const mese = (m: MeseISO) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
@@ -125,6 +132,25 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
         `IVC di ${mese(cosa.mese)} inserita ${euro(cosa.inserita)}, ma col contratto ` +
         `${cosa.contrattoApplicato} vale ${euro(cosa.daTabella)}: si usa il valore della tabella (D8).`
       );
+    case 'tabellare-diverso':
+      return `Tabellare di ${mese(cosa.mese)} inserito ${euro(cosa.inserito)}, ${consTabella(cosa.contrattoApplicato, euro(cosa.daTabella))}`;
+    case 'differenziale-storico-diverso':
+      return `Differenziale storico di ${mese(cosa.mese)} inserito ${euro(cosa.inserito)}, ${consTabella(cosa.contrattoApplicato, euro(cosa.daTabella))}`;
+    case 'comparto-diverso':
+      return `Indennità di comparto di ${mese(cosa.mese)} inserita ${euro(cosa.inserito)}, ${consTabella(cosa.contrattoApplicato, euro(cosa.daTabella))}`;
+    case 'differenziale-art14-incoerente': {
+      const area = `dell'area ${nomeArea[cosa.area]}`;
+      const motivo =
+        cosa.motivo === 'non-multiplo'
+          ? `non è un multiplo della misura di ${euro(cosa.misura)} ${area}`
+          : `supera il massimo di ${cosa.massimo} differenziali (${euro(cosa.misura)} ciascuno) ${area}`;
+      return `Differenziale art. 14 di ${mese(cosa.mese)} inserito ${euro(cosa.inserito)}: ${motivo}. L'importo inserito resta, da verificare.`;
+    }
+    case 'ivc-non-tabulata':
+      return (
+        `IVC di ${mese(cosa.mese)} inserita ${euro(cosa.inserita)}, ma la tabella del contratto ${cosa.contrattoApplicato} ` +
+        `non ha il valore per ${cosa.chiave}: non si somma, da verificare.`
+      );
     case 'contratto-in-ipotesi':
       return (
         `La data di riferimento (pensione o fine TFS) o la cessazione del miglioramento contrattuale cade nella vigenza dell'ipotesi ${cosa.contratto} (dal ${giorno(cosa.vigenzaDal)}), che non ` +
@@ -140,6 +166,10 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
       );
   }
 }
+
+/** Seconda metà dell'avviso di una voce diversa dalla tabella: la voce inserita resta (ticket 24). */
+const consTabella = (contratto: string, daTabella: string) =>
+  `ma la tabella del contratto ${contratto} dà ${daTabella}: l'importo inserito resta, da verificare.`;
 
 function spiegaDifferenza(d: Differenza): string {
   const valore = (v: Differenza['congelato']) => {

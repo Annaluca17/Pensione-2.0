@@ -624,6 +624,65 @@ export type Avviso =
     }
   | {
       tipo: 'avviso';
+      /** Voce 01 inserita diversa da quella della tabella del contratto vigente (storia 51); l'importo inserito resta. */
+      codice: 'tabellare-diverso';
+      mese: MeseISO;
+      inserito: Centesimi;
+      daTabella: Centesimi;
+      /** Id del contratto di cui è il tabellare in tabella. */
+      contrattoApplicato: string;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** Voce 02 inserita diversa dal differenziale storico della trasposizione (storia 51). */
+      codice: 'differenziale-storico-diverso';
+      mese: MeseISO;
+      inserito: Centesimi;
+      daTabella: Centesimi;
+      contrattoApplicato: string;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** Voce 10 inserita diversa dall'indennità di comparto dell'area in vigore (storia 51). */
+      codice: 'comparto-diverso';
+      mese: MeseISO;
+      inserito: Centesimi;
+      daTabella: Centesimi;
+      contrattoApplicato: string;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /**
+       * Voce 03 che non è un multiplo della misura dell'area o supera il massimo di differenziali (storia 52, T9).
+       * Multiplo = n × misura mensile con tolleranza di un centesimo per differenziale, oppure l'arrotondamento
+       * di n × annuo / 13 (deciso con l'utente, ticket 24).
+       */
+      codice: 'differenziale-art14-incoerente';
+      mese: MeseISO;
+      inserito: Centesimi;
+      motivo: 'non-multiplo' | 'oltre-massimo';
+      area: Area;
+      /** Misura mensile di un differenziale per l'area. */
+      misura: Centesimi;
+      massimo: number;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** IVC inserita in un mese in cui la tabella la prevede ma non ha il valore per la posizione o l'area (storia 51). */
+      codice: 'ivc-non-tabulata';
+      mese: MeseISO;
+      inserita: Centesimi;
+      /** Posizione o area di cui manca il valore. */
+      chiave: string;
+      contrattoApplicato: string;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
       /** Mese di assunzione utile non intero senza voci nella pratica: rateo iniziale da fare a parte (C07-4). */
       codice: 'mese-iniziale-fuori-finestra';
       mese: MeseISO;

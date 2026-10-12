@@ -1,3 +1,4 @@
+import {avvisiCoerenza} from './coerenza';
 import {avvisiIpotesi} from './contratti';
 import {calcolaDmaPreviste} from './dma';
 import {calcolaMiglioramento, contrattoInVacanza} from './miglioramento';
@@ -286,13 +287,25 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     }
   }
 
+  // Coerenza con le tabelle (ticket 24, storie 51-52): un avviso per tipo e per mese anche se più sezioni lo
+  // leggono. La posizione è una sola, quella alla cessazione: vale per i mesi in cui si sa che il dipendente la
+  // aveva (mese di pensione, mese di fine servizio di TFS/TFR, DMA previste), non per i mesi precedenti di chi ha
+  // cambiato area nella finestra (PT-N06). Non cambia gli importi delle righe né ferma la sezione.
+  const letti = new Set<MeseISO>();
+  if (dateRiferimento) {
+    if (umPensione?.esito === 'calcolata' || miglioramento?.esito === 'calcolata') letti.add(meseDi(dateRiferimento.pensione.usato));
+    if (tfr.esito === 'calcolata' || tfs.esito === 'calcolata') letti.add(meseDi(dateRiferimento.fineServizio.usato));
+    if (dmaPreviste?.esito === 'calcolata' && dalDma) mesi.filter((m) => m.mese >= dalDma).forEach((m) => letti.add(m.mese));
+  }
+  for (const m of [...letti].sort()) avvisi.push(...avvisiCoerenza({...dati.voci.base, ...dati.voci.eccezioni[m]}, m, posizione, tabelle));
+
   const retribuzione: Sezione<Retribuzione> = bloccata('retribuzione')
     ? {esito: 'bloccata', motivi: motivi('retribuzione')}
     : {esito: 'calcolata', mesi};
   return {
     versioneTabelle: tabelle.versione,
     blocchi: trovati.map((t) => t.blocco),
-    avvisi,
+    avvisi: unPerMese(avvisi),
     forzature,
     dateRiferimento,
     ...(proposto && {miglioramentoProposto: proposto}),
@@ -306,6 +319,12 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
       ...(miglioramento && {miglioramento}),
     },
   };
+}
+
+/** L'IVC non tabulata di un mese letta da più sezioni si avvisa una volta sola (come l'IVC incompatibile). */
+function unPerMese(avvisi: Avviso[]): Avviso[] {
+  const visti = new Set<MeseISO>();
+  return avvisi.filter((a) => a.codice !== 'ivc-non-tabulata' || (!visti.has(a.mese) && !!visti.add(a.mese)));
 }
 
 function incoerenti(
