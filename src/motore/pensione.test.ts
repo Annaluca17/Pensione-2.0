@@ -178,13 +178,16 @@ const conContratti: Tabelle = {...tabelle, contratti};
 const conIvc = (cessazione: string, ivc?: number) =>
   pensione({voci: {base: {'01': 200000, ...(ivc !== undefined && {'09': ivc})}, eccezioni: {}}}, {cessazione});
 
+/** Gli avvisi della pensione: il regime TFS con la sola base aggiunge `tfs-annualizzato` (ticket 25). */
+const avvisiPensione = (r: Risultato) => r.avvisi.filter((a) => a.codice !== 'tfs-annualizzato');
+
 describe('IVC del mese della pensione (D8, T6, storie 49-50)', () => {
   it('riassorbita: col contratto definitivo che anticipa vale 0, l\'IVC inserita non si somma e dà avviso', () => {
     const r = calcolaPratica(conIvc('2023-06-30', 1000), conContratti);
     const um = umPensione(r);
     expect(um.righe.map((x) => x.voce)).toEqual(['01']);
     expect(um.tredicesima.composizione.arrotondato).toBe(200000);
-    expect(r.avvisi).toEqual([
+    expect(avvisiPensione(r)).toEqual([
       expect.objectContaining({codice: 'ivc-incompatibile', mese: '2023-06', inserita: 1000, daTabella: 0, contrattoApplicato: 'b'}),
     ]);
   });
@@ -232,14 +235,14 @@ describe('contratto in ipotesi (T5)', () => {
 
   it('pensione nella vigenza di un\'ipotesi: avviso, e gli importi restano quelli delle voci', () => {
     const r = calcolaPratica(conIvc('2025-06-30'), conProposta);
-    expect(r.avvisi).toEqual([
+    expect(avvisiPensione(r)).toEqual([
       {tipo: 'avviso', codice: 'contratto-in-ipotesi', contratto: 'c', vigenzaDal: '2025-01-01', fonte: expect.stringContaining('T5')},
     ]);
     expect(umPensione(r).righe.map((x) => [x.voce, x.composizione.arrotondato])).toEqual([['01', 2400000]]);
   });
 
   it('fuori dalla vigenza dell\'ipotesi nessun avviso', () => {
-    expect(calcolaPratica(conIvc('2024-11-30'), conProposta).avvisi).toEqual([]);
+    expect(avvisiPensione(calcolaPratica(conIvc('2024-11-30'), conProposta))).toEqual([]);
   });
 
   it('la pratica di cessazione non ha l\'avviso (deciso nel ticket 23)', () => {

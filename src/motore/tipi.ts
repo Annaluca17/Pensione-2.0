@@ -406,6 +406,26 @@ export interface UmPensione {
   totale: Centesimi;
 }
 
+/** Una delle 9 righe della maschera dell'UM TFS (D16), nell'ordine di PASSWEB. */
+export interface RigaTfs {
+  id: string;
+  etichetta: string;
+  campoPassweb?: string;
+  composizione: Composizione;
+}
+
+/** Ultimo miglio TFS alla data di fine TFS: Σ dei 12 mesi effettivi, nessun ×13 (D3, D14). */
+export interface Tfs {
+  /** Primo e ultimo mese sommati. */
+  dal: MeseISO;
+  al: MeseISO;
+  righe: RigaTfs[];
+  /** Somma delle righe arrotondate (D17). */
+  totale: Centesimi;
+  /** Un solo mese inserito: il mese `al` × 12, semplificazione segnalata dall'avviso `tfs-annualizzato`. */
+  annualizzato?: true;
+}
+
 export interface Retribuzione {
   /**
    * I 12 mesi fino al mese della data di riferimento di TFS/TFR, dal mese di assunzione se dopo; nella
@@ -429,6 +449,8 @@ export interface Risultato {
     umPensione?: Sezione<UmPensione>;
     /** Pratica di cessazione, o pratica di pensione in regime TFR. */
     tfr?: Sezione<Tfr>;
+    /** Solo nella pratica di pensione in regime TFS (ADR 0002). */
+    tfs?: Sezione<Tfs>;
   };
 }
 
@@ -502,6 +524,14 @@ export type Avviso =
     }
   | {
       tipo: 'avviso';
+      /** Un solo mese inserito (nessuna eccezione nelle voci): il TFS moltiplica quel mese per `mesi` (D2, C20-3). */
+      codice: 'tfs-annualizzato';
+      mese: MeseISO;
+      mesi: number;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
       /** La pensione cade nella vigenza di un'ipotesi: nessun importo, alla firma la pratica torna da rilavorare (T5). */
       codice: 'contratto-in-ipotesi';
       /** Id dell'ipotesi. */
@@ -513,10 +543,10 @@ export type Avviso =
 // --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
 
 /**
- * Le sezioni che si chiudono oggi. L'UM pensione ne resta fuori finché la persistenza non conserva la
+ * Le sezioni che si chiudono oggi. L'UM pensione e il TFS ne restano fuori finché la persistenza non conserva la
  * pratica di pensione (regime e situazione): la chiusura arriva col suo fascicolo.
  */
-export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione'>;
+export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione' | 'tfs'>;
 
 /** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
 export type SezioneCalcolata<S extends NomeSezione> = Extract<NonNullable<Risultato['sezioni'][S]>, {esito: 'calcolata'}>;

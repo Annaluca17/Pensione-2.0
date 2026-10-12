@@ -75,9 +75,11 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
       );
     case 'contratto-in-ipotesi':
       return (
-        `La pensione cade nella vigenza dell'ipotesi ${cosa.contratto} (dal ${giorno(cosa.vigenzaDal)}), che non ` +
+        `La data di riferimento (pensione o fine TFS) cade nella vigenza dell'ipotesi ${cosa.contratto} (dal ${giorno(cosa.vigenzaDal)}), che non ` +
         `produce importi: alla firma la pratica tornerà da rilavorare (T5).`
       );
+    case 'tfs-annualizzato':
+      return `È inserito un solo mese: il TFS moltiplica ${mese(cosa.mese)} per ${cosa.mesi}, senza verificare i ${cosa.mesi} mesi (D2).`;
     case 'mese-iniziale-fuori-finestra':
       return (
         `Il mese di assunzione ${mese(cosa.mese)} è utile ma non intero, e le voci inserite vanno da ` +

@@ -74,10 +74,16 @@ describe('spiega: avvisi', () => {
   });
 });
 
-describe('spiega: avvisi della pensione', () => {
+describe('spiega: avvisi della pensione e del TFS', () => {
+  it('TFS annualizzato (C20-3)', () => {
+    expect(spiega({tipo: 'avviso', codice: 'tfs-annualizzato', mese: '2024-12', mesi: 12, fonte: 'D2'})).toBe(
+      'È inserito un solo mese: il TFS moltiplica 12/2024 per 12, senza verificare i 12 mesi (D2).',
+    );
+  });
+
   it('contratto in ipotesi (T5)', () => {
     expect(spiega({tipo: 'avviso', codice: 'contratto-in-ipotesi', contratto: 'ccnl-2025-27', vigenzaDal: '2025-01-01', fonte: 'T5'})).toBe(
-      "La pensione cade nella vigenza dell'ipotesi ccnl-2025-27 (dal 01/01/2025), che non produce importi: alla firma la pratica tornerà da rilavorare (T5).",
+      "La data di riferimento (pensione o fine TFS) cade nella vigenza dell'ipotesi ccnl-2025-27 (dal 01/01/2025), che non produce importi: alla firma la pratica tornerà da rilavorare (T5).",
     );
   });
 });

@@ -1,5 +1,7 @@
+import {avvisiIpotesi} from './contratti';
 import {calcolaUmPensione} from './pensione';
 import {calcolaTfr} from './tfr';
+import {calcolaTfs} from './tfs';
 import {data, giornoDellaSettimana, giornoPrima, giorniDelMese, leggiData, meseDi, spostaMese} from './date';
 import type {
   Avviso,
@@ -18,6 +20,7 @@ import type {
   Sezione,
   Tabelle,
   Tfr,
+  Tfs,
   UmPensione,
   ValoreForzabile,
 } from './tipi';
@@ -45,7 +48,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   };
 
   // Anagrafica: le date reggono tutto il resto.
-  const tutte: Nome[] = ['retribuzione', 'meseParziale', 'umPensione', 'tfr'];
+  const tutte: Nome[] = ['retribuzione', 'meseParziale', 'umPensione', 'tfs', 'tfr'];
   const valida = (campo: 'assunzione' | 'cessazione', valore: DataISO | undefined, ...sezioni: Nome[]) => {
     if (valore === undefined || leggiData(valore)) return valore;
     blocca({tipo: 'blocco', codice: 'data-non-valida', campo, valore}, ...sezioni);
@@ -60,14 +63,14 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     blocca(incoerenti('assunzione', assunzione, 'non-dopo', 'cessazione', cessazione), ...tutte);
   }
   if (cessazione && cessazione < tabelle.coperturaDal) {
-    blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: 'cessazione', data: cessazione, coperturaDal: tabelle.coperturaDal}, 'umPensione', 'tfr');
+    blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: 'cessazione', data: cessazione, coperturaDal: tabelle.coperturaDal}, 'umPensione', 'tfs', 'tfr');
   }
 
   const posizione = dati.anagrafica.posizione;
   if (!/^[A-D]\d+$/.test(posizione)) {
-    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'fuori-aree-a-d'}, 'umPensione', 'tfr');
+    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'fuori-aree-a-d'}, 'umPensione', 'tfs', 'tfr');
   } else if (!tabelle.posizioni.includes(posizione)) {
-    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'inesistente'}, 'umPensione', 'tfr');
+    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'inesistente'}, 'umPensione', 'tfs', 'tfr');
   }
 
   // Optante in regime TFR: la sezione TFR dell'optante non è gestita (storia 58; ticket 23 con l'utente).
@@ -79,7 +82,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   let inizioSituazione: DataISO | undefined;
   if (pensione && pensione.situazione.tipo !== 'ordinaria') {
     const valore = pensione.situazione.dal;
-    const sezioni: Nome[] = ['retribuzione', 'umPensione', 'tfr'];
+    const sezioni: Nome[] = ['retribuzione', 'umPensione', 'tfs', 'tfr'];
     if (!leggiData(valore)) blocca({tipo: 'blocco', codice: 'data-non-valida', campo: 'situazione', valore}, ...sezioni);
     else if (cessazione && valore > cessazione) blocca(incoerenti('situazione', valore, 'non-dopo', 'cessazione', cessazione), ...sezioni);
     else if (assunzione && valore <= assunzione) blocca(incoerenti('situazione', valore, 'non-prima-di', 'assunzione', assunzione), ...sezioni);
@@ -117,7 +120,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     };
     dateRiferimento = {
       pensione: riferimento('dataRiferimentoPensione', 'umPensione'),
-      fineServizio: riferimento('dataRiferimentoFineServizio', 'retribuzione', 'tfr'),
+      fineServizio: riferimento('dataRiferimentoFineServizio', 'retribuzione', 'tfs', 'tfr'),
     };
   }
 
@@ -181,6 +184,24 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     }
   }
 
+  // Ultimo miglio TFS: i mesi effettivi fino al mese della data di fine TFS (D3, D14), solo in regime TFS.
+  const conTfs = pensione?.regime === 'TFS';
+  let tfs: Sezione<Tfs> = {esito: 'bloccata', motivi: motivi('tfs')};
+  if (conTfs && !bloccata('tfs') && dateRiferimento) {
+    const fine = meseDi(dateRiferimento.fineServizio.usato);
+    const mesiTfs = mesi.filter((m) => m.mese <= fine);
+    if (mesiTfs.length > 0) {
+      const calcolo = calcolaTfs({mesi: mesiTfs, annualizza: Object.keys(dati.voci.eccezioni).length === 0, posizione, tabelle});
+      tfs = {esito: 'calcolata', ...calcolo.tfs};
+      // Un mese già avvisato (dalla pensione o dal TFR) non si avvisa due volte: uno per mese.
+      const visti = new Set(avvisi.flatMap((a) => (a.codice === 'ivc-incompatibile' ? [a.mese] : [])));
+      avvisi.push(...calcolo.avvisi.filter((a) => !(a.codice === 'ivc-incompatibile' && visti.has(a.mese))));
+      // Un'ipotesi nella cui vigenza cade la fine TFS: stesso avviso della pensione, una volta per ipotesi (T5).
+      const ipotesi = new Set(avvisi.flatMap((a) => (a.codice === 'contratto-in-ipotesi' ? [a.contratto] : [])));
+      avvisi.push(...avvisiIpotesi(tabelle, dateRiferimento.fineServizio.usato).filter((a) => a.codice !== 'contratto-in-ipotesi' || !ipotesi.has(a.contratto)));
+    }
+  }
+
   const retribuzione: Sezione<Retribuzione> = bloccata('retribuzione')
     ? {esito: 'bloccata', motivi: motivi('retribuzione')}
     : {esito: 'calcolata', mesi};
@@ -194,6 +215,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
       retribuzione,
       meseParziale: meseParziale ?? {esito: 'bloccata', motivi: motivi('meseParziale')},
       ...(umPensione && {umPensione}),
+      ...(conTfs && {tfs}),
       ...(conTfr && {tfr}),
     },
   };

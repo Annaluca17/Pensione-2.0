@@ -1,11 +1,11 @@
 // Ticket 23: i casi normativi di UM pensione e situazioni validati (ticket 20) passano dal seam
 // calcolaPratica(dati, tabelle) con le tabelle CCNL vere, esatti al centesimo. Il TFS degli stessi
-// casi è del ticket 25: qui si guardano date di riferimento, UM pensione e i soli avvisi della pensione.
+// casi è in tfs-motore.test.ts (ticket 25), insieme all'insieme intero degli avvisi.
 import {describe, expect, it} from 'vitest';
 import {calcolaPratica} from '../motore';
-import type {Avviso, Risultato, UmPensione} from '../motore';
+import type {Risultato, UmPensione} from '../motore';
 import {tabelle} from '../tabelle';
-import {casiNormativiPensioneTfs, type AvvisoAtteso} from './pensione-tfs';
+import {casiNormativiPensioneTfs} from './pensione-tfs';
 
 const sezionePensione = (r: Risultato): UmPensione => {
   const s = r.sezioni.umPensione;
@@ -13,13 +13,6 @@ const sezionePensione = (r: Risultato): UmPensione => {
   if (s.esito !== 'calcolata') throw new Error(`UM pensione bloccata: ${s.motivi.map((m) => m.codice)}`);
   return s;
 };
-
-/** Un avviso come lo scrive il caso: codice e dati, senza tipo né fonte. */
-const comeNelCaso = ({tipo: _t, codice, fonte: _f, ...dati}: Extract<Avviso, {fonte: string}>) => ({codice, dati});
-
-/** Gli avvisi del caso che riguardano la pensione: l'ipotesi (T5) e l'IVC del mese della pensione (D8). */
-const diPensione = (a: AvvisoAtteso, mese: string) =>
-  a.codice === 'contratto-in-ipotesi' || (a.codice === 'ivc-incompatibile' && a.dati.mese === mese);
 
 describe('casi normativi UM pensione e situazioni dal motore', () => {
   for (const caso of casiNormativiPensioneTfs.filter((c) => c.validazione.stato === 'validato')) {
@@ -60,12 +53,6 @@ describe('casi normativi UM pensione e situazioni dal motore', () => {
         const um = sezionePensione(risultato);
         expect(um.totaleAnnui).toBe(atteso.totaleAnnui);
         expect(um.totale).toBe(atteso.totale);
-      });
-
-      it('avvisi della pensione come nel caso', () => {
-        const attesi = caso.atteso.avvisi.filter((a) => diPensione(a, atteso.mese)).map(({codice, dati}) => ({codice, dati}));
-        expect(risultato.avvisi.map((a) => ('fonte' in a ? comeNelCaso(a) : a))).toEqual(attesi);
-        for (const a of risultato.avvisi) if ('fonte' in a) expect(a.fonte).not.toBe('');
       });
 
       it('regime TFS: nessuna sezione TFR', () => {
