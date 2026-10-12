@@ -5,6 +5,10 @@ import {costruisciProposta, nomeMese} from './proposta';
 import type {CedolinoMensile, Gestionale, OpzioniLettura, PaginaPdf, Proposta} from './tipi';
 
 export type {Gestionale, OpzioniLettura, PaginaPdf, Proposta} from './tipi';
+export {applicaProposta} from './applica';
+export type {Applicazione} from './applica';
+export {scegliProposta} from './scegli';
+export type {Scelta} from './scegli';
 
 const progressivo = (c: CedolinoMensile) => c.anno * 12 + c.mese;
 

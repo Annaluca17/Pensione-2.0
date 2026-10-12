@@ -4,6 +4,7 @@ import {useState} from 'react';
 import type {ReactNode} from 'react';
 import type {DatiPratica, MeseISO, Risultato, Tabelle, TipoPartTime, ValoreForzabile} from '../motore';
 import {CampoEuro, Riquadro, campo, etichetta} from './campi';
+import {CaricaPdf} from './CaricaPdf';
 import type {StatoSezione} from './campi';
 import {
   impostaAnagrafica,
@@ -94,6 +95,7 @@ export function SezioneRetribuzione({
         Voci a tempo pieno, come sul cedolino senza riduzioni: il part-time si indica sotto (D4).{' '}
         {mesi.length > 0 && `Mesi considerati: da ${mese(mesi[0])} a ${mese(mesi.at(-1)!)}.`}
       </p>
+      <CaricaPdf dati={dati} tabelle={tabelle} modifica={modifica} />
       <div className="grid gap-x-6 gap-y-2 md:grid-cols-2">
         {voci.map((v) => (
           <div key={v.codice} className="grid grid-cols-[1fr_9rem] items-center gap-2">
