@@ -21,10 +21,13 @@ export function schedaPdf(scheda: Scheda, generata: string): jsPDF {
   autoTable(doc, {...stile, startY: 24, body: scheda.intestazione, columnStyles: {0: {cellWidth: 50, fontStyle: 'bold'}}});
 
   for (const blocco of scheda.blocchi) {
-    if (blocco.righe) {
+    if (blocco.righe && blocco.righe.length > 0) {
       autoTable(doc, {...stile, startY: dopo(), head: [[blocco.titolo, 'Valore']], body: blocco.righe, columnStyles: {1: {halign: 'right', cellWidth: 60}}});
-    } else {
-      autoTable(doc, {...stile, startY: dopo(), head: [[`${blocco.titolo}: sezione bloccata`]], body: (blocco.motivi ?? []).map((m) => [m])});
+    }
+    if (blocco.motivi) {
+      // Con le righe sono i mesi non preparati; da soli, la sezione bloccata.
+      const testa = blocco.righe ? blocco.titolo : `${blocco.titolo}: sezione bloccata`;
+      autoTable(doc, {...stile, startY: dopo(), head: [[testa]], body: blocco.motivi.map((m) => [m])});
     }
   }
 

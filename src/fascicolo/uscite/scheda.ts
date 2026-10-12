@@ -10,7 +10,7 @@ export interface BloccoScheda {
   titolo: string;
   /** Campo e valore come nella maschera; assente se la sezione è bloccata. */
   righe?: [string, string][];
-  /** Motivi del blocco, in italiano. */
+  /** Motivi del blocco, in italiano; con le righe: i mesi non preparati sotto quelli calcolati. */
   motivi?: string[];
 }
 
@@ -25,8 +25,15 @@ export interface Scheda {
 
 export type EsitoScheda = {stato: 'pronta'; scheda: Scheda} | {stato: 'non-generabile'; motivi: string[]};
 
-/** Avvisi che cambiano ciò che si digita in PASSWEB (decisione del ticket 16). */
-const AVVISI_DA_STAMPARE: Avviso['codice'][] = ['ivc-incompatibile', 'soglia-quindici-giorni-altra-regola', 'mese-iniziale-fuori-finestra'];
+/** Avvisi che cambiano ciò che si digita in PASSWEB (decisione dei ticket 16 e 33). */
+const AVVISI_DA_STAMPARE: Avviso['codice'][] = [
+  'ivc-incompatibile',
+  'soglia-quindici-giorni-altra-regola',
+  'mese-iniziale-fuori-finestra',
+  'nessun-miglioramento-reale',
+  'tfs-da-modificare',
+  'dma-non-prevista',
+];
 
 const data = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 const nomeForzatura: Record<ChiaveForzatura, string> = {
@@ -62,9 +69,99 @@ function bloccoTfr(risultato: Risultato): BloccoScheda {
   return {titolo, righe};
 }
 
+/** I motivi di una sezione bloccata; una sezione assente (dati non ancora completi) non ne ha. */
+const motiviDi = (sezione: {esito: 'calcolata'} | {esito: 'bloccata'; motivi: Blocco[]} | undefined) =>
+  sezione?.esito === 'bloccata' ? sezione.motivi.map((m) => spiega(m)) : [];
+const euro = (c: number) => `${scriviEuro(c)} €`;
+const mese = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
+
+function bloccoUmPensione(risultato: Risultato): BloccoScheda {
+  const um = risultato.sezioni.umPensione;
+  const titolo = 'Ultimo miglio pensione';
+  if (!um || um.esito === 'bloccata') return {titolo, motivi: motiviDi(um)};
+  return {
+    titolo,
+    righe: [
+      ...um.righe.map((r): [string, string] => [r.etichetta, euro(r.composizione.arrotondato)]),
+      [um.tredicesima.etichetta, euro(um.tredicesima.composizione.arrotondato)],
+      ['Totale fissi annui', euro(um.totaleAnnui)],
+      ['Totale con la 13ª', euro(um.totale)],
+    ],
+  };
+}
+
+function bloccoTfs(risultato: Risultato): BloccoScheda {
+  const tfs = risultato.sezioni.tfs;
+  const titolo = 'Ultimo miglio TFS';
+  if (!tfs || tfs.esito === 'bloccata') return {titolo, motivi: motiviDi(tfs)};
+  return {
+    titolo,
+    righe: [
+      ...tfs.righe.map((r): [string, string] => [r.etichetta, euro(r.composizione.arrotondato)]),
+      [`Totale (mesi da ${mese(tfs.dal)} a ${mese(tfs.al)})`, euro(tfs.totale)],
+    ],
+  };
+}
+
+const giorno = data;
+
+function blocchiDma(risultato: Risultato): BloccoScheda[] {
+  const dma = risultato.sezioni.dmaPreviste;
+  const titolo = 'DMA previste';
+  if (!dma || dma.esito === 'bloccata') return [{titolo, motivi: motiviDi(dma)}];
+  const blocchi: BloccoScheda[] = dma.periodi.map((p) => ({
+    titolo:
+      `${titolo} ${mese(p.mese)} · dal ${giorno(p.dal)} al ${giorno(p.al)} · ${p.giorni}/26 giorni · ${p.percentuale}% · ${p.regime}` +
+      `${p.codiceServizio !== undefined ? ` · codice servizio ${p.codiceServizio}` : ''}` +
+      `${p.giorniTredicesima > 0 ? ` · con 13ª (${p.giorniTredicesima}/365)` : ''}`,
+    righe: p.campi.map((c): [string, string] => [c.etichetta, euro(c.composizione.arrotondato)]),
+  }));
+  const oltre = risultato.blocchi.filter((b) => b.codice === 'dma-oltre-limite');
+  if (oltre.length > 0) blocchi.push({titolo: `${titolo}: mesi non preparati`, righe: [], motivi: oltre.map((b) => spiega(b))});
+  return blocchi;
+}
+
+function blocchiMiglioramento(risultato: Risultato): BloccoScheda[] {
+  const m = risultato.sezioni.miglioramento;
+  const titolo = 'Miglioramento contrattuale';
+  if (!m || m.esito === 'bloccata') return [{titolo, motivi: motiviDi(m)}];
+  if (m.stato === 'ipotesi') return [{titolo, righe: [[`Contratto ${m.contratto}`, 'ipotesi: nessun importo finché non è firmato']]}];
+  // Si stampa lo Scenario B, ciò che si digita; lo Scenario A sono le voci già inserite (decisione del ticket 33).
+  const blocchi: BloccoScheda[] = m.migliorati.map((b) => ({
+    titolo: `${titolo}: UM dal ${giorno(b.decorrenza)} (Scenario B)`,
+    righe: [
+      ...b.righe.map((r): [string, string] => [r.etichetta, euro(r.composizione.arrotondato)]),
+      [b.tredicesima.etichetta, euro(b.tredicesima.composizione.arrotondato)],
+      ['Totale fissi annui', euro(b.totaleAnnui)],
+      ['Totale con la 13ª', euro(b.totale)],
+      ['Differenza fissi annui (B − A)', euro(b.differenza.annui)],
+      ['Differenza 13ª (B − A)', euro(b.differenza.tredicesima)],
+    ],
+  }));
+  if (m.tfs) {
+    blocchi.push({
+      titolo: `${titolo}: TFS migliorato`,
+      righe: [
+        ...m.tfs.righe.map((r): [string, string] => [r.etichetta, euro(r.composizione.arrotondato)]),
+        [`Totale (mesi da ${mese(m.tfs.dal)} a ${mese(m.tfs.al)})`, euro(m.tfs.totale)],
+      ],
+    });
+  }
+  return blocchi;
+}
+
+function blocchiPensione(pratica: Extract<Pratica, {tipo: 'pensione'}>, risultato: Risultato): BloccoScheda[] {
+  return [
+    bloccoUmPensione(risultato),
+    ...(pratica.dati.regime === 'TFS' ? [bloccoTfs(risultato)] : [bloccoTfr(risultato)]),
+    ...(pratica.dati.dmaPreviste ? blocchiDma(risultato) : []),
+    ...(pratica.dati.miglioramento ? blocchiMiglioramento(risultato) : []),
+  ];
+}
+
 /** La scheda di una pratica, o perché non si genera. */
 export function costruisciScheda(pratica: Pratica, ente: Ente, risultato: Risultato): EsitoScheda {
-  const blocchi = pratica.tipo === 'cessazione' ? [bloccoTfr(risultato)] : [];
+  const blocchi = pratica.tipo === 'cessazione' ? [bloccoTfr(risultato)] : blocchiPensione(pratica, risultato);
   if (blocchi.length === 0 || blocchi.every((b) => b.motivi)) {
     const motivi = blocchi.flatMap((b) => b.motivi ?? []);
     return {stato: 'non-generabile', motivi: motivi.length > 0 ? motivi : ['Nessuna sezione calcolata da stampare.']};
@@ -79,6 +176,7 @@ export function costruisciScheda(pratica: Pratica, ente: Ente, risultato: Risult
         ['Codice fiscale', a.codiceFiscale],
         ['Ente', ente.nome],
         ['Posizione economica', a.posizione || '—'],
+        ...(pratica.tipo === 'pensione' ? [['Regime di fine servizio', pratica.dati.regime] as [string, string]] : []),
       ],
       blocchi,
       forzature: risultato.forzature.map((f) => ({
