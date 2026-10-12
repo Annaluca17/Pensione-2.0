@@ -4,15 +4,17 @@ import type {Tabelle} from '../motore';
 import {catalogoVoci} from './catalogo';
 import {ccnl201921} from './ccnl-2019-21';
 import {ccnl202224} from './ccnl-2022-24';
-import {ccnl202527} from './ccnl-2025-27';
-import {differenzialiArt14} from './differenziali-art14';
+import {ccnl202527} from './ccnl-2025-27';import {differenzialiArt14} from './differenziali-art14';
 import {letteraTfr} from './lettere';
 import {parametri} from './parametri';
+import {righePassweb, type RighePassweb} from './righe-passweb';
 import {righeTfr} from './righe-tfr';
 import {trasposizione} from './trasposizione';
 import {versioni} from './versioni';
 
-export const tabelle: Tabelle = {
+// `righePassweb` (pensione, TFS, DMA) è oltre `Tabelle`: il motore non si tocca (ticket 22); i ticket
+// 23-26 lo portano nel tipo quando le loro sezioni lo leggono.
+export const tabelle: Tabelle & {righePassweb: RighePassweb} = {
   versione: versioni[versioni.length - 1].id,
   registro: versioni.map(({id, motivo}) => ({id, motivo})),
   coperturaDal: '2019-01-01',
@@ -22,6 +24,7 @@ export const tabelle: Tabelle = {
   differenzialiArt14,
   catalogoVoci,
   righeTfr,
+  righePassweb,
   parametri,
   lettere: {tfr: letteraTfr},
 };

@@ -28,4 +28,10 @@ export const versioni: readonly VersioneTabelle[] = [
     ],
     impronta: '03e80529ee546e',
   },
+  {
+    id: '2026-10-12.1',
+    motivo: 'Mappe voce → riga PASSWEB per pensione, TFS (9 righe) e DMA previste; nessun importo cambiato',
+    file: ['righe-passweb.ts', 'index.ts'],
+    impronta: '14248a02a28e21',
+  },
 ];
