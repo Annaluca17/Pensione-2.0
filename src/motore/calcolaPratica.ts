@@ -1,4 +1,5 @@
 import {avvisiIpotesi} from './contratti';
+import {calcolaDmaPreviste} from './dma';
 import {calcolaUmPensione} from './pensione';
 import {calcolaTfr} from './tfr';
 import {calcolaTfs} from './tfs';
@@ -6,6 +7,7 @@ import {data, giornoDellaSettimana, giornoPrima, giorniDelMese, leggiData, meseD
 import type {
   Avviso,
   Blocco,
+  DmaPreviste,
   ChiaveDataRiferimento,
   ChiaveForzatura,
   DataISO,
@@ -48,7 +50,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   };
 
   // Anagrafica: le date reggono tutto il resto.
-  const tutte: Nome[] = ['retribuzione', 'meseParziale', 'umPensione', 'tfs', 'tfr'];
+  const tutte: Nome[] = ['retribuzione', 'meseParziale', 'umPensione', 'tfs', 'tfr', 'dmaPreviste'];
   const valida = (campo: 'assunzione' | 'cessazione', valore: DataISO | undefined, ...sezioni: Nome[]) => {
     if (valore === undefined || leggiData(valore)) return valore;
     blocca({tipo: 'blocco', codice: 'data-non-valida', campo, valore}, ...sezioni);
@@ -58,19 +60,20 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   const cessazione = valida('cessazione', dati.anagrafica.cessazione, ...tutte);
   if (dati.anagrafica.cessazione === undefined) blocca({tipo: 'blocco', codice: 'cessazione-mancante'}, ...tutte);
   // Decorrenza giuridica obbligatoria nell'ultimo miglio TFR (C185 §2.1).
-  if (dati.anagrafica.assunzione === undefined) blocca({tipo: 'blocco', codice: 'assunzione-mancante'}, 'tfr');
+  // Anche nelle DMA previste: la 13ª matura dall'assunzione se è nell'anno (D11).
+  if (dati.anagrafica.assunzione === undefined) blocca({tipo: 'blocco', codice: 'assunzione-mancante'}, 'tfr', 'dmaPreviste');
   if (assunzione && cessazione && assunzione > cessazione) {
     blocca(incoerenti('assunzione', assunzione, 'non-dopo', 'cessazione', cessazione), ...tutte);
   }
   if (cessazione && cessazione < tabelle.coperturaDal) {
-    blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: 'cessazione', data: cessazione, coperturaDal: tabelle.coperturaDal}, 'umPensione', 'tfs', 'tfr');
+    blocca({tipo: 'blocco', codice: 'tabelle-non-disponibili', campo: 'cessazione', data: cessazione, coperturaDal: tabelle.coperturaDal}, 'umPensione', 'tfs', 'tfr', 'dmaPreviste');
   }
 
   const posizione = dati.anagrafica.posizione;
   if (!/^[A-D]\d+$/.test(posizione)) {
-    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'fuori-aree-a-d'}, 'umPensione', 'tfs', 'tfr');
+    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'fuori-aree-a-d'}, 'umPensione', 'tfs', 'tfr', 'dmaPreviste');
   } else if (!tabelle.posizioni.includes(posizione)) {
-    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'inesistente'}, 'umPensione', 'tfs', 'tfr');
+    blocca({tipo: 'blocco', codice: 'posizione-non-valida', posizione, motivo: 'inesistente'}, 'umPensione', 'tfs', 'tfr', 'dmaPreviste');
   }
 
   // Optante in regime TFR: la sezione TFR dell'optante non è gestita (storia 58; ticket 23 con l'utente).
@@ -82,11 +85,29 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   let inizioSituazione: DataISO | undefined;
   if (pensione && pensione.situazione.tipo !== 'ordinaria') {
     const valore = pensione.situazione.dal;
-    const sezioni: Nome[] = ['retribuzione', 'umPensione', 'tfs', 'tfr'];
+    const sezioni: Nome[] = ['retribuzione', 'umPensione', 'tfs', 'tfr', 'dmaPreviste'];
     if (!leggiData(valore)) blocca({tipo: 'blocco', codice: 'data-non-valida', campo: 'situazione', valore}, ...sezioni);
     else if (cessazione && valore > cessazione) blocca(incoerenti('situazione', valore, 'non-dopo', 'cessazione', cessazione), ...sezioni);
     else if (assunzione && valore <= assunzione) blocca(incoerenti('situazione', valore, 'non-prima-di', 'assunzione', assunzione), ...sezioni);
     else inizioSituazione = valore;
+  }
+
+  // DMA previste (C21-1): dal mese dopo l'ultima DMA vera, dentro il rapporto e non dopo la cessazione.
+  let dalDma: MeseISO | undefined;
+  if (pensione?.dmaPreviste) {
+    const valore = pensione.dmaPreviste.dal;
+    if (!/^\d{4}-\d{2}$/.test(valore) || !leggiData(`${valore}-01`)) {
+      blocca({tipo: 'blocco', codice: 'data-non-valida', campo: 'dmaPreviste', valore}, 'dmaPreviste');
+    } else if (cessazione && valore > meseDi(cessazione)) {
+      blocca(incoerenti('dmaPreviste', `${valore}-01`, 'non-dopo', 'cessazione', cessazione), 'dmaPreviste');
+    } else if (assunzione && valore < meseDi(assunzione)) {
+      blocca(incoerenti('dmaPreviste', `${valore}-01`, 'non-prima-di', 'assunzione', assunzione), 'dmaPreviste');
+    } else dalDma = valore;
+    // Una situazione che cambia le DMA a metà mese: il periodo non si sa dividere (C21-2).
+    const s = pensione.situazione;
+    if (inizioSituazione && s.tipo !== 'ordinaria' && s.tipo !== 'trattenuta-malattia' && !inizioSituazione.endsWith('-01')) {
+      blocca({tipo: 'blocco', codice: 'situazione-non-gestita', situazione: s.tipo, dal: inizioSituazione, motivo: 'non-al-primo-del-mese'}, 'dmaPreviste');
+    }
   }
 
   // Date di riferimento (D19, C20-1), forzabili: di default la cessazione. Sospensione cautelare e
@@ -120,7 +141,8 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     };
     dateRiferimento = {
       pensione: riferimento('dataRiferimentoPensione', 'umPensione'),
-      fineServizio: riferimento('dataRiferimentoFineServizio', 'retribuzione', 'tfs', 'tfr'),
+      // La finestra delle voci parte da qui: anche le DMA previste dipendono da questa data.
+      fineServizio: riferimento('dataRiferimentoFineServizio', 'retribuzione', 'tfs', 'tfr', 'dmaPreviste'),
     };
   }
 
@@ -130,7 +152,9 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   if (dateRiferimento && !bloccata('retribuzione')) {
     const fine = meseDi(dateRiferimento.fineServizio.usato);
     const mesePensione = meseDi(dateRiferimento.pensione.usato);
-    const espansi = espandiMesi(dati, fine, pensione && mesePensione > fine ? mesePensione : fine, assunzione);
+    // Pratica di pensione: fino al mese di cessazione e dal primo mese delle DMA previste (C20-2, C21-1).
+    const ultimo = pensione ? [fine, mesePensione, meseDi(cessazione!)].sort().at(-1)! : fine;
+    const espansi = espandiMesi(dati, fine, ultimo, assunzione, dalDma);
     mesi = espansi.mesi;
     if (espansi.fuoriPeriodo.length > 0) {
       const [dal, al] = [mesi[0].mese, mesi[mesi.length - 1].mese];
@@ -142,7 +166,8 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     ];
     for (const [mese, percentuale] of daControllare) {
       if (!(percentuale > 0 && percentuale <= 100)) {
-        blocca({tipo: 'blocco', codice: 'part-time-fuori-range', mese, percentuale}, 'retribuzione', 'tfr');
+        const dma: Nome[] = dalDma && (mese === 'base' || mese >= dalDma) ? ['dmaPreviste'] : [];
+        blocca({tipo: 'blocco', codice: 'part-time-fuori-range', mese, percentuale}, 'retribuzione', 'tfr', ...dma);
       }
     }
   }
@@ -151,7 +176,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   const TETTO_GIORNI = tabelle.parametri.tettoGiorniMeseParziale.valore;
   const giorniForzati = dati.forzature.giorniMeseParziale;
   if (giorniForzati !== undefined && !(Number.isInteger(giorniForzati) && giorniForzati >= 0 && giorniForzati <= TETTO_GIORNI)) {
-    blocca({tipo: 'blocco', codice: 'giorni-forzati-non-validi', giorni: giorniForzati, massimo: TETTO_GIORNI}, 'meseParziale');
+    blocca({tipo: 'blocco', codice: 'giorni-forzati-non-validi', giorni: giorniForzati, massimo: TETTO_GIORNI}, 'meseParziale', 'dmaPreviste');
   }
   let meseParziale: Sezione<MeseParziale> | undefined;
   if (cessazione && !bloccata('meseParziale')) {
@@ -189,7 +214,8 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
   let tfs: Sezione<Tfs> = {esito: 'bloccata', motivi: motivi('tfs')};
   if (conTfs && !bloccata('tfs') && dateRiferimento) {
     const fine = meseDi(dateRiferimento.fineServizio.usato);
-    const mesiTfs = mesi.filter((m) => m.mese <= fine);
+    // A ritroso i 12 mesi fino alla fine TFS: la finestra può andare oltre per pensione e DMA previste.
+    const mesiTfs = mesi.filter((m) => m.mese <= fine && m.mese >= spostaMese(fine, -11));
     if (mesiTfs.length > 0) {
       const calcolo = calcolaTfs({mesi: mesiTfs, annualizza: Object.keys(dati.voci.eccezioni).length === 0, posizione, tabelle});
       tfs = {esito: 'calcolata', ...calcolo.tfs};
@@ -199,6 +225,32 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
       // Un'ipotesi nella cui vigenza cade la fine TFS: stesso avviso della pensione, una volta per ipotesi (T5).
       const ipotesi = new Set(avvisi.flatMap((a) => (a.codice === 'contratto-in-ipotesi' ? [a.contratto] : [])));
       avvisi.push(...avvisiIpotesi(tabelle, dateRiferimento.fineServizio.usato).filter((a) => a.codice !== 'contratto-in-ipotesi' || !ipotesi.has(a.contratto)));
+    }
+  }
+
+  // DMA previste della pratica di pensione (D12, C21-1): oltre il limite un blocco per mese, la sezione resta.
+  let dmaPreviste: Sezione<DmaPreviste> | undefined;
+  if (pensione?.dmaPreviste) {
+    dmaPreviste = {esito: 'bloccata', motivi: motivi('dmaPreviste')};
+    if (!bloccata('dmaPreviste') && mesi.length > 0 && dalDma && assunzione && cessazione && meseParziale?.esito === 'calcolata') {
+      const perMese = new Map(mesi.map((m) => [m.mese, m]));
+      const calcolo = calcolaDmaPreviste({
+        dal: dalDma,
+        cessazione,
+        assunzione,
+        giorniCessazione: meseParziale.giorni.usato,
+        mese: (m) => perMese.get(m)!,
+        regime: pensione.regime,
+        situazione: pensione.situazione,
+        iscrittoCredito: dati.iscrittoCredito,
+        posizione,
+        tabelle,
+      });
+      dmaPreviste = {esito: 'calcolata', ...calcolo.dma};
+      for (const blocco of calcolo.blocchi) blocca(blocco);
+      // Un mese già avvisato da un'altra sezione non si avvisa due volte (D8).
+      const visti = new Set(avvisi.flatMap((a) => (a.codice === 'ivc-incompatibile' ? [a.mese] : [])));
+      avvisi.push(...calcolo.avvisi.filter((a) => !(a.codice === 'ivc-incompatibile' && visti.has(a.mese))));
     }
   }
 
@@ -217,6 +269,7 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
       ...(umPensione && {umPensione}),
       ...(conTfs && {tfs}),
       ...(conTfr && {tfr}),
+      ...(dmaPreviste && {dmaPreviste}),
     },
   };
 }
@@ -248,13 +301,14 @@ function calcolaMeseParziale(cessazione: DataISO, assunzione: DataISO | undefine
 }
 
 /**
- * Espande base + eccezioni dai 12 mesi prima di `fine` (dal mese di assunzione, se dopo) fino a
- * `ultimo` (C20-2: il mese della pensione, se dopo la fine del servizio). Le eccezioni fuori dalla
- * finestra si ignorano e si restituiscono per l'avviso.
+ * Espande base + eccezioni dai 12 mesi prima di `fine` (dal mese di assunzione, se dopo; dal primo mese
+ * delle DMA previste, se prima) fino a `ultimo` (C20-2: nella pratica di pensione il mese di cessazione).
+ * Le eccezioni fuori dalla finestra si ignorano e si restituiscono per l'avviso.
  */
-function espandiMesi(dati: DatiPratica, fine: MeseISO, ultimo: MeseISO, assunzione: DataISO | undefined) {
+function espandiMesi(dati: DatiPratica, fine: MeseISO, ultimo: MeseISO, assunzione: DataISO | undefined, dalDma: MeseISO | undefined) {
   const primoPossibile = spostaMese(fine, -11);
-  const primo = assunzione && meseDi(assunzione) > primoPossibile ? meseDi(assunzione) : primoPossibile;
+  const dodici = assunzione && meseDi(assunzione) > primoPossibile ? meseDi(assunzione) : primoPossibile;
+  const primo = dalDma && dalDma < dodici ? dalDma : dodici;
   const mesi: MeseRetribuzione[] = [];
   for (let m = primo; m <= ultimo; m = spostaMese(m, 1)) {
     mesi.push({

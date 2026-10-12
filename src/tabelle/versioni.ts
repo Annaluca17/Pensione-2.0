@@ -34,4 +34,10 @@ export const versioni: readonly VersioneTabelle[] = [
     file: ['righe-passweb.ts', 'index.ts'],
     impronta: '14248a02a28e21',
   },
+  {
+    id: '2026-10-12.2',
+    motivo: 'Parametro limite delle DMA previste (6, D12); nessun importo cambiato',
+    file: ['parametri.ts'],
+    impronta: '09206ca56c226b',
+  },
 ];

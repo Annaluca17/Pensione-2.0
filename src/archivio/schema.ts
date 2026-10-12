@@ -37,7 +37,7 @@ export const schemaDatiPratica = z.object({
 
 const composizione = z.object({
   addendi: z.array(
-    z.object({voce: z.string(), mese, importo: centesimi, percentuale: z.number().optional(), giorni: z.number().optional()}),
+    z.object({voce: z.string(), mese, importo: centesimi, percentuale: z.number().optional(), giorni: z.number().optional(), divisore: z.number().optional()}),
   ),
   operazioni: z.array(
     z.object({tipo: z.enum(['moltiplica', 'dividi']), per: z.number(), motivo: z.string(), fonte: z.string().optional()}),

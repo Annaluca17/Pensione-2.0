@@ -23,6 +23,7 @@ export const tabelleDiProva: Tabelle = {
     divisoreGiornaliera: {valore: 26, fonte: 'prova'},
     tettoGiorniMeseParziale: {valore: 26, fonte: 'prova'},
     divisoreRateoTredicesima: {valore: 365, fonte: 'prova'},
+    limiteDmaPreviste: {valore: 2, fonte: 'prova'},
   },
   lettere: {tfr: {oggetto: 'prova', riferimentoNormativo: 'prova', fonte: 'prova'}},
 };

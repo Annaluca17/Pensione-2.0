@@ -31,6 +31,10 @@ describe('enti e pratiche', () => {
     expect([p1.tipo, p2.tipo]).toEqual(['pensione', 'cessazione']);
   });
 
+  it('una pratica nuova ha il Credito preimpostato a sì (R5, ticket 26)', () => {
+    for (const p of popolato().pratiche) expect(p.dati.iscrittoCredito, p.id).toBe(true);
+  });
+
   it('una pratica non si crea in un ente inesistente', () => {
     expect(() => aggiungiPratica(archivioVuoto(), {enteId: 'x', tipo: 'pensione', nome: 'A', codiceFiscale: 'B'}, 'p', ADESSO)).toThrow();
   });

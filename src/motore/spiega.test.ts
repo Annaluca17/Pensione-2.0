@@ -61,6 +61,32 @@ describe('spiega: blocchi', () => {
       {tipo: 'blocco', codice: 'situazione-non-gestita', situazione: 'optante-tfr', regime: 'TFR'},
       "Optante TFR in regime TFR: la sezione TFR dell'optante non è gestita dal sito, va calcolata a parte.",
     ],
+    [
+      {tipo: 'blocco', codice: 'data-non-valida', campo: 'dmaPreviste', valore: '2027-13'},
+      'Il mese della prima DMA prevista «2027-13» non è una data valida.',
+    ],
+    [
+      {
+        tipo: 'blocco', codice: 'date-incoerenti', campo: 'dmaPreviste', data: '2027-04-01',
+        regola: 'non-dopo', rispetto: 'cessazione', dataRispetto: '2027-03-31',
+      },
+      'Il mese della prima DMA prevista (04/2027) non può essere successivo al mese di cessazione (03/2027).',
+    ],
+    [
+      {
+        tipo: 'blocco', codice: 'date-incoerenti', campo: 'dmaPreviste', data: '2019-12-01',
+        regola: 'non-prima-di', rispetto: 'assunzione', dataRispetto: '2020-01-15',
+      },
+      'Il mese della prima DMA prevista (12/2019) non può essere precedente al mese di assunzione (01/2020).',
+    ],
+    [
+      {tipo: 'blocco', codice: 'situazione-non-gestita', situazione: 'sospensione-cautelare', dal: '2027-02-15', motivo: 'non-al-primo-del-mese'},
+      'La sospensione cautelare inizia il 15/02/2027, non il 1° del mese: le DMA previste non si dividono a metà mese, vanno preparate a parte (C21-2).',
+    ],
+    [
+      {tipo: 'blocco', codice: 'dma-oltre-limite', mese: '2027-02', limite: 6, fonte: 'D12'},
+      'DMA prevista di 02/2027 non preparata: PASSWEB ne accetta al massimo 6 (D12). Si inserirà quando le DMA vere avranno fatto scorrere i mesi.',
+    ],
   ] as const)('%o', (blocco, testo) => {
     expect(spiega(blocco)).toBe(testo);
   });
@@ -88,7 +114,31 @@ describe('spiega: avvisi della pensione e del TFS', () => {
   });
 });
 
+describe('spiega: avvisi delle DMA previste', () => {
+  it('DMA non prevista con la trattenuta per malattia (D19, C21-2)', () => {
+    expect(spiega({tipo: 'avviso', codice: 'dma-non-prevista', situazione: 'trattenuta-malattia', fonte: 'D19'})).toBe(
+      'Con la trattenuta 100% per malattia la DMA prevista non serve: nessun periodo preparato (D19, C21-2).',
+    );
+  });
+});
+
 describe('spiega: composizione', () => {
+  it('giorni su un divisore: giornaliera su 26 e rateo di 13ª in 365esimi (D9, D11)', () => {
+    const riga = componi({
+      addendi: [
+        {voce: '01', mese: '2026-07', importo: 191555, giorni: 14, divisore: 26},
+        {voce: '01', mese: '2026-07', importo: 191555, percentuale: 50, giorni: 196, divisore: 365},
+      ],
+      operazioni: [],
+      fonte: 'prova',
+    });
+    expect(spiega(riga).split('\n').slice(0, 3)).toEqual([
+      'voce 01, 07/2026: 1.915,55 € × 14/26 gg',
+      'voce 01, 07/2026: 1.915,55 € × 50% × 196/365 gg',
+      'somma: 1.545,7621 €',
+    ]);
+  });
+
   it('elenca voci e mesi, operazioni con la fonte, valore pieno e arrotondato', () => {
     const riga = componi({
       addendi: [

@@ -35,7 +35,8 @@ export function aggiungiPratica(archivio: Archivio, nuova: NuovaPratica, id: str
       voci: {base: {}, eccezioni: {}},
       partTime: {base: {percentuale: 100}, eccezioni: {}},
       forzature: {},
-      iscrittoCredito: false,
+      // R5: preimpostato a sì, l'operatore lo toglie se il dipendente non è iscritto.
+      iscrittoCredito: true,
     },
     congelati: [],
     creata: adesso,

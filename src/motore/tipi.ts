@@ -25,6 +25,8 @@ export interface Addendo {
   percentuale?: number;
   /** Giorni che moltiplicano la voce (es. 365esimi di un rateo); assente = 1. */
   giorni?: number;
+  /** Divisore dei giorni (26 per la giornaliera D9, 365 per il rateo di 13ª); assente = 1. */
+  divisore?: number;
 }
 
 /** Un'operazione applicata, in ordine, alla somma degli addendi. */
@@ -117,7 +119,12 @@ export interface DatiPratica {
 export interface DatiPraticaPensione extends DatiPratica {
   regime: RegimeFineServizio;
   situazione: Situazione;
+  /** DMA previste dal mese dopo l'ultima DMA vera (C21-1); assente = nessuna DMA prevista. */
+  dmaPreviste?: {dal: MeseISO};
 }
+
+/** Pratica di pensione con le DMA previste. */
+export type DatiPraticaDma = DatiPraticaPensione & {dmaPreviste: {dal: MeseISO}};
 
 // --- Tabelle ------------------------------------------------------------------------------------
 
@@ -289,6 +296,8 @@ export interface Parametri {
   tettoGiorniMeseParziale: ParametroConFonte<number>;
   /** Giorni dell'anno per il rateo di 13ª: di calendario. */
   divisoreRateoTredicesima: ParametroConFonte<number>;
+  /** Quante DMA previste accetta PASSWEB (D12): dal mese successivo un blocco. */
+  limiteDmaPreviste: ParametroConFonte<number>;
 }
 
 /** Il riferimento normativo e l'oggetto predefinito di una lettera (spec "Uscite"). */
@@ -426,10 +435,40 @@ export interface Tfs {
   annualizzato?: true;
 }
 
+/** Un campo di una DMA prevista (manuale PASSWEB v1.20 pp. 66-67). */
+export interface CampoDmaCalcolato {
+  id: string;
+  etichetta: string;
+  composizione: Composizione;
+}
+
+/** Codice servizio della DMA prevista dalla situazione (C21-2): 83 sospensione cautelare, 49 congedo L. 104. */
+export type CodiceServizioDma = 83 | 49;
+
+/** Una DMA prevista: un mese solare (D12), con i campi del suo regime (R1-R5). */
+export interface PeriodoDma {
+  mese: MeseISO;
+  dal: DataISO;
+  al: DataISO;
+  /** Giorni D9 (lun-sab, tetto 26; mese intero = 26); nel mese di cessazione quelli del mese parziale. */
+  giorni: number;
+  /** 365esimi della 13ª: solo a dicembre e nel mese di cessazione, altrimenti 0 (D11, C21-3). */
+  giorniTredicesima: number;
+  percentuale: number;
+  regime: RegimeFineServizio;
+  codiceServizio?: CodiceServizioDma;
+  campi: CampoDmaCalcolato[];
+}
+
+/** DMA previste della pratica di pensione: i primi mesi fino al limite (D12, C21-1). */
+export interface DmaPreviste {
+  periodi: PeriodoDma[];
+}
+
 export interface Retribuzione {
   /**
    * I 12 mesi fino al mese della data di riferimento di TFS/TFR, dal mese di assunzione se dopo; nella
-   * pratica di pensione fino al mese della pensione, se dopo (C20-2).
+   * pratica di pensione fino al mese di cessazione e dal primo mese delle DMA previste, se prima (C20-2, C21-1).
    */
   mesi: MeseRetribuzione[];
 }
@@ -451,13 +490,15 @@ export interface Risultato {
     tfr?: Sezione<Tfr>;
     /** Solo nella pratica di pensione in regime TFS (ADR 0002). */
     tfs?: Sezione<Tfs>;
+    /** Solo nella pratica di pensione con `dmaPreviste`. */
+    dmaPreviste?: Sezione<DmaPreviste>;
   };
 }
 
 // --- Blocchi e avvisi ---------------------------------------------------------------------------
 
 /** I campi data di una pratica, come li nominano blocchi e avvisi. */
-export type CampoData = 'assunzione' | 'cessazione' | 'situazione' | ChiaveDataRiferimento;
+export type CampoData = 'assunzione' | 'cessazione' | 'situazione' | 'dmaPreviste' | ChiaveDataRiferimento;
 export type ChiaveDataRiferimento = 'dataRiferimentoPensione' | 'dataRiferimentoFineServizio';
 
 /** Glossario: Blocco. Il motivo codificato per cui una sezione non si può calcolare. */
@@ -479,7 +520,17 @@ export type Blocco =
   | {tipo: 'blocco'; codice: 'tabelle-non-disponibili'; campo: CampoData; data: DataISO; coperturaDal: DataISO}
   | {tipo: 'blocco'; codice: 'giorni-forzati-non-validi'; giorni: number; massimo: number}
   /** Storia 58: una situazione che il calcolo della sezione non gestisce (deciso nel ticket 23). */
-  | {tipo: 'blocco'; codice: 'situazione-non-gestita'; situazione: 'optante-tfr'; regime: 'TFR'};
+  | {tipo: 'blocco'; codice: 'situazione-non-gestita'; situazione: 'optante-tfr'; regime: 'TFR'}
+  /** Situazione che non inizia il 1° del mese: le DMA previste non sanno da quale periodo cambiare (C21-2). */
+  | {
+      tipo: 'blocco';
+      codice: 'situazione-non-gestita';
+      situazione: 'sospensione-cautelare' | 'congedo-104' | 'optante-tfr';
+      dal: DataISO;
+      motivo: 'non-al-primo-del-mese';
+    }
+  /** D12: PASSWEB accetta al massimo `limite` DMA previste; il mese non si prepara, le altre sezioni sì. */
+  | {tipo: 'blocco'; codice: 'dma-oltre-limite'; mese: MeseISO; limite: number; fonte: string};
 
 export type Avviso =
   | {
@@ -538,15 +589,22 @@ export type Avviso =
       contratto: string;
       vigenzaDal: DataISO;
       fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** Con questa situazione la DMA prevista non serve: nessun periodo (D19, C21-2). */
+      codice: 'dma-non-prevista';
+      situazione: 'trattenuta-malattia';
+      fonte: string;
     };
 
 // --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
 
 /**
- * Le sezioni che si chiudono oggi. L'UM pensione e il TFS ne restano fuori finché la persistenza non conserva la
+ * Le sezioni che si chiudono oggi. L'UM pensione, il TFS e le DMA previste ne restano fuori finché la persistenza non conserva la
  * pratica di pensione (regime e situazione): la chiusura arriva col suo fascicolo.
  */
-export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione' | 'tfs'>;
+export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione' | 'tfs' | 'dmaPreviste'>;
 
 /** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
 export type SezioneCalcolata<S extends NomeSezione> = Extract<NonNullable<Risultato['sezioni'][S]>, {esito: 'calcolata'}>;

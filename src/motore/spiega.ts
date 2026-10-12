@@ -5,9 +5,16 @@ const nomeCampo: Record<CampoData, string> = {
   assunzione: 'la data di assunzione',
   cessazione: 'la data di cessazione',
   situazione: 'la data di inizio della situazione',
+  dmaPreviste: 'il mese della prima DMA prevista',
   dataRiferimentoPensione: 'la data di riferimento della pensione',
   dataRiferimentoFineServizio: 'la data di riferimento di TFS/TFR',
 };
+
+const nomeSituazione = {
+  'sospensione-cautelare': 'la sospensione cautelare',
+  'congedo-104': 'il congedo L. 104',
+  'optante-tfr': "l'opzione per il TFR",
+} as const;
 
 const maiuscola = (s: string) => s[0].toUpperCase() + s.slice(1);
 const giorno = (d: DataISO) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
@@ -34,6 +41,13 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
     case 'data-non-valida':
       return `${maiuscola(nomeCampo[cosa.campo])} «${cosa.valore}» non è una data valida.`;
     case 'date-incoerenti': {
+      if (cosa.campo === 'dmaPreviste') {
+        const verso = cosa.regola === 'non-dopo' ? 'successivo' : 'precedente';
+        return (
+          `${maiuscola(nomeCampo[cosa.campo])} (${mese(cosa.data.slice(0, 7))}) non può essere ${verso} al ` +
+          `mese di ${cosa.rispetto} (${mese(cosa.dataRispetto.slice(0, 7))}).`
+        );
+      }
       const verso = cosa.regola === 'non-dopo' ? 'successiva' : 'precedente';
       return (
         `${maiuscola(nomeCampo[cosa.campo])} (${giorno(cosa.data)}) non può essere ${verso} alla ` +
@@ -56,7 +70,20 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
     case 'giorni-forzati-non-validi':
       return `I giorni forzati del mese parziale (${cosa.giorni}) devono essere un numero intero fra 0 e ${cosa.massimo} (D9).`;
     case 'situazione-non-gestita':
+      if ('motivo' in cosa) {
+        return (
+          `${maiuscola(nomeSituazione[cosa.situazione])} inizia il ${giorno(cosa.dal)}, non il 1° del mese: ` +
+          'le DMA previste non si dividono a metà mese, vanno preparate a parte (C21-2).'
+        );
+      }
       return "Optante TFR in regime TFR: la sezione TFR dell'optante non è gestita dal sito, va calcolata a parte.";
+    case 'dma-oltre-limite':
+      return (
+        `DMA prevista di ${mese(cosa.mese)} non preparata: PASSWEB ne accetta al massimo ${cosa.limite} (D12). ` +
+        'Si inserirà quando le DMA vere avranno fatto scorrere i mesi.'
+      );
+    case 'dma-non-prevista':
+      return 'Con la trattenuta 100% per malattia la DMA prevista non serve: nessun periodo preparato (D19, C21-2).';
     case 'eccezioni-fuori-periodo':
       return (
         `Eccezioni ignorate perché fuori dai mesi considerati (da ${mese(cosa.dal)} a ${mese(cosa.al)}): ` +
@@ -109,7 +136,7 @@ function spiegaComposizione(c: Composizione): string {
     (a) =>
       `voce ${a.voce}, ${mese(a.mese)}: ${euro(a.importo)}` +
       `${a.percentuale !== undefined ? ` × ${String(a.percentuale).replace('.', ',')}%` : ''}` +
-      `${a.giorni !== undefined ? ` × ${a.giorni} gg` : ''}`,
+      `${a.giorni !== undefined ? ` × ${a.giorni}${a.divisore !== undefined ? `/${a.divisore}` : ''} gg` : ''}`,
   );
   const somma = c.addendi.reduce((s, a) => s + valoreAddendo(a), 0);
   if (c.addendi.length > 1) righe.push(`somma: ${Number.isInteger(somma) ? euro(somma) : euroPieno(somma)}`);

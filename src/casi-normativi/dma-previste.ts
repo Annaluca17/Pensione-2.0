@@ -29,13 +29,10 @@
 // In regime TFR i sei campi ci sono sempre (Credito solo se iscritto): ulteriori elementi a 0 senza la
 // voce 07 (validato dall'utente).
 //
-// La finestra delle voci del motore (C20-2) arriva al mese della pensione: per le DMA serve fino al
-// mese di cessazione (DM-N08, N09, N12: pensione prima della cessazione). Vincolo per il ticket 26.
-import type {Centesimi, DataISO, DatiPratica, DatiPraticaPensione, MeseISO, RegimeFineServizio, Situazione, VociMese} from '../motore';
+// La finestra delle voci del motore arriva al mese di cessazione (ticket 26), anche quando la pensione
+// cade prima (DM-N08, N09, N12).
+import type {Centesimi, DataISO, DatiPratica, DatiPraticaDma, MeseISO, RegimeFineServizio, Situazione, VociMese} from '../motore';
 import type {AvvisoAtteso} from './pensione-tfs';
-
-/** Pratica di pensione con le DMA previste: il tipo entra nel motore col ticket 26. */
-export type DatiPraticaDma = DatiPraticaPensione & {dmaPreviste: {dal: MeseISO}};
 
 /** I campi della DMA prevista, come gli id di `righePassweb.dma`. */
 export type CampoDmaId =

@@ -43,3 +43,11 @@ export function giornoDellaSettimana(anno: number, mese: number, giorno: number)
   const a = mese < 3 ? anno - 1 : anno;
   return (a + Math.floor(a / 4) - Math.floor(a / 100) + Math.floor(a / 400) + t[mese - 1] + giorno) % 7;
 }
+
+/** Giorno dell'anno di una data valida, dal 1 (1° gennaio). */
+export function giornoDellAnno(d: DataISO): number {
+  const {anno, mese, giorno} = leggiData(d)!;
+  let n = giorno;
+  for (let m = 1; m < mese; m++) n += giorniDelMese(anno, m);
+  return n;
+}
