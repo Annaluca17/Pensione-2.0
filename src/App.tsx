@@ -7,6 +7,7 @@ import AnticipoDMA from './components/AnticipoDMA';
 import ProjectShell from './components/ProjectShell';
 import UltimoMiglioTFRShell from './components/tfr/UltimoMiglioTFRShell';
 import { Spazio } from './scrivania/Spazio';
+import ScaricaVecchioSito from './vecchio-sito/ScaricaVecchioSito';
 
 // 'scrivania' è lo spazio nuovo: non è un id del Portale (non entra in SERVIZI) e comunica 'unificato'.
 type ServiceType = 'pensione' | 'tfs_pensione' | 'tfs_servizio' | 'anticipo_dma' | 'unificato' | 'tfr' | 'scrivania' | null;
@@ -204,7 +205,13 @@ export default function App() {
         </header>
       )}
       <main className={!activeService ? "max-w-6xl mx-auto px-8 py-8" : ""}>
-        {!activeService ? renderServiceSelection() : renderActiveService()}
+        {!activeService ? (
+          <>
+            {renderServiceSelection()}
+            {/* Prima della pulizia (ticket 35): salva le tre chiavi vecchie grezze, senza toccarle. */}
+            <ScaricaVecchioSito />
+          </>
+        ) : renderActiveService()}
       </main>
     </div>
   );
