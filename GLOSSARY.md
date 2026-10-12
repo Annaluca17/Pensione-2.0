@@ -32,6 +32,16 @@ _Avoid_: software paghe, procedura
 La parte che ricava i dati di un dipendente dai PDF di un gestionale, solo nel browser.
 _Avoid_: parser, importatore
 
+**Proposta**:
+I dati di una pratica che il lettore ricava dai PDF di un gestionale (anagrafica, voci mese per
+mese, % part-time); l'operatore li vede e li conferma prima che entrino nella pratica.
+_Avoid_: compilazione, import
+
+**Voce di testata**:
+La riga del cedolino Halley con l'importo contrattuale mensile di una voce, sempre intero e a
+tempo pieno, anche nel mese di cessazione e per i part-time.
+_Avoid_: competenza, voce del corpo
+
 **Fotografia del vecchio**:
 L'insieme di casi di fantasia con gli importi che il codice attuale produce, conservati per
 confrontarli col nuovo motore; descrive cosa fa il vecchio, non cosa è giusto.
@@ -62,6 +72,23 @@ La denuncia mensile di un mese non ancora retribuito, compresa quella del mese p
 cessazione, inserita in anticipo in PASSWEB perché la domanda di pensione si possa fare prima che
 il dipendente cessi.
 _Avoid_: DMA futura, anticipo DMA (è il nome del vecchio modulo, non della cosa)
+
+**Retribuzione teorica TFR**:
+Nella DMA di un dipendente in regime TFR, la retribuzione che spetterebbe per l'intero mese
+lavorato: tutte le voci utili al TFR proporzionate al part-time, senza assenze, 80% né tredicesima.
+Si dichiara anche nei mesi senza TFR.
+_Avoid_: tabellare TFR, stipendio tabellare (è solo una delle voci)
+
+**Ulteriori elementi TFR**:
+Le voci utili al TFR ma non al TFS (oggi la retribuzione di posizione), dichiarate a parte al 100%
+con un proprio contributo.
+_Avoid_: voci solo TFR, extra TFR
+
+**Mese utile (TFR)**:
+Il mese di assunzione o di cessazione che conta per il TFR perché coperto da almeno quindici giorni
+continuativi; se non è intero, l'ultimo miglio TFR ne chiede il rateo di 13ª, altrimenti (solo in
+cessazione) i ratei di 13ª dei mesi precedenti pagati per cassa.
+_Avoid_: mese pieno (è il mese intero), mese valido
 
 **Pratica di cessazione**:
 Il lavoro su un dipendente che cessa senza andare in pensione (mobilità, fine del tempo
@@ -106,6 +133,12 @@ _Avoid_: vecchia domanda, pensione vecchia
 **Scaglionamento**:
 Un aumento del contratto con la sua data di decorrenza (es. tabellare dal 01/01/2024).
 _Avoid_: tranche, step
+
+**Differenziale storico**:
+L'importo fisso che dal 01/04/2023 conserva le progressioni economiche maturate nella vecchia
+posizione: vecchia posizione meno posizione d'ingresso della categoria (A1, B1, C1, D1), anche
+quando il tabellare d'area è più alto di quello d'ingresso. Si somma ai nuovi differenziali.
+_Avoid_: PEO, ex PEO (le posizioni sono cessate), differenziale di area
 
 **Data di riferimento**:
 Il giorno a cui si chiude l'ultimo miglio di una prestazione; di solito la cessazione, ma può
