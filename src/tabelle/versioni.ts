@@ -40,4 +40,10 @@ export const versioni: readonly VersioneTabelle[] = [
     file: ['parametri.ts'],
     impronta: '09206ca56c226b',
   },
+  {
+    id: '2026-10-12.3',
+    motivo: 'Oggetto e riferimento normativo della lettera del miglioramento contrattuale; nessun importo cambiato',
+    file: ['lettere.ts', 'index.ts'],
+    impronta: '0d40ab497aca36',
+  },
 ];

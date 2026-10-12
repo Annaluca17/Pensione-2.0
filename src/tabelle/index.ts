@@ -6,7 +6,7 @@ import {ccnl201921} from './ccnl-2019-21';
 import {ccnl202224} from './ccnl-2022-24';
 import {ccnl202527} from './ccnl-2025-27';
 import {differenzialiArt14} from './differenziali-art14';
-import {letteraTfr} from './lettere';
+import {letteraMiglioramento, letteraTfr} from './lettere';
 import {parametri} from './parametri';
 import {righePassweb} from './righe-passweb';
 import {righeTfr} from './righe-tfr';
@@ -25,5 +25,5 @@ export const tabelle: Tabelle = {
   righeTfr,
   righePassweb,
   parametri,
-  lettere: {tfr: letteraTfr},
+  lettere: {tfr: letteraTfr, miglioramento: letteraMiglioramento},
 };

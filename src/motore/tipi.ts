@@ -336,7 +336,7 @@ export interface Tabelle {
   /** Mappe voce → riga PASSWEB di pensione, TFS e DMA previste. */
   righePassweb: RighePassweb;
   parametri: Parametri;
-  lettere: {tfr: TestoLettera};
+  lettere: {tfr: TestoLettera; miglioramento: TestoLettera};
 }
 
 // --- Uscita: Risultato --------------------------------------------------------------------------

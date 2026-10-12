@@ -25,7 +25,10 @@ export const tabelleDiProva: Tabelle = {
     divisoreRateoTredicesima: {valore: 365, fonte: 'prova'},
     limiteDmaPreviste: {valore: 2, fonte: 'prova'},
   },
-  lettere: {tfr: {oggetto: 'prova', riferimentoNormativo: 'prova', fonte: 'prova'}},
+  lettere: {
+    tfr: {oggetto: 'prova', riferimentoNormativo: 'prova', fonte: 'prova'},
+    miglioramento: {oggetto: 'prova', riferimentoNormativo: 'prova', fonte: 'prova'},
+  },
 };
 
 /** Pratica di fantasia a tempo pieno; `modifica` sovrascrive i campi di primo livello. */
