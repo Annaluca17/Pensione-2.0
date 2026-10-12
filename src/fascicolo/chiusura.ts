@@ -5,7 +5,7 @@ import {calcolaPratica, confronta} from '../motore';
 import type {Confronto, Congelato, NomeSezione, Tabelle} from '../motore';
 
 /** Chiude una sezione calcolata: ne congela il risultato coi dati di adesso. */
-export function chiudiSezione(pratica: Pratica, sezione: NomeSezione, tabelle: Tabelle, adesso: string): Pratica {
+export function chiudiSezione<P extends Pratica>(pratica: P, sezione: NomeSezione, tabelle: Tabelle, adesso: string): P {
   const risultato = calcolaPratica(pratica.dati, tabelle);
   const calcolata = risultato.sezioni[sezione];
   if (calcolata?.esito !== 'calcolata') throw new Error(`chiudiSezione: la sezione ${sezione} è bloccata`);
@@ -14,7 +14,7 @@ export function chiudiSezione(pratica: Pratica, sezione: NomeSezione, tabelle: T
 }
 
 /** Riapre una sezione chiusa: torna calcolata, i dati della pratica restano. */
-export const riapriSezione = (pratica: Pratica, sezione: NomeSezione, adesso: string): Pratica => ({
+export const riapriSezione = <P extends Pratica>(pratica: P, sezione: NomeSezione, adesso: string): P => ({
   ...pratica,
   congelati: pratica.congelati.filter((c) => c.sezione !== sezione),
   modificata: adesso,

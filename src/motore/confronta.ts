@@ -26,7 +26,15 @@ const ESTREMO = {iniziale: 'mese di assunzione', finale: 'mese di cessazione'} a
 function campi(sezione: NonNullable<Risultato['sezioni'][NomeSezione]>): Map<string, Campo> {
   const out = new Map<string, Campo>();
   if (sezione.esito !== 'calcolata') return out;
-  if ('righe' in sezione) {
+  if ('totaleAnnui' in sezione) {
+    // UM pensione: una riga per voce e la 13ª (i totali ne derivano).
+    for (const r of sezione.righe) out.set(r.id, {etichetta: r.etichetta, tipo: 'importo', valore: r.composizione.arrotondato});
+    const t = sezione.tredicesima;
+    out.set(t.id, {etichetta: t.etichetta, tipo: 'importo', valore: t.composizione.arrotondato});
+  } else if ('totale' in sezione) {
+    // UM TFS: le 9 righe della maschera.
+    for (const r of sezione.righe) out.set(r.id, {etichetta: r.etichetta, tipo: 'importo', valore: r.composizione.arrotondato});
+  } else if ('righe' in sezione) {
     out.set('decorrenzaGiuridica', {etichetta: 'Decorrenza giuridica', tipo: 'data', valore: sezione.decorrenzaGiuridica});
     out.set('decorrenzaEconomica', {etichetta: 'Decorrenza economica', tipo: 'data', valore: sezione.decorrenzaEconomica});
     out.set('dataCessazione', {etichetta: 'Data di cessazione', tipo: 'data', valore: sezione.dataCessazione});

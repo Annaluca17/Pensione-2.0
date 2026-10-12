@@ -1,14 +1,18 @@
 // Fascicolo su pagina unica con indice laterale (ticket 14, storie 6-7, 32): i dati si compilano a
-// mano e il Risultato si ricalcola intero a ogni modifica, senza pulsante "calcola".
+// mano e il Risultato si ricalcola intero a ogni modifica, senza pulsante "calcola". La pratica di pensione
+// (ticket 30) ha regime e situazione, UM pensione e, secondo il regime, TFS o TFR.
 import {useMemo} from 'react';
 import type {Archivio, Pratica} from '../archivio';
 import {calcolaPratica} from '../motore';
-import type {DatiPratica} from '../motore';
+import type {DatiPraticaPensione, NomeSezione} from '../motore';
 import {tabelle} from '../tabelle';
 import {Stato} from './campi';
 import type {StatoSezione} from './campi';
 import {SezioneAnagrafica, SezioneForzature, SezioneRetribuzione} from './SezioneDati';
+import type {Modifica} from './SezioneDati';
 import {SezioneTfr} from './SezioneTfr';
+import {SezioneDatiPensione, SezioneTfs, SezioneUmPensione} from './SezioniPensione';
+import {allineaRegime} from './modifiche';
 import {chiudiSezione, chiusure, riapriSezione} from './chiusura';
 import {LetteraExport} from './uscite/LetteraExport';
 
@@ -56,19 +60,38 @@ export function Fascicolo({
 
   const cambiaPratica = (cambia: (p: Pratica) => Pratica) =>
     aggiorna((a) => ({...a, pratiche: a.pratiche.map((p) => (p.id === praticaId ? cambia(p) : p))}));
-  const modifica = (cambia: (dati: DatiPratica) => DatiPratica) =>
-    cambiaPratica((p) => ({...p, dati: cambia(p.dati), modificata: new Date().toISOString()}));
-  const statoChiusura = (sezione: 'tfr'): StatoSezione | undefined =>
+  // Ogni modifica della pensione riallinea il regime all'assunzione, finché non è scelto (ticket 30).
+  const modifica: Modifica = (cambia) =>
+    cambiaPratica((p) => {
+      const modificata = new Date().toISOString();
+      return p.tipo === 'pensione' ? {...p, dati: allineaRegime(cambia(p.dati)), modificata} : {...p, dati: cambia(p.dati), modificata};
+    });
+  const modificaPensione = (cambia: (dati: DatiPraticaPensione) => DatiPraticaPensione) =>
+    cambiaPratica((p) => (p.tipo === 'pensione' ? {...p, dati: allineaRegime(cambia(p.dati)), modificata: new Date().toISOString()} : p));
+  const statoChiusura = (sezione: NomeSezione): StatoSezione | undefined =>
     chiuse[sezione] ? (chiuse[sezione].daRilavorare ? 'da rilavorare' : 'chiusa') : undefined;
+  const azioni = (sezione: NomeSezione) => ({
+    chiusura: chiuse[sezione],
+    onChiudi: () => cambiaPratica((p) => chiudiSezione(p, sezione, tabelle, new Date().toISOString())),
+    onRiapri: () => cambiaPratica((p) => riapriSezione(p, sezione, new Date().toISOString())),
+  });
 
   const a = pratica.dati.anagrafica;
   const statoAnagrafica: StatoSezione = a.nome && a.codiceFiscale && a.posizione && a.assunzione && a.cessazione ? 'completa' : 'da completare';
   const cessazione = pratica.tipo === 'cessazione';
+  const regime = pratica.tipo === 'pensione' ? pratica.dati.regime : undefined;
+  // Sezioni del regime e, se chiuse prima di un cambio di regime, quelle dell'altro: restano, da rilavorare.
+  const conTfs = regime === 'TFS' || chiuse.tfs !== undefined;
+  const conTfr = cessazione || regime === 'TFR' || chiuse.tfr !== undefined;
+  const stato = (sezione: 'umPensione' | 'tfs' | 'tfr') => statoChiusura(sezione) ?? risultato.sezioni[sezione]?.esito ?? 'bloccata';
   const indice: {id: string; titolo: string; stato?: StatoSezione}[] = [
     {id: 'anagrafica', titolo: 'Anagrafica', stato: statoAnagrafica},
+    ...(regime ? [{id: 'pensione', titolo: 'Regime e situazione'}] : []),
     {id: 'retribuzione', titolo: 'Retribuzione', stato: risultato.sezioni.retribuzione.esito},
     {id: 'forzature', titolo: 'Date e mese parziale', stato: risultato.sezioni.meseParziale.esito},
-    ...(cessazione ? [{id: 'tfr', titolo: 'Ultimo miglio TFR', stato: statoChiusura('tfr') ?? risultato.sezioni.tfr.esito}] : []),
+    ...(regime ? [{id: 'umPensione', titolo: 'Ultimo miglio pensione', stato: stato('umPensione')}] : []),
+    ...(conTfs ? [{id: 'tfs', titolo: 'Ultimo miglio TFS', stato: stato('tfs')}] : []),
+    ...(conTfr ? [{id: 'tfr', titolo: 'Ultimo miglio TFR', stato: stato('tfr')}] : []),
     {id: 'uscite', titolo: 'Lettera ed export'},
   ];
 
@@ -96,20 +119,12 @@ export function Fascicolo({
         </nav>
         <div className="min-w-0 space-y-6">
           <SezioneAnagrafica dati={pratica.dati} tabelle={tabelle} modifica={modifica} stato={statoAnagrafica} />
+          {pratica.tipo === 'pensione' && <SezioneDatiPensione dati={pratica.dati} modifica={modificaPensione} />}
           <SezioneRetribuzione dati={pratica.dati} tabelle={tabelle} risultato={risultato} modifica={modifica} utilita={cessazione ? 'tfr' : 'pensione'} />
-          <SezioneForzature dati={pratica.dati} risultato={risultato} modifica={modifica} />
-          {cessazione ? (
-            <SezioneTfr
-              risultato={risultato}
-              chiusura={chiuse.tfr}
-              onChiudi={() => cambiaPratica((p) => chiudiSezione(p, 'tfr', tabelle, new Date().toISOString()))}
-              onRiapri={() => cambiaPratica((p) => riapriSezione(p, 'tfr', new Date().toISOString()))}
-            />
-          ) : (
-            <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">
-              Le sezioni della pratica di pensione (ultimo miglio, TFS, DMA previste) arrivano col tratto 2.
-            </p>
-          )}
+          <SezioneForzature dati={pratica.dati} risultato={risultato} modifica={modifica} regime={regime} />
+          {regime && <SezioneUmPensione risultato={risultato} {...azioni('umPensione')} />}
+          {conTfs && <SezioneTfs risultato={risultato} {...azioni('tfs')} />}
+          {conTfr && <SezioneTfr risultato={risultato} {...azioni('tfr')} />}
           <LetteraExport
             pratica={pratica}
             ente={ente}

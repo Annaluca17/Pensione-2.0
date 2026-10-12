@@ -8,8 +8,7 @@ import type {PaginaPdf, Proposta} from '../lettore';
 import type {DatiPratica, Tabelle} from '../motore';
 import {campo, etichetta} from './campi';
 import {scriviEuro} from './modifiche';
-
-type Modifica = (cambia: (dati: DatiPratica) => DatiPratica) => void;
+import type {Modifica} from './SezioneDati';
 
 export function CaricaPdf({dati, tabelle, modifica}: {dati: DatiPratica; tabelle: Tabelle; modifica: Modifica}) {
   const [pagine, setPagine] = useState<PaginaPdf[]>([]);

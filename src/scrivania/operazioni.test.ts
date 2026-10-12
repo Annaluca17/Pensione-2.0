@@ -1,7 +1,7 @@
 // Operazioni della scrivania (ticket 12). Dati di fantasia.
 import {describe, expect, it} from 'vitest';
 import {archivioVuoto, schemaArchivio} from '../archivio';
-import {aggiungiEnte, aggiungiPratica, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
+import {aggiungiEnte, aggiungiPratica, aperta, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
 import type {Filtri} from './operazioni';
 
 const ADESSO = '2026-10-11T10:00:00.000Z';
@@ -73,5 +73,23 @@ describe('elenco della scrivania', () => {
       elencoScrivania(conChiusa, {...tutte, soloAperte: true}, OGGI, rilavorare).map((r) => r.pratica.id);
     expect(aperte()).toEqual(['p4', 'p1', 'p3']);
     expect(aperte(() => true)).toEqual(['p4', 'p2', 'p1', 'p3']);
+  });
+});
+
+describe('pratica di pensione (ticket 30)', () => {
+  it("nasce in situazione ordinaria, col regime proposto senza assunzione (TFS) e non scelto", () => {
+    const p = popolato().pratiche[0];
+    if (p.tipo !== 'pensione') throw new Error(p.tipo);
+    expect([p.dati.regime, p.dati.situazione, p.dati.regimeScelto]).toEqual(['TFS', {tipo: 'ordinaria'}, undefined]);
+  });
+
+  it("è aperta finché UM pensione e la sezione del suo regime (TFS o TFR) non sono chiuse entrambe", () => {
+    const p = popolato().pratiche[0];
+    if (p.tipo !== 'pensione') throw new Error(p.tipo);
+    const chiusa = (sezione: string) => ({sezione, versioneTabelle: 'v', dati: p.dati, risultato: {} as never}) as never;
+    expect(aperta({...p, congelati: [chiusa('umPensione')]})).toBe(true);
+    expect(aperta({...p, congelati: [chiusa('umPensione'), chiusa('tfs')]})).toBe(false);
+    expect(aperta({...p, dati: {...p.dati, regime: 'TFR'}, congelati: [chiusa('umPensione'), chiusa('tfs')]})).toBe(true);
+    expect(aperta({...p, dati: {...p.dati, regime: 'TFR'}, congelati: [chiusa('umPensione'), chiusa('tfr')]})).toBe(false);
   });
 });

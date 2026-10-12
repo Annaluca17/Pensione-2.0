@@ -156,3 +156,46 @@ describe('ascolta: più schede', () => {
     expect(finestra.removeEventListener).toHaveBeenCalled();
   });
 });
+
+describe('pratica di pensione (ticket 30)', () => {
+  const pensione = (): Pratica => ({
+    id: 'p9',
+    enteId: 'e1',
+    tipo: 'pensione',
+    dati: {
+      anagrafica: {nome: 'Maria Bianchi', codiceFiscale: 'RSSMRA80A01H501U', posizione: 'C3', assunzione: '1998-03-01', cessazione: '2026-06-30'},
+      voci: {base: {'01': 192823, '12': 5000, UT: 2000}, eccezioni: {}},
+      partTime: {base: {percentuale: 100}, eccezioni: {}},
+      forzature: {dataRiferimentoPensione: '2026-06-30'},
+      iscrittoCredito: true,
+      pensioneErogata: {fissi: 3000000, tredicesima: 250000},
+      regime: 'TFR',
+      regimeScelto: true,
+      situazione: {tipo: 'congedo-104', dal: '2026-03-01'},
+    },
+    congelati: [],
+    creata: '2026-10-12T10:00:00.000Z',
+    modificata: '2026-10-12T10:00:00.000Z',
+  });
+
+  it('regime, scelta del regime e situazione tornano identici dopo salva e rilettura', () => {
+    const conPensione = {...archivio, pratiche: [pensione()]};
+    expect(leggi(JSON.stringify(conPensione))).toEqual({stato: 'valido', archivio: conPensione, scartate: []});
+  });
+
+  it('i dati di una pratica di pensione senza regime o senza situazione la scartano', () => {
+    const {regime: _r, ...senzaRegime} = pensione().dati as Record<string, unknown>;
+    const {situazione: _s, ...senzaSituazione} = pensione().dati as Record<string, unknown>;
+    const esito = leggi(JSON.stringify({...archivio, pratiche: [{...pensione(), dati: senzaRegime}, {...pensione(), id: 'p8', dati: senzaSituazione}]}));
+    if (esito.stato !== 'valido') throw new Error(esito.stato);
+    expect(esito.archivio.pratiche).toEqual([]);
+    expect(esito.scartate.map((s) => s.id)).toEqual(['p9', 'p8']);
+  });
+
+  it('una pratica di cessazione non porta i campi della pensione', () => {
+    const cessazione = {...pratica('p7'), dati: {...pratica('p7').dati, regime: 'TFS', situazione: {tipo: 'ordinaria'}}};
+    const esito = leggi(JSON.stringify({...archivio, pratiche: [cessazione]}));
+    if (esito.stato !== 'valido') throw new Error(esito.stato);
+    expect(esito.archivio.pratiche).toEqual([pratica('p7')]);
+  });
+});

@@ -3,9 +3,18 @@
 import {describe, expect, expectTypeOf, it} from 'vitest';
 import type {z} from 'zod';
 import {calcolaPratica} from '../motore';
-import type {Congelato, DatiPratica, SezioneCalcolata} from '../motore';
+import type {Congelato, DatiPratica, DatiPraticaPensione, SezioneCalcolata} from '../motore';
 import {tabelle} from '../tabelle';
-import {schemaCongelato, schemaDatiPratica, schemaMeseParziale, schemaRetribuzione, schemaTfr} from './schema';
+import {
+  schemaCongelato,
+  schemaDatiPratica,
+  schemaDatiPraticaPensione,
+  schemaMeseParziale,
+  schemaRetribuzione,
+  schemaTfr,
+  schemaTfs,
+  schemaUmPensione,
+} from './schema';
 
 /** Assegnabili nei due versi (per l'unione intera, dove toEqualTypeOf non regge). */
 type Equivalenti<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -24,11 +33,17 @@ describe('schema ↔ tipi del motore', () => {
     expectTypeOf<z.infer<typeof schemaDatiPratica>>().toEqualTypeOf<DatiPratica>();
   });
 
+  it('DatiPraticaPensione: stesso tipo in entrambe le direzioni (ticket 30)', () => {
+    expectTypeOf<Equivalenti<z.infer<typeof schemaDatiPraticaPensione>, DatiPraticaPensione>>().toEqualTypeOf<true>();
+  });
+
   it('Congelato: ogni sezione calcolata ha lo stesso tipo, e l\'unione è equivalente', () => {
     type Piatto<T> = {[K in keyof T]: T[K]};
     expectTypeOf<z.infer<typeof schemaTfr>>().toEqualTypeOf<Piatto<SezioneCalcolata<'tfr'>>>();
     expectTypeOf<z.infer<typeof schemaMeseParziale>>().toEqualTypeOf<Piatto<SezioneCalcolata<'meseParziale'>>>();
     expectTypeOf<z.infer<typeof schemaRetribuzione>>().toEqualTypeOf<Piatto<SezioneCalcolata<'retribuzione'>>>();
+    expectTypeOf<z.infer<typeof schemaUmPensione>>().toEqualTypeOf<Piatto<SezioneCalcolata<'umPensione'>>>();
+    expectTypeOf<z.infer<typeof schemaTfs>>().toEqualTypeOf<Piatto<SezioneCalcolata<'tfs'>>>();
     expectTypeOf<Equivalenti<z.infer<typeof schemaCongelato>, Congelato>>().toEqualTypeOf<true>();
   });
 

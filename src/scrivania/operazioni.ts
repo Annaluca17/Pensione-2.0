@@ -1,7 +1,8 @@
 // Operazioni della scrivania sull'archivio (ticket 12, storie 1-5, 8-9): funzioni pure, l'interfaccia
 // le chiama e salva il risultato. Id e istante arrivano da fuori (crypto.randomUUID, new Date).
 import type {Archivio, Ente, Pratica} from '../archivio';
-import type {DataISO} from '../motore';
+import type {DataISO, DatiPratica, NomeSezione} from '../motore';
+import {regimeProposto} from '../fascicolo/modifiche';
 
 export type TipoPratica = Pratica['tipo'];
 
@@ -21,27 +22,25 @@ export interface NuovaPratica {
 /** Una pratica nuova: solo anagrafica minima, il resto si compila nel fascicolo. */
 export function aggiungiPratica(archivio: Archivio, nuova: NuovaPratica, id: string, adesso: string): {archivio: Archivio; pratica: Pratica} {
   if (!archivio.enti.some((e) => e.id === nuova.enteId)) throw new Error(`aggiungiPratica: l'ente ${nuova.enteId} non esiste`);
-  const pratica: Pratica = {
-    id,
-    enteId: nuova.enteId,
-    tipo: nuova.tipo,
-    dati: {
-      anagrafica: {
-        nome: nuova.nome.trim(),
-        codiceFiscale: nuova.codiceFiscale.trim().toUpperCase(),
-        posizione: '',
-        ...(nuova.cessazione && {cessazione: nuova.cessazione}),
-      },
-      voci: {base: {}, eccezioni: {}},
-      partTime: {base: {percentuale: 100}, eccezioni: {}},
-      forzature: {},
-      // R5: preimpostato a sì, l'operatore lo toglie se il dipendente non è iscritto.
-      iscrittoCredito: true,
+  const dati: DatiPratica = {
+    anagrafica: {
+      nome: nuova.nome.trim(),
+      codiceFiscale: nuova.codiceFiscale.trim().toUpperCase(),
+      posizione: '',
+      ...(nuova.cessazione && {cessazione: nuova.cessazione}),
     },
-    congelati: [],
-    creata: adesso,
-    modificata: adesso,
+    voci: {base: {}, eccezioni: {}},
+    partTime: {base: {percentuale: 100}, eccezioni: {}},
+    forzature: {},
+    // R5: preimpostato a sì, l'operatore lo toglie se il dipendente non è iscritto.
+    iscrittoCredito: true,
   };
+  const comune = {id, enteId: nuova.enteId, congelati: [], creata: adesso, modificata: adesso};
+  // Pensione (ticket 30): regime proposto dall'assunzione (che ancora non c'è), situazione ordinaria.
+  const pratica: Pratica =
+    nuova.tipo === 'pensione'
+      ? {...comune, tipo: 'pensione', dati: {...dati, regime: regimeProposto(dati), situazione: {tipo: 'ordinaria'}}}
+      : {...comune, tipo: 'cessazione', dati};
   return {archivio: {...archivio, pratiche: [...archivio.pratiche, pratica]}, pratica};
 }
 
@@ -57,19 +56,16 @@ export const eliminaEnte = (archivio: Archivio, id: string): Archivio => ({
   pratiche: archivio.pratiche.filter((p) => p.enteId !== id),
 });
 
-/** Sezioni che chiudono una pratica, per tipo: cresceranno con le sezioni del motore. */
-export const SEZIONI_PERTINENTI: Record<TipoPratica, readonly Pratica['congelati'][number]['sezione'][]> = {
-  cessazione: ['tfr'],
-  pensione: [],
-};
+/** Sezioni che chiudono una pratica: per la pensione l'UM e la sezione del regime (ADR 0002, ticket 30). */
+export const sezioniPertinenti = (pratica: Pratica): NomeSezione[] =>
+  pratica.tipo === 'cessazione' ? ['tfr'] : ['umPensione', pratica.dati.regime === 'TFS' ? 'tfs' : 'tfr'];
 
 /**
- * Aperta (decisione del ticket 10: lo stato si ricava) = almeno una sezione pertinente non chiusa, o
- * nessuna sezione ancora disponibile; `daRilavorare` la riapre (lo calcola chi ha motore e tabelle).
+ * Aperta (decisione del ticket 10: lo stato si ricava) = almeno una sezione pertinente non chiusa; `daRilavorare` la riapre (lo calcola chi ha motore e tabelle).
  */
 export function aperta(pratica: Pratica, daRilavorare = false): boolean {
-  const sezioni = SEZIONI_PERTINENTI[pratica.tipo];
-  if (daRilavorare || sezioni.length === 0) return true;
+  const sezioni = sezioniPertinenti(pratica);
+  if (daRilavorare) return true;
   return sezioni.some((s) => !pratica.congelati.some((c) => c.sezione === s));
 }
 

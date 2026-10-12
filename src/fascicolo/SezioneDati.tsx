@@ -2,7 +2,7 @@
 // del mese parziale forzabili con proposto/usato/forzato visibili (storie 16-17, 37).
 import {useState} from 'react';
 import type {ReactNode} from 'react';
-import type {DatiPratica, MeseISO, Risultato, Tabelle, TipoPartTime, ValoreForzabile} from '../motore';
+import type {ChiaveDataRiferimento, DatiPratica, MeseISO, RegimeFineServizio, Risultato, Tabelle, TipoPartTime, ValoreForzabile} from '../motore';
 import {CampoEuro, Riquadro, campo, etichetta} from './campi';
 import {CaricaPdf} from './CaricaPdf';
 import type {StatoSezione} from './campi';
@@ -15,7 +15,8 @@ import {
   impostaVoceBase,
 } from './modifiche';
 
-type Modifica = (cambia: (dati: DatiPratica) => DatiPratica) => void;
+/** Generica: una modifica conserva i campi della pratica di pensione (regime, situazione). */
+export type Modifica = (cambia: <D extends DatiPratica>(dati: D) => D) => void;
 const mese = (m: MeseISO) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
 const data = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 
@@ -282,30 +283,48 @@ function Forzabile({
   );
 }
 
-/** Data di riferimento di TFS/TFR e giorni del mese parziale: le sole forzature (storie 37-38). */
-export function SezioneForzature({dati, risultato, modifica}: {dati: DatiPratica; risultato: Risultato; modifica: Modifica}) {
-  const fine = risultato.dateRiferimento?.fineServizio;
+/** Date di riferimento e giorni del mese parziale: le sole forzature (storie 37-38). */
+export function SezioneForzature({
+  dati,
+  risultato,
+  modifica,
+  regime,
+}: {
+  dati: DatiPratica;
+  risultato: Risultato;
+  modifica: Modifica;
+  /** Pratica di pensione: anche la data della pensione, e la fine servizio è del TFS o del TFR. */
+  regime?: RegimeFineServizio;
+}) {
+  const date = risultato.dateRiferimento;
   const parziale = risultato.sezioni.meseParziale;
+  const forzabili: {chiave: ChiaveDataRiferimento; titolo: string; valore?: ValoreForzabile<string>}[] = [
+    ...(regime ? [{chiave: 'dataRiferimentoPensione' as const, titolo: 'Data di riferimento della pensione', valore: date?.pensione}] : []),
+    {
+      chiave: 'dataRiferimentoFineServizio',
+      titolo: regime === 'TFS' ? 'Data di fine TFS' : 'Data di riferimento del TFR',
+      valore: date?.fineServizio,
+    },
+  ];
   return (
     <Riquadro id="forzature" titolo="Date di riferimento e mese parziale" stato={parziale.esito}>
       <div className="grid gap-3 md:grid-cols-2">
-        {fine ? (
-          <Forzabile
-            titolo="Data di riferimento del TFR"
-            valore={fine}
-            mostra={(v) => data(String(v))}
-            onTogli={() => modifica((d) => impostaForzatura(d, 'dataRiferimentoFineServizio', undefined))}
-          >
-            <input
-              className={`${campo} w-44`}
-              type="date"
-              aria-label="Forza la data di riferimento del TFR"
-              value={dati.forzature.dataRiferimentoFineServizio ?? ''}
-              onChange={(e) => modifica((d) => impostaForzatura(d, 'dataRiferimentoFineServizio', e.target.value || undefined))}
-            />
-          </Forzabile>
+        {date ? (
+          forzabili.map(({chiave, titolo, valore}) =>
+            valore ? (
+              <Forzabile key={chiave} titolo={titolo} valore={valore} mostra={(v) => data(String(v))} onTogli={() => modifica((d) => impostaForzatura(d, chiave, undefined))}>
+                <input
+                  className={`${campo} w-44`}
+                  type="date"
+                  aria-label={`Forza: ${titolo}`}
+                  value={dati.forzature[chiave] ?? ''}
+                  onChange={(e) => modifica((d) => impostaForzatura(d, chiave, e.target.value || undefined))}
+                />
+              </Forzabile>
+            ) : null,
+          )
         ) : (
-          <p className="text-sm text-slate-500">La data di riferimento si propone dalla cessazione.</p>
+          <p className="text-sm text-slate-500">{regime ? 'Le date di riferimento si propongono dalla cessazione e dalla situazione.' : 'La data di riferimento si propone dalla cessazione.'}</p>
         )}
         {parziale.esito === 'calcolata' ? (
           <Forzabile

@@ -1,7 +1,11 @@
 // Modifiche ai dati della pratica dal fascicolo (ticket 14). Dati di fantasia.
 import {describe, expect, it} from 'vitest';
-import type {DatiPratica} from '../motore';
+import type {DatiPratica, DatiPraticaPensione} from '../motore';
 import {
+  allineaRegime,
+  impostaPensioneErogata,
+  impostaSituazione,
+  scegliRegime,
   impostaAnagrafica,
   impostaEccezionePartTime,
   impostaEccezioneVoce,
@@ -66,5 +70,49 @@ describe('importi in euro', () => {
     expect(scriviEuro(192823)).toBe('1.928,23');
     expect(scriviEuro(5)).toBe('0,05');
     expect(scriviEuro(-12345678)).toBe('-123.456,78');
+  });
+});
+
+describe('regime della pratica di pensione (ticket 30)', () => {
+  const pensione = (assunzione?: string, scelta?: Partial<DatiPraticaPensione>): DatiPraticaPensione => ({
+    ...dati,
+    anagrafica: {...dati.anagrafica, assunzione},
+    regime: 'TFS',
+    situazione: {tipo: 'ordinaria'},
+    ...scelta,
+  });
+
+  it("segue l'assunzione: fino al 31/12/2000 TFS, dal 01/01/2001 TFR (DPCM 20/12/1999), senza assunzione TFS", () => {
+    expect(allineaRegime(pensione('2000-12-31')).regime).toBe('TFS');
+    expect(allineaRegime(pensione('2001-01-01')).regime).toBe('TFR');
+    expect(allineaRegime(pensione('2001-01-01', {regime: 'TFR'})).regime).toBe('TFR');
+    expect(allineaRegime(pensione(undefined, {regime: 'TFR'})).regime).toBe('TFS');
+  });
+
+  it("scelto dall'operatore non segue più l'assunzione", () => {
+    expect(allineaRegime(pensione('2015-04-01', {regimeScelto: true})).regime).toBe('TFS');
+  });
+
+  it("scegliere il regime lo fissa; tornare al proposto lo riallinea all'assunzione", () => {
+    const scelto = scegliRegime(pensione('2015-04-01', {regime: 'TFR'}), 'TFS');
+    expect([scelto.regime, scelto.regimeScelto]).toEqual(['TFS', true]);
+    const proposto = scegliRegime(scelto, undefined);
+    expect(proposto.regime).toBe('TFR');
+    expect(proposto).not.toHaveProperty('regimeScelto');
+  });
+
+  it("situazione: il tipo nuovo tiene il primo giorno già inserito; senza, resta vuoto (blocco finché manca); ordinaria non ha giorno", () => {
+    const congedo = impostaSituazione(pensione('1998-01-01'), 'congedo-104');
+    expect(congedo.situazione).toEqual({tipo: 'congedo-104', dal: ''});
+    const conDal = impostaSituazione(congedo, 'congedo-104', '2026-03-01');
+    expect(impostaSituazione(conDal, 'optante-tfr').situazione).toEqual({tipo: 'optante-tfr', dal: '2026-03-01'});
+    expect(impostaSituazione(conDal, 'ordinaria').situazione).toEqual({tipo: 'ordinaria'});
+  });
+
+  it('pensione erogata: entra solo con tutti e due i totali; con uno solo la pratica non la ha', () => {
+    const entrambi = impostaPensioneErogata(pensione(), {fissi: 3000000, tredicesima: 250000});
+    expect(entrambi.pensioneErogata).toEqual({fissi: 3000000, tredicesima: 250000});
+    expect(impostaPensioneErogata(entrambi, {fissi: 3000000})).not.toHaveProperty('pensioneErogata');
+    expect(impostaPensioneErogata(entrambi, {fissi: 3000000}).regime).toBe('TFS');
   });
 });

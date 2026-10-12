@@ -118,6 +118,8 @@ export interface DatiPratica {
 /** Dati della pratica di pensione: UM pensione e, secondo il regime, TFS oppure TFR (ADR 0002). */
 export interface DatiPraticaPensione extends DatiPratica {
   regime: RegimeFineServizio;
+  /** L'operatore ha scelto il regime: non segue più l'assunzione (fascicolo, ticket 30). Il motore lo ignora. */
+  regimeScelto?: true;
   situazione: Situazione;
   /** DMA previste dal mese dopo l'ultima DMA vera (C21-1); assente = nessuna DMA prevista. */
   dmaPreviste?: {dal: MeseISO};
@@ -682,11 +684,8 @@ export type Avviso =
 
 // --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
 
-/**
- * Le sezioni che si chiudono oggi. L'UM pensione, il TFS, le DMA previste e il miglioramento ne restano fuori finché la persistenza non conserva la
- * pratica di pensione (regime e situazione): la chiusura arriva col suo fascicolo.
- */
-export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione' | 'tfs' | 'dmaPreviste' | 'miglioramento'>;
+/** Le sezioni che si chiudono oggi. DMA previste e miglioramento ne restano fuori: la chiusura arriva col ticket 31. */
+export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'dmaPreviste' | 'miglioramento'>;
 
 /** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
 export type SezioneCalcolata<S extends NomeSezione> = Extract<NonNullable<Risultato['sezioni'][S]>, {esito: 'calcolata'}>;
@@ -699,8 +698,11 @@ export type Congelato = {
   [S in NomeSezione]: {
     sezione: S;
     versioneTabelle: string;
-    /** I dati della pratica alla chiusura: servono a distinguere la causa "dati" da "tabelle". */
-    dati: DatiPratica;
+    /**
+     * I dati della pratica alla chiusura: servono a distinguere la causa "dati" da "tabelle". Per la pratica di
+     * pensione sono `DatiPraticaPensione` (regime e situazione), che il ricalcolo deve rileggere.
+     */
+    dati: DatiPratica | DatiPraticaPensione;
     risultato: SezioneCalcolata<S>;
   };
 }[NomeSezione];

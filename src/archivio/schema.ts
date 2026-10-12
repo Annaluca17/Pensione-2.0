@@ -2,6 +2,7 @@
 // validazione di forma. La coerenza di dominio (date, % part-time…) resta nel motore.
 // `DatiPratica` e `Congelato` sono tipi del motore: schema.test.ts verifica che coincidano.
 import {z} from 'zod';
+import type {DatiPratica, DatiPraticaPensione, Situazione} from '../motore';
 
 const data = z.string(); // forma aaaa-mm-gg: la valida il motore (blocco data-non-valida)
 const mese = z.string();
@@ -31,6 +32,21 @@ export const schemaDatiPratica = z.object({
   }),
   iscrittoCredito: z.boolean(),
   pensioneErogata: z.object({fissi: centesimi, tredicesima: centesimi}).optional(),
+});
+
+// Annotata: Zod 4.6 deduce come facoltativa una chiave il cui valore è un'unione (a runtime resta obbligatoria).
+const situazione: z.ZodType<Situazione> = z.union([
+  z.object({tipo: z.literal('ordinaria')}),
+  z.object({tipo: z.enum(['sospensione-cautelare', 'trattenuta-malattia', 'congedo-104', 'optante-tfr']), dal: data}),
+]);
+
+/** Dati della pratica di pensione (ticket 30): regime e situazione obbligatori. */
+export const schemaDatiPraticaPensione = schemaDatiPratica.extend({
+  regime: z.enum(['TFS', 'TFR']),
+  regimeScelto: z.literal(true).optional(),
+  situazione,
+  dmaPreviste: z.object({dal: mese}).optional(),
+  miglioramento: z.object({contratto: z.string()}).optional(),
 });
 
 // --- Sezioni calcolate (risultato congelato) ----------------------------------------------------
@@ -86,13 +102,39 @@ export const schemaRetribuzione = z.object({
   mesi: z.array(z.object({mese, voci: vociMese, partTime})),
 });
 
+const rigaImporto = z.object({id: z.string(), etichetta: z.string(), composizione});
+
+export const schemaUmPensione = z.object({
+  esito: z.literal('calcolata'),
+  mese,
+  righe: z.array(rigaImporto.extend({voce: z.string()})),
+  tredicesima: rigaImporto,
+  totaleAnnui: centesimi,
+  totale: centesimi,
+});
+
+export const schemaTfs = z.object({
+  esito: z.literal('calcolata'),
+  dal: mese,
+  al: mese,
+  righe: z.array(rigaImporto.extend({campoPassweb: z.string().optional()})),
+  totale: centesimi,
+  annualizzato: z.literal(true).optional(),
+});
+
+// La pratica di pensione prima: con l'altra i dati perderebbero regime e situazione, che il ricalcolo rilegge.
+// Annotata come `situazione` (unione dedotta facoltativa da Zod 4.6).
+const datiCongelati: z.ZodType<DatiPratica | DatiPraticaPensione> = z.union([schemaDatiPraticaPensione, schemaDatiPratica]);
+
 const congelato = <S extends string, R extends z.ZodType>(sezione: S, risultato: R) =>
-  z.object({sezione: z.literal(sezione), versioneTabelle: z.string(), dati: schemaDatiPratica, risultato});
+  z.object({sezione: z.literal(sezione), versioneTabelle: z.string(), dati: datiCongelati, risultato});
 
 export const schemaCongelato = z.discriminatedUnion('sezione', [
   congelato('retribuzione', schemaRetribuzione),
   congelato('meseParziale', schemaMeseParziale),
   congelato('tfr', schemaTfr),
+  congelato('umPensione', schemaUmPensione),
+  congelato('tfs', schemaTfs),
 ]);
 
 // --- Involucro ---------------------------------------------------------------------------------
@@ -106,19 +148,22 @@ export const schemaEnte = z.object({
     .optional(),
 });
 
-/** Lo stato della pratica non si salva: si ricava da congelati e ricalcolo (decisione del ticket 10). */
-export const schemaPratica = z.object({
+const comunePratica = {
   id: z.string().min(1),
   enteId: z.string().min(1),
-  tipo: z.enum(['pensione', 'cessazione']),
-  dati: schemaDatiPratica,
   /** Al massimo un risultato congelato per sezione. */
   congelati: z.array(schemaCongelato).refine((c) => new Set(c.map((x) => x.sezione)).size === c.length, {
     message: 'più di un risultato congelato per la stessa sezione',
   }),
   creata: istante,
   modificata: istante,
-});
+};
+
+/** Lo stato della pratica non si salva: si ricava da congelati e ricalcolo (decisione del ticket 10). */
+export const schemaPratica = z.discriminatedUnion('tipo', [
+  z.object({...comunePratica, tipo: z.literal('cessazione'), dati: schemaDatiPratica}),
+  z.object({...comunePratica, tipo: z.literal('pensione'), dati: schemaDatiPraticaPensione}),
+]);
 
 export const VERSIONE_SCHEMA = 1;
 

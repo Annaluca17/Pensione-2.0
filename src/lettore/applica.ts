@@ -2,8 +2,8 @@
 import type {DatiPratica, MeseISO, PartTime} from '../motore';
 import type {Proposta} from './tipi';
 
-export interface Applicazione {
-  dati: DatiPratica;
+export interface Applicazione<D extends DatiPratica = DatiPratica> {
+  dati: D;
   avvisi: string[];
 }
 
@@ -50,7 +50,7 @@ function vociTolte(prima: DatiPratica['voci'], dopo: DatiPratica['voci']): strin
   return [...codici(prima)].filter(c => !rimaste.has(c)).sort();
 }
 
-export function applicaProposta(dati: DatiPratica, proposta: Proposta): Applicazione {
+export function applicaProposta<D extends DatiPratica>(dati: D, proposta: Proposta): Applicazione<D> {
   const a = anagrafica(dati.anagrafica, proposta.dati.anagrafica);
   const tolte = vociTolte(dati.voci, proposta.dati.voci);
   const avvisiVoci = tolte.length ? [`Voci della pratica non presenti nei PDF e tolte: ${tolte.join(', ')}.`] : [];
