@@ -1,8 +1,9 @@
-// Ultimo miglio TFS (D3, D4, D14, D16, D17, D20). Interno al motore: lo chiama solo calcolaPratica.
+// Ultimo miglio TFS (D3, D4, D14, D16, D17, D20). Interno al motore: lo chiamano calcolaPratica e il
+// miglioramento contrattuale (righe del TFS migliorato).
 import {componi, totale} from './composizione';
 import {conIvcDaTabella} from './contratti';
 import {spostaMese} from './date';
-import type {Addendo, Avviso, MeseRetribuzione, Operazione, RigaTfs, Tabelle, Tfs} from './tipi';
+import type {Addendo, Avviso, CodiceVoce, MeseISO, MeseRetribuzione, Operazione, RigaTfs, Tabelle, Tfs} from './tipi';
 
 const FONTE_ANNUALIZZATO =
   'D2: con un solo mese inserito il TFS annualizza e lo segnala come semplificazione; C20-3 (un solo mese = nessuna eccezione nelle voci)';
@@ -28,25 +29,14 @@ export function calcolaTfs({mesi: tutti, annualizza, posizione, tabelle}: Ingres
     if (avviso) avvisi.push(avviso);
     return {mese: m.mese, voci};
   });
-  const addendi = (voci: readonly string[]): Addendo[] =>
-    mesi.flatMap((m) =>
-      voci
-        .filter((voce) => (m.voci[voce] ?? 0) !== 0)
-        .map((voce) => ({voce, mese: m.mese, importo: m.voci[voce]!})),
-    );
-  const righe: RigaTfs[] = tabelle.righePassweb.tfs.map((def) => {
-    // La 13ª è la Σ dei 12 mesi / 12 (D20); le altre righe la sola Σ (D3).
-    const operazioni: Operazione[] = [
-      ...(annualizza ? [{tipo: 'moltiplica' as const, per: 12, motivo: `mese ${fine} annualizzato (×12)`, fonte: FONTE_ANNUALIZZATO}] : []),
-      ...(def.id === 'tredicesima' ? [{tipo: 'dividi' as const, per: 12, motivo: 'Σ 12 mesi / 12 (13ª)', fonte: def.fonte}] : []),
-    ];
-    return {
-      id: def.id,
-      etichetta: def.etichetta,
-      ...(def.campoPassweb && {campoPassweb: def.campoPassweb}),
-      composizione: componi({addendi: addendi(def.voci), operazioni, fonte: def.fonte}),
-    };
-  });
+  const operazioni: Operazione[] = annualizza
+    ? [{tipo: 'moltiplica', per: 12, motivo: `mese ${fine} annualizzato (×12)`, fonte: FONTE_ANNUALIZZATO}]
+    : [];
+  const righe = righeTfs(
+    mesi.map((m) => ({mese: m.mese, addendiDi: (voce) => ((m.voci[voce] ?? 0) !== 0 ? [{voce, mese: m.mese, importo: m.voci[voce]!}] : [])})),
+    operazioni,
+    tabelle,
+  );
   return {
     tfs: {
       dal: annualizza ? spostaMese(fine, -11) : mesi[0].mese,
@@ -57,4 +47,28 @@ export function calcolaTfs({mesi: tutti, annualizza, posizione, tabelle}: Ingres
     },
     avvisi,
   };
+}
+
+/**
+ * Le 9 righe della maschera dagli addendi di ogni voce per mese (una voce dalle tabelle può averne più
+ * d'uno, es. tabellare + incremento): Σ sui mesi (D3), 13ª = Σ / 12 (D20); `operazioni` prima della
+ * divisione della 13ª; `fonte` si aggiunge a quella della riga (es. il miglioramento, C21-8).
+ */
+export function righeTfs(
+  mesi: {mese: MeseISO; addendiDi: (voce: CodiceVoce) => Addendo[]}[],
+  operazioni: Operazione[],
+  tabelle: Tabelle,
+  fonte?: string,
+): RigaTfs[] {
+  return tabelle.righePassweb.tfs.map((def) => ({
+    id: def.id,
+    etichetta: def.etichetta,
+    ...(def.campoPassweb && {campoPassweb: def.campoPassweb}),
+    composizione: componi({
+      addendi: mesi.flatMap((m) => def.voci.flatMap(m.addendiDi)),
+      // La 13ª è la Σ dei 12 mesi / 12 (D20); le altre righe la sola Σ (D3).
+      operazioni: [...operazioni, ...(def.id === 'tredicesima' ? [{tipo: 'dividi' as const, per: 12, motivo: 'Σ 12 mesi / 12 (13ª)', fonte: def.fonte}] : [])],
+      fonte: fonte ? `${def.fonte}; ${fonte}` : def.fonte,
+    }),
+  }));
 }

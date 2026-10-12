@@ -84,6 +84,31 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
       );
     case 'dma-non-prevista':
       return 'Con la trattenuta 100% per malattia la DMA prevista non serve: nessun periodo preparato (D19, C21-2).';
+    case 'miglioramento-non-applicabile':
+      return (
+        `Miglioramento ${cosa.contratto} non applicabile: vale per chi è cessato nella sua vigenza ` +
+        `(${giorno(cosa.vigenzaDal)} - ${giorno(cosa.vigenzaAl)}) e prima della firma (${giorno(cosa.firma)}); ` +
+        `la cessazione è del ${giorno(cosa.cessazione)} (C21-5).`
+      );
+    case 'contratto-inesistente':
+      return `Il contratto «${cosa.contratto}» scelto per il miglioramento non è nelle tabelle.`;
+    case 'importo-non-in-tabella':
+      return (
+        `Manca in tabella l'importo per ${cosa.chiave} dello scaglionamento dal ${giorno(cosa.decorrenza)} (${cosa.fonte}): ` +
+        'il miglioramento non si può calcolare.'
+      );
+    case 'pensione-erogata-diversa':
+      return (
+        `La pensione erogata (fissi ${euro(cosa.fissi)}, 13ª ${euro(cosa.tredicesima)}) differisce dall'UM ricalcolato dalle voci ` +
+        `(fissi ${euro(cosa.ricalcolatoFissi)}, 13ª ${euro(cosa.ricalcolato13)}): la vecchia domanda non si tocca (T4).`
+      );
+    case 'nessun-miglioramento-reale':
+      return (
+        `Nessun miglioramento reale dal ${giorno(cosa.decorrenza)}: fissi + 13ª migliorati (${euro(cosa.migliorato)}) non superano ` +
+        `la pensione erogata (${euro(cosa.erogata)}). Non inserire la domanda (T4).`
+      );
+    case 'tfs-da-modificare':
+      return `UM TFS da modificare: il miglioramento contrattuale cambia le righe ${cosa.righe.join(', ')} (C21-8).`;
     case 'eccezioni-fuori-periodo':
       return (
         `Eccezioni ignorate perché fuori dai mesi considerati (da ${mese(cosa.dal)} a ${mese(cosa.al)}): ` +
@@ -102,7 +127,7 @@ export function spiega(cosa: Blocco | Avviso | Composizione | Differenza): strin
       );
     case 'contratto-in-ipotesi':
       return (
-        `La data di riferimento (pensione o fine TFS) cade nella vigenza dell'ipotesi ${cosa.contratto} (dal ${giorno(cosa.vigenzaDal)}), che non ` +
+        `La data di riferimento (pensione o fine TFS) o la cessazione del miglioramento contrattuale cade nella vigenza dell'ipotesi ${cosa.contratto} (dal ${giorno(cosa.vigenzaDal)}), che non ` +
         `produce importi: alla firma la pratica tornerà da rilavorare (T5).`
       );
     case 'tfs-annualizzato':

@@ -1,12 +1,12 @@
 // Ticket 23 e 25: l'UM pensione e l'UM TFS (resTFS) del nuovo motore confrontati con la fotografia del
-// vecchio Unificato (ticket 19; glossario: Fotografia del vecchio, Differenza attesa). Solo la parte di base:
-// il miglioramento contrattuale (pensioneMC, tfsMC) è del ticket 27. Legge solo i dati congelati, non il reperto: resta
+// vecchio Unificato (ticket 19; glossario: Fotografia del vecchio, Differenza attesa); dal ticket 27 anche il
+// miglioramento contrattuale (pensioneMC, tfsMC). Legge solo i dati congelati, non il reperto: resta
 // dopo la pulizia (ticket 36, che sposterà fotografia.json e questo import).
 // Passa se le righe non elencate valgono come il vecchio (±1 centesimo, D17) e se ogni riga elencata vale
 // il nuovo importo, giustificato da decisione e fonte.
 import {describe, expect, it} from 'vitest';
 import {calcolaPratica} from '../motore';
-import type {DatiPraticaPensione, MeseISO, Tfs, UmPensione, VociMese} from '../motore';
+import type {DatiPraticaPensione, MeseISO, Miglioramento, Risultato, Tfs, TfsMigliorato, UmPensione, VociMese} from '../motore';
 import fotografia from '../reperti/unificato/fotografia.json';
 import {tabelle} from '../tabelle';
 
@@ -76,6 +76,9 @@ function dati(caso: Caso): DatiPraticaPensione {
     situazione: {tipo: 'ordinaria'},
   };
 }
+
+/** Ticket 27: col miglioramento attivo nel vecchio (mcOn) il contratto è il CCNL 2022-24, il solo che il vecchio conosce. */
+const conMiglioramento = (caso: Caso): DatiPraticaPensione => ({...dati(caso), miglioramento: {contratto: 'ccnl-2022-24'}});
 
 /** Le righe del vecchio (per voce, 13ª, totale annui) e il loro valore nel nuovo; 0 = riga assente. */
 function righe(um: UmPensione): Record<string, number> {
@@ -198,7 +201,7 @@ const righeTfs: [string, string][] = [
   ['tot', 'totale'],
 ];
 
-const valoriTfs = (t: Tfs): Record<string, number> => ({
+const valoriTfs = (t: Tfs | TfsMigliorato): Record<string, number> => ({
   ...Object.fromEntries(t.righe.map((r) => [r.id, r.composizione.arrotondato])),
   totale: t.totale,
 });
@@ -250,5 +253,133 @@ describe('fotografia Unificato: UM TFS del nuovo = vecchio ±1 centesimo, salvo 
       expect(casi.has(d.caso), d.caso).toBe(true);
       expect(righe.has(d.riga), d.riga).toBe(true);
     }
+  });
+});
+
+// --- Miglioramento contrattuale (ticket 27) ---------------------------------------------------------------
+
+/**
+ * Adattatore confermato dall'utente (ticket 27): il vecchio `pensione` (voci come digitate, IVC compresa) è
+ * lo Scenario A; il vecchio `pensioneMC` (decorrenza "2024": Tab. B col. 1) è il primo UM migliorato con
+ * decorrenza dal 01/01/2024; il vecchio `tfsMC` è il TFS migliorato (`null` = il vecchio non lo calcola).
+ */
+const casiMc = fotografia.casi.filter((c) => c.ingressi.mcOn);
+
+const miglioramento = (r: Risultato): Extract<Miglioramento, {stato: 'definitivo'}> => {
+  const s = r.sezioni.miglioramento;
+  if (s?.esito !== 'calcolata' || s.stato !== 'definitivo') throw new Error(`miglioramento non calcolato: ${JSON.stringify(s)}`);
+  return s;
+};
+
+const vecchioUm = (p: {a: number; t: number; voci: {id: string; a: number}[]}): Record<string, number> => ({
+  tredicesima: centesimi(p.t),
+  totaleAnnui: centesimi(p.a),
+  ...Object.fromEntries(p.voci.map((v) => [v.id, centesimi(v.a)])),
+});
+
+/** Confronta riga per riga: ±1 centesimo, salvo le differenze attese del caso (0 nel vecchio = riga assente). */
+function confrontaUm(caso: string, nuovo: Record<string, number>, vecchio: Record<string, number>, attese: DifferenzaAttesa[]) {
+  for (const riga of new Set([...Object.keys(vecchio), ...Object.keys(nuovo)])) {
+    const attesa = attese.find((d) => d.caso === caso && d.riga === riga);
+    if (attesa) {
+      expect(nuovo[riga] ?? null, `${riga}: ${attesa.decisione}`).toBe(attesa.nuovo);
+      expect(attesa.fonte).not.toBe('');
+    } else {
+      expect(Math.abs((nuovo[riga] ?? 0) - (vecchio[riga] ?? 0)), `${riga}: nuovo ${nuovo[riga]}, vecchio ${vecchio[riga]}`).toBeLessThanOrEqual(1);
+    }
+  }
+}
+
+const IVC_DIGITATA =
+  "adattatore del ticket 25: l'IVC del mese della pensione è quella del mese (ivcOvr o tabella 2023 del vecchio), mentre la pensione del vecchio usava la 09 digitata; lo Scenario A tiene l'IVC inserita (C21-7)";
+const FONTE_A = 'C21-7 (Scenario A = voci inserite così come sono); adattatore della fotografia (ticket 25)';
+const MIGLIORATO_02 = 'C21-7, T12: 02 = differenziale storico rivisto della trasposizione (parere ARAN 37607), non il PEO_TABLE del vecchio';
+const MIGLIORATO_09 = "C21-7, T6: nel migliorato la 09 vale 0 (IVC riassorbita, CCNL 2022-24 art. 56); il vecchio teneva l'IVC digitata";
+const FONTE_MC = 'CCNL Funzioni Locali 2022-24 art. 56 e art. 57 c. 2; ADR 0003; casi normativi MC-N01, MC-N02';
+const TFS_MC =
+  'C21-8, D13: TFS migliorato mese per mese con gli scaglionamenti maturati (mesi 2023: Tab. G + incremento del 01/04/2023; 2024: Tab. B col. 1), 02 rivisto, IVC 0; il vecchio applicava il tabellare nuovo solo ai mesi dal 2024 e teneva 01 e IVC digitati negli altri';
+
+const differenzeScenarioA: DifferenzaAttesa[] = [
+  {caso: 'mc-finestra-2023-2024', riga: '09', nuovo: 18000, decisione: `${IVC_DIGITATA}; 15,00 × 12`, fonte: FONTE_A},
+  {caso: 'mc-finestra-2023-2024', riga: 'tredicesima', nuovo: 197000, decisione: `${IVC_DIGITATA}; 1.968,20 − 13,20 + 15,00`, fonte: FONTE_A},
+  {caso: 'mc-finestra-2023-2024', riga: 'totaleAnnui', nuovo: 2418960, decisione: 'D17: somma delle righe, segue la riga 09', fonte: 'D17'},
+  {caso: 'mc-solo-pensione', riga: '09', nuovo: 10188, decisione: `${IVC_DIGITATA}; 8,49 × 12`, fonte: FONTE_A},
+  {caso: 'mc-solo-pensione', riga: 'tredicesima', nuovo: 178932, decisione: `${IVC_DIGITATA}; 1.792,83 − 12,00 + 8,49`, fonte: FONTE_A},
+  {caso: 'mc-solo-pensione', riga: 'totaleAnnui', nuovo: 2187732, decisione: 'D17: somma delle righe, segue la riga 09', fonte: 'D17'},
+];
+
+const differenzeMigliorato: DifferenzaAttesa[] = [
+  {caso: 'mc-finestra-2023-2024', riga: '02', nuovo: 108228, decisione: `${MIGLIORATO_02}; C3 90,19 × 12`, fonte: FONTE_MC},
+  {caso: 'mc-finestra-2023-2024', riga: '09', nuovo: null, decisione: MIGLIORATO_09, fonte: FONTE_MC},
+  {caso: 'mc-finestra-2023-2024', riga: 'tredicesima', nuovo: 203074, decisione: `${MIGLIORATO_02}; ${MIGLIORATO_09}; 1.915,55 + 90,19 + 25,00`, fonte: FONTE_MC},
+  {caso: 'mc-finestra-2023-2024', riga: 'totaleAnnui', nuovo: 2491848, decisione: 'D17: somma delle righe, segue 02 e 09', fonte: 'D17'},
+  {caso: 'mc-solo-pensione', riga: '02', nuovo: 133668, decisione: `${MIGLIORATO_02}; B4 111,39 × 12`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: '09', nuovo: null, decisione: MIGLIORATO_09, fonte: FONTE_MC},
+  {
+    caso: 'mc-solo-pensione',
+    riga: '10',
+    nuovo: 47172,
+    decisione: 'C21-7 (decisione 8 del ticket 27): la 10 si prende dalle tabelle anche se non inserita; operatori esperti 39,31 × 12',
+    fonte: 'CCNL Funzioni Locali 2022-24 Tabella C colonna 1; C21-7',
+  },
+  {caso: 'mc-solo-pensione', riga: 'tredicesima', nuovo: 183577, decisione: `${MIGLIORATO_02}; ${MIGLIORATO_09}; 1.704,38 + 111,39 + 20,00`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'totaleAnnui', nuovo: 2290644, decisione: 'D17: somma delle righe, segue 02, 09 e 10', fonte: 'D17'},
+];
+
+const TFS_NUOVO = 'ADR 0003, D13, C21-8: il vecchio non calcolava il TFS migliorato dei cessati prima del 2024 (tfsMC null, soglia cablata scartata)';
+const differenzeTfsMc: DifferenzaAttesa[] = [
+  {caso: 'mc-finestra-2023-2024', riga: 'tab-e', nuovo: 2224320, decisione: `${TFS_MC}; 6 × 1.791,65 + 6 × 1.915,55`, fonte: FONTE_MC},
+  {caso: 'mc-finestra-2023-2024', riga: 'differenziali', nuovo: 108228, decisione: `${MIGLIORATO_02}; 12 × 90,19`, fonte: FONTE_MC},
+  {caso: 'mc-finestra-2023-2024', riga: 'tredicesima', nuovo: 196879, decisione: `${TFS_MC}; D20: (22.243,20 + 1.082,28 + 300,00) / 12`, fonte: FONTE_MC},
+  {caso: 'mc-finestra-2023-2024', riga: 'totale', nuovo: 2559427, decisione: 'D17: somma delle righe', fonte: 'D17'},
+  {caso: 'mc-solo-pensione', riga: 'tab-e', nuovo: 2008963, decisione: `${TFS_NUOVO}; 1.680,67 + 6 × 1.684,02 + 3 × 1.705,52 + 2 × 1.594,14`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'ria', nuovo: 0, decisione: `${TFS_NUOVO}; nessuna RIA`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'tredicesima', nuovo: 171270, decisione: `${TFS_NUOVO}; D20: (20.089,63 + 222,78 + 240,00) / 12`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'assegno-assorbibile', nuovo: 24000, decisione: `${TFS_NUOVO}; 20,00 × 12`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'asili', nuovo: 34092, decisione: `${TFS_NUOVO}; 28,41 × 12`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'assegno-non-riassorbibile', nuovo: 0, decisione: `${TFS_NUOVO}; nessuna voce`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'indennita-64-56', nuovo: 6456, decisione: `${TFS_NUOVO}; 5,38 × 12`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'vigilanza', nuovo: 0, decisione: `${TFS_NUOVO}; nessuna voce`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'differenziali', nuovo: 22278, decisione: `${TFS_NUOVO}; 2 × 111,39 (02 = 0 finché il tabellare è per posizione)`, fonte: FONTE_MC},
+  {caso: 'mc-solo-pensione', riga: 'totale', nuovo: 2267059, decisione: 'D17: somma delle righe', fonte: 'D17'},
+];
+
+describe('fotografia Unificato: miglioramento contrattuale del nuovo = vecchio ±1 centesimo, salvo differenze attese', () => {
+  for (const caso of casiMc) {
+    describe(caso.id, () => {
+      const r = calcolaPratica(conMiglioramento(caso), tabelle);
+
+      it('Scenario A = vecchio pensione', () => {
+        confrontaUm(caso.id, righe(miglioramento(r).scenarioA), vecchioUm(caso.uscite.pensione), differenzeScenarioA);
+      });
+
+      it('UM migliorato dal 2024 = vecchio pensioneMC', () => {
+        const b = miglioramento(r).migliorati.find((m) => m.decorrenza >= '2024-01-01');
+        if (!b || !caso.uscite.pensioneMC) throw new Error('migliorato o pensioneMC assente');
+        confrontaUm(caso.id, righe(b), vecchioUm(caso.uscite.pensioneMC), differenzeMigliorato);
+      });
+
+      it('TFS migliorato = vecchio tfsMC', () => {
+        const tfs = miglioramento(r).tfs;
+        if (!tfs) throw new Error('TFS migliorato assente');
+        const nuovo = valoriTfs(tfs);
+        const vecchio = caso.uscite.tfsMC;
+        for (const [chiave, riga] of righeTfs) {
+          const attesa = differenzeTfsMc.find((d) => d.caso === caso.id && d.riga === riga);
+          if (attesa) {
+            expect(nuovo[riga], `${riga}: ${attesa.decisione}`).toBe(attesa.nuovo);
+            expect(attesa.fonte).not.toBe('');
+          } else {
+            if (!vecchio) throw new Error(`${riga}: tfsMC del vecchio assente senza differenza attesa`);
+            expect(Math.abs(nuovo[riga] - centesimi(vecchio[chiave as keyof typeof vecchio])), riga).toBeLessThanOrEqual(1);
+          }
+        }
+      });
+    });
+  }
+
+  it('ogni differenza attesa riguarda un caso col miglioramento', () => {
+    const casi = new Set(casiMc.map((c) => c.id));
+    for (const d of [...differenzeScenarioA, ...differenzeMigliorato, ...differenzeTfsMc]) expect(casi.has(d.caso), d.caso).toBe(true);
   });
 });

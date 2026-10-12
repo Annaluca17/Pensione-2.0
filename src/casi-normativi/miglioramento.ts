@@ -4,8 +4,8 @@
 // entro la cessazione (CCNL 2019-21 Tab. G, differenziale storico senza il ricalcolo IVC), 09 = IVC
 // pagata allora (tabella IVC 2022-23 per posizione); per il cessato del 2021 (MC-N07) i valori del CCNL
 // 2016-18 non sono nelle tabelle (copertura dal 2019) e sono di fantasia. Il risultato atteso è
-// calcolato a mano dalle norme, senza il motore (ADR 0001): lo userà il ticket 27 dal seam
-// `calcolaPratica(dati, tabelle)`, solo per i casi con `validazione.stato === 'validato'`.
+// calcolato a mano dalle norme, senza il motore (ADR 0001): lo usa il ticket 27 dal seam
+// `calcolaPratica(dati, tabelle)` (miglioramento-motore.test.ts), solo per i casi validati.
 //
 // Decisioni (ADR 0003, D13, T4, T12) e, prese con l'utente in questo ticket (12/10/2026):
 // - C21-5: l'operatore sceglie il contratto (`miglioramento.contratto`); il motore lo propone quando la
@@ -27,11 +27,8 @@
 //   Il TFR non si migliora: lo ricalcola INPS e lo comunica nella lettera dei miglioramenti.
 // Gli avvisi qui sono quelli del miglioramento: le sezioni ordinarie hanno i loro (es. `ivc-incompatibile`
 // sui mesi con l'IVC pagata prima della firma, ticket 23 e 25).
-import type {Centesimi, CodiceVoce, DataISO, DatiPratica, DatiPraticaPensione, MeseISO, RegimeFineServizio} from '../motore';
+import type {Centesimi, CodiceVoce, DataISO, DatiPratica, DatiPraticaMiglioramento, MeseISO, RegimeFineServizio} from '../motore';
 import type {AvvisoAtteso} from './pensione-tfs';
-
-/** Pratica di pensione con il miglioramento scelto dall'operatore: il tipo entra nel motore col ticket 27. */
-export type DatiPraticaMiglioramento = DatiPraticaPensione & {miglioramento: {contratto: string}};
 
 export interface UmAtteso {
   mese: MeseISO;

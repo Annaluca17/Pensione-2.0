@@ -109,7 +109,7 @@ describe('spiega: avvisi della pensione e del TFS', () => {
 
   it('contratto in ipotesi (T5)', () => {
     expect(spiega({tipo: 'avviso', codice: 'contratto-in-ipotesi', contratto: 'ccnl-2025-27', vigenzaDal: '2025-01-01', fonte: 'T5'})).toBe(
-      "La data di riferimento (pensione o fine TFS) cade nella vigenza dell'ipotesi ccnl-2025-27 (dal 01/01/2025), che non produce importi: alla firma la pratica tornerà da rilavorare (T5).",
+      "La data di riferimento (pensione o fine TFS) o la cessazione del miglioramento contrattuale cade nella vigenza dell'ipotesi ccnl-2025-27 (dal 01/01/2025), che non produce importi: alla firma la pratica tornerà da rilavorare (T5).",
     );
   });
 });
@@ -118,6 +118,42 @@ describe('spiega: avvisi delle DMA previste', () => {
   it('DMA non prevista con la trattenuta per malattia (D19, C21-2)', () => {
     expect(spiega({tipo: 'avviso', codice: 'dma-non-prevista', situazione: 'trattenuta-malattia', fonte: 'D19'})).toBe(
       'Con la trattenuta 100% per malattia la DMA prevista non serve: nessun periodo preparato (D19, C21-2).',
+    );
+  });
+});
+
+describe('spiega: miglioramento contrattuale (C21-5…C21-8)', () => {
+  it.each([
+    [
+      {
+        tipo: 'blocco', codice: 'miglioramento-non-applicabile', contratto: 'ccnl-2022-24', vigenzaDal: '2022-01-01',
+        vigenzaAl: '2024-12-31', firma: '2026-02-23', cessazione: '2025-10-31', fonte: 'C21-5',
+      },
+      'Miglioramento ccnl-2022-24 non applicabile: vale per chi è cessato nella sua vigenza (01/01/2022 - 31/12/2024) ' +
+        'e prima della firma (23/02/2026); la cessazione è del 31/10/2025 (C21-5).',
+    ],
+    [{tipo: 'blocco', codice: 'contratto-inesistente', contratto: 'boh'}, 'Il contratto «boh» scelto per il miglioramento non è nelle tabelle.'],
+    [
+      {tipo: 'blocco', codice: 'importo-non-in-tabella', decorrenza: '2022-07-01', chiave: 'A3', fonte: 'IVC RGS 2022-23'},
+      "Manca in tabella l'importo per A3 dello scaglionamento dal 01/07/2022 (IVC RGS 2022-23): il miglioramento non si può calcolare.",
+    ],
+    [
+      {tipo: 'avviso', codice: 'pensione-erogata-diversa', fissi: 2313168, tredicesima: 188184, ricalcolatoFissi: 2348568, ricalcolato13: 191134, fonte: 'T4'},
+      "La pensione erogata (fissi 23.131,68 €, 13ª 1.881,84 €) differisce dall'UM ricalcolato dalle voci " +
+        '(fissi 23.485,68 €, 13ª 1.911,34 €): la vecchia domanda non si tocca (T4).',
+    ],
+    [
+      {tipo: 'avviso', codice: 'nessun-miglioramento-reale', decorrenza: '2025-01-01', migliorato: 4038083, erogata: 4123311, fonte: 'T4'},
+      'Nessun miglioramento reale dal 01/01/2025: fissi + 13ª migliorati (40.380,83 €) non superano la pensione erogata ' +
+        '(41.233,11 €). Non inserire la domanda (T4).',
+    ],
+  ] as const)('%o', (cosa, testo) => {
+    expect(spiega(cosa)).toBe(testo);
+  });
+
+  it('TFS da modificare, con le righe', () => {
+    expect(spiega({tipo: 'avviso', codice: 'tfs-da-modificare', righe: ['tab-e', 'tredicesima', 'differenziali'], fonte: 'C21-8'})).toBe(
+      'UM TFS da modificare: il miglioramento contrattuale cambia le righe tab-e, tredicesima, differenziali (C21-8).',
     );
   });
 });

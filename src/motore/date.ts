@@ -31,6 +31,13 @@ export function giornoPrima(d: DataISO): DataISO {
   return data(a, m, giorniDelMese(a, m));
 }
 
+/** Il giorno dopo una data valida. */
+export function giornoDopo(d: DataISO): DataISO {
+  const {anno, mese, giorno} = leggiData(d)!;
+  if (giorno < giorniDelMese(anno, mese)) return data(anno, mese, giorno + 1);
+  return mese === 12 ? data(anno + 1, 1, 1) : data(anno, mese + 1, 1);
+}
+
 /** Il mese `n` mesi dopo (o prima, se negativo) di un mese ISO. */
 export function spostaMese(m: MeseISO, n: number): MeseISO {
   const progressivo = Number(m.slice(0, 4)) * 12 + Number(m.slice(5, 7)) - 1 + n;

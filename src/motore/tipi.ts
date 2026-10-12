@@ -121,10 +121,15 @@ export interface DatiPraticaPensione extends DatiPratica {
   situazione: Situazione;
   /** DMA previste dal mese dopo l'ultima DMA vera (C21-1); assente = nessuna DMA prevista. */
   dmaPreviste?: {dal: MeseISO};
+  /** Miglioramento contrattuale: il contratto scelto dall'operatore (C21-5); assente = nessun miglioramento. */
+  miglioramento?: {contratto: string};
 }
 
 /** Pratica di pensione con le DMA previste. */
 export type DatiPraticaDma = DatiPraticaPensione & {dmaPreviste: {dal: MeseISO}};
+
+/** Pratica di pensione con il miglioramento contrattuale (ADR 0003, C21-5). */
+export type DatiPraticaMiglioramento = DatiPraticaPensione & {miglioramento: {contratto: string}};
 
 // --- Tabelle ------------------------------------------------------------------------------------
 
@@ -465,6 +470,35 @@ export interface DmaPreviste {
   periodi: PeriodoDma[];
 }
 
+/** Le voci che il miglioramento prende dalle tabelle (T12, C21-7). */
+export type VoceSostituita = '01' | '02' | '09' | '10';
+
+/** UM pensione migliorato a una decorrenza (ADR 0003, C21-6): Scenario B affiancato allo Scenario A (C21-7). */
+export interface UmMigliorato extends UmPensione {
+  decorrenza: DataISO;
+  /** 01 (tabellare + incremento successivo), 02 (differenziale storico), 09 (0, riassorbita), 10 dalle tabelle. */
+  sostituite: Record<VoceSostituita, Centesimi>;
+  /** Migliorato − Scenario A. */
+  differenza: {annui: Centesimi; tredicesima: Centesimi};
+}
+
+/** TFS migliorato mese per mese con gli scaglionamenti maturati alla cessazione (D13, C21-8). */
+export interface TfsMigliorato {
+  dal: MeseISO;
+  al: MeseISO;
+  righe: RigaTfs[];
+  totale: Centesimi;
+}
+
+/**
+ * Miglioramento contrattuale della pratica di pensione (ADR 0003): un'ipotesi non produce importi (T5);
+ * un contratto definitivo dà lo Scenario A, un UM migliorato per decorrenza e, in regime TFS, il TFS
+ * migliorato. Il TFR non si migliora (C21-8).
+ */
+export type Miglioramento =
+  | {contratto: string; stato: 'ipotesi'}
+  | {contratto: string; stato: 'definitivo'; scenarioA: UmPensione; migliorati: UmMigliorato[]; tfs?: TfsMigliorato};
+
 export interface Retribuzione {
   /**
    * I 12 mesi fino al mese della data di riferimento di TFS/TFR, dal mese di assunzione se dopo; nella
@@ -480,6 +514,11 @@ export interface Risultato {
   avvisi: Avviso[];
   forzature: ForzaturaApplicata[];
   dateRiferimento?: {pensione: ValoreForzabile<DataISO>; fineServizio: ValoreForzabile<DataISO>};
+  /**
+   * Pratica di pensione con la cessazione in vacanza contrattuale: il contratto (definitivo o ipotesi) nella
+   * cui vigenza cade la cessazione, firmato dopo. È la proposta per `miglioramento.contratto` (C21-5).
+   */
+  miglioramentoProposto?: string;
   /** Le sezioni non pertinenti alla pratica mancano (spec "Motore"; ADR 0002). */
   sezioni: {
     retribuzione: Sezione<Retribuzione>;
@@ -492,6 +531,8 @@ export interface Risultato {
     tfs?: Sezione<Tfs>;
     /** Solo nella pratica di pensione con `dmaPreviste`. */
     dmaPreviste?: Sezione<DmaPreviste>;
+    /** Solo nella pratica di pensione con `miglioramento`. */
+    miglioramento?: Sezione<Miglioramento>;
   };
 }
 
@@ -530,7 +571,22 @@ export type Blocco =
       motivo: 'non-al-primo-del-mese';
     }
   /** D12: PASSWEB accetta al massimo `limite` DMA previste; il mese non si prepara, le altre sezioni sì. */
-  | {tipo: 'blocco'; codice: 'dma-oltre-limite'; mese: MeseISO; limite: number; fonte: string};
+  | {tipo: 'blocco'; codice: 'dma-oltre-limite'; mese: MeseISO; limite: number; fonte: string}
+  /** C21-5: il miglioramento vale se la cessazione è nella vigenza del contratto e la firma è dopo. */
+  | {
+      tipo: 'blocco';
+      codice: 'miglioramento-non-applicabile';
+      contratto: string;
+      vigenzaDal: DataISO;
+      vigenzaAl: DataISO;
+      firma: DataISO;
+      cessazione: DataISO;
+      fonte: string;
+    }
+  /** Il contratto scelto per il miglioramento non è nelle tabelle. */
+  | {tipo: 'blocco'; codice: 'contratto-inesistente'; contratto: string}
+  /** Uno scaglionamento (o il comparto) che il miglioramento deve applicare non ha l'importo per la chiave. */
+  | {tipo: 'blocco'; codice: 'importo-non-in-tabella'; decorrenza: DataISO; chiave: string; fonte: string};
 
 export type Avviso =
   | {
@@ -596,15 +652,41 @@ export type Avviso =
       codice: 'dma-non-prevista';
       situazione: 'trattenuta-malattia';
       fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** T4: la pensione erogata (fissi e 13ª) differisce dallo Scenario A; la vecchia domanda non si tocca. */
+      codice: 'pensione-erogata-diversa';
+      fissi: Centesimi;
+      tredicesima: Centesimi;
+      ricalcolatoFissi: Centesimi;
+      ricalcolato13: Centesimi;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** T4, avviso forte: a questa decorrenza fissi + 13ª migliorati non superano l'erogata, non inserire la domanda. */
+      codice: 'nessun-miglioramento-reale';
+      decorrenza: DataISO;
+      migliorato: Centesimi;
+      erogata: Centesimi;
+      fonte: string;
+    }
+  | {
+      tipo: 'avviso';
+      /** C21-8: il TFS migliorato cambia queste righe dell'UM TFS ordinario: va modificato. */
+      codice: 'tfs-da-modificare';
+      righe: string[];
+      fonte: string;
     };
 
 // --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
 
 /**
- * Le sezioni che si chiudono oggi. L'UM pensione, il TFS e le DMA previste ne restano fuori finché la persistenza non conserva la
+ * Le sezioni che si chiudono oggi. L'UM pensione, il TFS, le DMA previste e il miglioramento ne restano fuori finché la persistenza non conserva la
  * pratica di pensione (regime e situazione): la chiusura arriva col suo fascicolo.
  */
-export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione' | 'tfs' | 'dmaPreviste'>;
+export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'umPensione' | 'tfs' | 'dmaPreviste' | 'miglioramento'>;
 
 /** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
 export type SezioneCalcolata<S extends NomeSezione> = Extract<NonNullable<Risultato['sezioni'][S]>, {esito: 'calcolata'}>;

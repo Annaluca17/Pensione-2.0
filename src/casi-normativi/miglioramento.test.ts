@@ -2,7 +2,7 @@
 // decorrenze dalla tabella dei contratti (C21-5, C21-6), voci sostituite ricavate dagli scaglionamenti,
 // Scenario A dalle voci inserite (C21-7), avvisi sulla pensione erogata (T4), TFS di miglioramento mese
 // per mese contro il TFS ordinario (C21-8), 13ª TFS a frazione esatta e half-up. Il confronto col
-// motore arriva col ticket 27.
+// motore sta in miglioramento-motore.test.ts (ticket 27).
 import {describe, expect, it} from 'vitest';
 import {tabelle} from '../tabelle';
 import type {Centesimi, ContrattoDefinitivo, DataISO, MeseISO, Scaglionamento, VociMese} from '../motore';
