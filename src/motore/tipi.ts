@@ -684,8 +684,8 @@ export type Avviso =
 
 // --- Risultato congelato e confronto (ADR 0004) -------------------------------------------------
 
-/** Le sezioni che si chiudono oggi. DMA previste e miglioramento ne restano fuori: la chiusura arriva col ticket 31. */
-export type NomeSezione = Exclude<keyof Risultato['sezioni'], 'dmaPreviste' | 'miglioramento'>;
+/** Le sezioni che si chiudono: tutte quelle del risultato (DMA previste e miglioramento dal ticket 31). */
+export type NomeSezione = keyof Risultato['sezioni'];
 
 /** Una sezione calcolata del risultato: si chiude solo una sezione calcolata. */
 export type SezioneCalcolata<S extends NomeSezione> = Extract<NonNullable<Risultato['sezioni'][S]>, {esito: 'calcolata'}>;

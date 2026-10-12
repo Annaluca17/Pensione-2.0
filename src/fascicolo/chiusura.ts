@@ -9,6 +9,7 @@ export function chiudiSezione<P extends Pratica>(pratica: P, sezione: NomeSezion
   const risultato = calcolaPratica(pratica.dati, tabelle);
   const calcolata = risultato.sezioni[sezione];
   if (calcolata?.esito !== 'calcolata') throw new Error(`chiudiSezione: la sezione ${sezione} è bloccata`);
+  if (calcolata.esito === 'calcolata' && 'stato' in calcolata && calcolata.stato === 'ipotesi') throw new Error(`chiudiSezione: il contratto ${calcolata.contratto} è un'ipotesi, senza importi`);
   const congelato = {sezione, versioneTabelle: risultato.versioneTabelle, dati: pratica.dati, risultato: calcolata} as Congelato;
   return {...pratica, congelati: [...pratica.congelati.filter((c) => c.sezione !== sezione), congelato], modificata: adesso};
 }

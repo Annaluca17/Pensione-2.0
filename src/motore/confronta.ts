@@ -11,6 +11,7 @@ import type {
   NomeSezione,
   Risultato,
   Tabelle,
+  UmPensione,
 } from './tipi';
 
 type Valore = Differenza['congelato'];
@@ -20,13 +21,32 @@ interface Campo {
   valore: Valore;
 }
 
+const mese = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
+const giorno = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+
 const ESTREMO = {iniziale: 'mese di assunzione', finale: 'mese di cessazione'} as const;
 
 /** I campi confrontabili di una sezione calcolata, nell'ordine della maschera. */
 function campi(sezione: NonNullable<Risultato['sezioni'][NomeSezione]>): Map<string, Campo> {
   const out = new Map<string, Campo>();
   if (sezione.esito !== 'calcolata') return out;
-  if ('totaleAnnui' in sezione) {
+  if ('periodi' in sezione) {
+    // DMA previste: ogni campo di ogni mese.
+    for (const p of sezione.periodi) {
+      for (const c of p.campi) out.set(`${p.mese}/${c.id}`, {etichetta: `${c.etichetta} (${mese(p.mese)})`, tipo: 'importo', valore: c.composizione.arrotondato});
+    }
+  } else if ('stato' in sezione) {
+    // Miglioramento: Scenario A, ogni UM migliorato per decorrenza e il TFS migliorato; l'ipotesi non ha importi.
+    if (sezione.stato === 'definitivo') {
+      const um = (prefisso: string, nome: string, u: UmPensione) => {
+        for (const r of u.righe) out.set(`${prefisso}/${r.id}`, {etichetta: `${r.etichetta} (${nome})`, tipo: 'importo', valore: r.composizione.arrotondato});
+        out.set(`${prefisso}/${u.tredicesima.id}`, {etichetta: `${u.tredicesima.etichetta} (${nome})`, tipo: 'importo', valore: u.tredicesima.composizione.arrotondato});
+      };
+      um('scenarioA', 'Scenario A', sezione.scenarioA);
+      for (const m of sezione.migliorati) um(`migliorato-${m.decorrenza}`, `migliorato dal ${giorno(m.decorrenza)}`, m);
+      for (const r of sezione.tfs?.righe ?? []) out.set(`tfs/${r.id}`, {etichetta: `${r.etichetta} (TFS migliorato)`, tipo: 'importo', valore: r.composizione.arrotondato});
+    }
+  } else if ('totaleAnnui' in sezione) {
     // UM pensione: una riga per voce e la 13ª (i totali ne derivano).
     for (const r of sezione.righe) out.set(r.id, {etichetta: r.etichetta, tipo: 'importo', valore: r.composizione.arrotondato});
     const t = sezione.tredicesima;

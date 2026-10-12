@@ -1,10 +1,10 @@
 // Sezioni della pratica di pensione (ticket 30, storie 13-20, 32-41): regime, situazione, Credito e pensione
 // erogata; UM pensione e UM TFS con composizione, avvisi con fonte, blocchi e chiusura. Il TFR riusa SezioneTfr.
 import {useState} from 'react';
-import type {Avviso, Centesimi, DatiPraticaPensione, Risultato, Situazione} from '../motore';
+import type {Avviso, Centesimi, Contratto, DatiPraticaPensione, Risultato, Situazione} from '../motore';
 import type {Chiusura} from './chiusura';
 import {Avvisi, BarraChiusura, CampoEuro, MotiviBlocco, Riquadro, RigaImporto, campo, etichetta} from './campi';
-import {impostaPensioneErogata, impostaSituazione, regimeProposto, scegliRegime, scriviEuro} from './modifiche';
+import {impostaDmaPreviste, impostaMiglioramento, impostaPensioneErogata, impostaSituazione, meseDmaProposto, regimeProposto, scegliRegime, scriviEuro} from './modifiche';
 
 type ModificaPensione = (cambia: (dati: DatiPraticaPensione) => DatiPraticaPensione) => void;
 const mese = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
@@ -18,7 +18,23 @@ const SITUAZIONI: {tipo: Situazione['tipo']; nome: string; dal?: string}[] = [
 ];
 
 /** Regime di fine servizio, situazione, Credito e pensione erogata. */
-export function SezioneDatiPensione({dati, modifica}: {dati: DatiPraticaPensione; modifica: ModificaPensione}) {
+export function SezioneDatiPensione({
+  dati,
+  modifica,
+  contratti,
+  contrattoProposto,
+}: {
+  dati: DatiPraticaPensione;
+  modifica: ModificaPensione;
+  contratti: readonly Contratto[];
+  /** Il contratto che il motore propone per il miglioramento (C21-5). */
+  contrattoProposto?: string;
+}) {
+  // Attivate ma ancora senza mese o senza contratto: nei dati non c'è nulla, la casella resta spuntata.
+  const [dmaAttesa, setDmaAttesa] = useState(false);
+  const [migliorAttesa, setMigliorAttesa] = useState(false);
+  const dmaAttiva = dati.dmaPreviste !== undefined || dmaAttesa;
+  const migliorAttivo = dati.miglioramento !== undefined || migliorAttesa;
   const proposto = regimeProposto(dati);
   const situazione = SITUAZIONI.find((s) => s.tipo === dati.situazione.tipo)!;
   const [erogata, setErogata] = useState<{fissi?: Centesimi; tredicesima?: Centesimi}>(dati.pensioneErogata ?? {});
@@ -74,6 +90,79 @@ export function SezioneDatiPensione({dati, modifica}: {dati: DatiPraticaPensione
         <input type="checkbox" checked={dati.iscrittoCredito} onChange={(e) => modifica((d) => ({...d, iscrittoCredito: e.target.checked}))} />
         Iscritto al Fondo Credito
       </label>
+
+      <h3 className="mb-2 mt-5 text-sm font-semibold text-slate-700">Sezioni facoltative</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={dmaAttiva}
+              onChange={(e) => {
+                const attiva = e.target.checked;
+                const mese = attiva ? meseDmaProposto(dati) : undefined;
+                setDmaAttesa(attiva && mese === undefined);
+                modifica((d) => impostaDmaPreviste(d, mese));
+              }}
+            />
+            Prepara le DMA previste
+          </label>
+          {dmaAttiva && (
+            <label className={`${etichetta} mt-2`}>
+              Primo mese (il successivo all'ultima DMA vera)
+              <input
+                className={campo}
+                type="month"
+                value={dati.dmaPreviste?.dal ?? ''}
+                onChange={(e) => {
+                  setDmaAttesa(e.target.value === '');
+                  modifica((d) => impostaDmaPreviste(d, e.target.value || undefined));
+                }}
+              />
+              <span className="mt-1 block text-xs text-slate-500">Al massimo sei DMA: il 7º mese non si può inserire. Proposto: cinque mesi prima della cessazione.</span>
+            </label>
+          )}
+        </div>
+        <div>
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={migliorAttivo}
+              onChange={(e) => {
+                const attivo = e.target.checked;
+                const contratto = attivo ? contrattoProposto : undefined;
+                setMigliorAttesa(attivo && contratto === undefined);
+                modifica((d) => impostaMiglioramento(d, contratto));
+              }}
+            />
+            Miglioramento contrattuale
+          </label>
+          {migliorAttivo && (
+            <label className={`${etichetta} mt-2`}>
+              Contratto
+              <select
+                className={campo}
+                value={dati.miglioramento?.contratto ?? ''}
+                onChange={(e) => {
+                  setMigliorAttesa(e.target.value === '');
+                  modifica((d) => impostaMiglioramento(d, e.target.value || undefined));
+                }}
+              >
+                <option value="">Scegli il contratto</option>
+                {contratti.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nome} ({c.stato === 'ipotesi' ? 'ipotesi' : 'definitivo'}, firma {c.firma.slice(8, 10)}/{c.firma.slice(5, 7)}/{c.firma.slice(0, 4)})
+                    {c.id === contrattoProposto ? ' · proposto' : ''}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-slate-500">
+                {contrattoProposto ? 'Il proposto è il contratto firmato dopo la cessazione, nella cui vigenza cade.' : 'Nessun contratto firmato dopo la cessazione e vigente alla cessazione: scegli tu.'}
+              </span>
+            </label>
+          )}
+        </div>
+      </div>
 
       <h3 className="mb-2 mt-5 text-sm font-semibold text-slate-700">Pensione erogata (facoltativa)</h3>
       <div className="grid max-w-xl gap-3 sm:grid-cols-2">

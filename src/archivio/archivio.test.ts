@@ -3,6 +3,11 @@
 import {describe, expect, it, vi} from 'vitest';
 import {CHIAVE, archivioVuoto, ascolta, carica, leggi, migra, salva} from './archivio';
 import type {Archivio, Pratica} from './schema';
+import {casiNormativiDma} from '../casi-normativi/dma-previste';
+import {casiNormativiMiglioramento} from '../casi-normativi/miglioramento';
+import {calcolaPratica} from '../motore';
+import type {Congelato} from '../motore';
+import {tabelle} from '../tabelle';
 
 function memoria(iniziale: Record<string, string> = {}) {
   const dati = new Map(Object.entries(iniziale));
@@ -197,5 +202,40 @@ describe('pratica di pensione (ticket 30)', () => {
     const esito = leggi(JSON.stringify({...archivio, pratiche: [cessazione]}));
     if (esito.stato !== 'valido') throw new Error(esito.stato);
     expect(esito.archivio.pratiche).toEqual([pratica('p7')]);
+  });
+});
+
+describe('DMA previste e miglioramento nella pratica di pensione (ticket 31)', () => {
+  const adesso = '2026-10-12T10:00:00.000Z';
+  const dma = casiNormativiDma.find((c) => c.id === 'DM-N02')!.dati;
+  const miglioramento = casiNormativiMiglioramento.find((c) => c.id === 'MC-N01')!.dati;
+  const congela = (dati: typeof dma | typeof miglioramento, sezione: 'dmaPreviste' | 'miglioramento'): Congelato => {
+    const r = calcolaPratica(dati, tabelle);
+    return {sezione, versioneTabelle: r.versioneTabelle, dati, risultato: r.sezioni[sezione]} as Congelato;
+  };
+  const conCongelato = (id: string, dati: typeof dma | typeof miglioramento, sezione: 'dmaPreviste' | 'miglioramento'): Pratica => ({
+    id,
+    enteId: 'e1',
+    tipo: 'pensione',
+    dati,
+    congelati: [congela(dati, sezione)],
+    creata: adesso,
+    modificata: adesso,
+  });
+
+  it('il mese delle DMA previste e il contratto del miglioramento tornano identici dopo la rilettura', () => {
+    const pratiche = [conCongelato('p1', dma, 'dmaPreviste'), conCongelato('p2', miglioramento, 'miglioramento')].map((p) => ({...p, congelati: []}));
+    const salvato = {...archivio, pratiche};
+    expect(leggi(JSON.stringify(salvato))).toEqual({stato: 'valido', archivio: salvato, scartate: []});
+  });
+
+  it('la sezione DMA previste chiusa sopravvive alla rilettura', () => {
+    const salvato = {...archivio, pratiche: [conCongelato('p1', dma, 'dmaPreviste')]};
+    expect(leggi(JSON.stringify(salvato))).toEqual({stato: 'valido', archivio: salvato, scartate: []});
+  });
+
+  it('la sezione miglioramento chiusa sopravvive alla rilettura', () => {
+    const salvato = {...archivio, pratiche: [conCongelato('p2', miglioramento, 'miglioramento')]};
+    expect(leggi(JSON.stringify(salvato))).toEqual({stato: 'valido', archivio: salvato, scartate: []});
   });
 });

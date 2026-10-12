@@ -2,7 +2,7 @@
 // validazione di forma. La coerenza di dominio (date, % part-time…) resta nel motore.
 // `DatiPratica` e `Congelato` sono tipi del motore: schema.test.ts verifica che coincidano.
 import {z} from 'zod';
-import type {DatiPratica, DatiPraticaPensione, Situazione} from '../motore';
+import type {DatiPratica, DatiPraticaPensione, SezioneCalcolata, Situazione, VoceSostituita} from '../motore';
 
 const data = z.string(); // forma aaaa-mm-gg: la valida il motore (blocco data-non-valida)
 const mese = z.string();
@@ -122,6 +122,49 @@ export const schemaTfs = z.object({
   annualizzato: z.literal(true).optional(),
 });
 
+const campoDma = z.object({id: z.string(), etichetta: z.string(), composizione});
+
+export const schemaDmaPreviste = z.object({
+  esito: z.literal('calcolata'),
+  periodi: z.array(
+    z.object({
+      mese,
+      dal: data,
+      al: data,
+      giorni: z.number(),
+      giorniTredicesima: z.number(),
+      percentuale: z.number(),
+      regime: z.enum(['TFS', 'TFR']),
+      codiceServizio: z.union([z.literal(83), z.literal(49)]).optional(),
+      campi: z.array(campoDma),
+    }),
+  ),
+});
+
+const umSenzaEsito = schemaUmPensione.omit({esito: true});
+const voceSostituita = z.enum(['01', '02', '09', '10']);
+
+const tfsMigliorato = z.object({dal: mese, al: mese, righe: z.array(rigaImporto.extend({campoPassweb: z.string().optional()})), totale: centesimi});
+
+// Annotata come `situazione` (unione dedotta facoltativa da Zod 4.6).
+export const schemaMiglioramento: z.ZodType<SezioneCalcolata<'miglioramento'>> = z.union([
+  z.object({esito: z.literal('calcolata'), contratto: z.string(), stato: z.literal('ipotesi')}),
+  z.object({
+    esito: z.literal('calcolata'),
+    contratto: z.string(),
+    stato: z.literal('definitivo'),
+    scenarioA: umSenzaEsito,
+    migliorati: z.array(
+      umSenzaEsito.extend({
+        decorrenza: data,
+        sostituite: z.record(voceSostituita, centesimi) as z.ZodType<Record<VoceSostituita, number>>,
+        differenza: z.object({annui: centesimi, tredicesima: centesimi}),
+      }),
+    ),
+    tfs: tfsMigliorato.optional(),
+  }),
+]);
+
 // La pratica di pensione prima: con l'altra i dati perderebbero regime e situazione, che il ricalcolo rilegge.
 // Annotata come `situazione` (unione dedotta facoltativa da Zod 4.6).
 const datiCongelati: z.ZodType<DatiPratica | DatiPraticaPensione> = z.union([schemaDatiPraticaPensione, schemaDatiPratica]);
@@ -135,6 +178,8 @@ export const schemaCongelato = z.discriminatedUnion('sezione', [
   congelato('tfr', schemaTfr),
   congelato('umPensione', schemaUmPensione),
   congelato('tfs', schemaTfs),
+  congelato('dmaPreviste', schemaDmaPreviste),
+  congelato('miglioramento', schemaMiglioramento),
 ]);
 
 // --- Involucro ---------------------------------------------------------------------------------

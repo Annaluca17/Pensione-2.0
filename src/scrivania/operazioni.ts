@@ -56,9 +56,20 @@ export const eliminaEnte = (archivio: Archivio, id: string): Archivio => ({
   pratiche: archivio.pratiche.filter((p) => p.enteId !== id),
 });
 
-/** Sezioni che chiudono una pratica: per la pensione l'UM e la sezione del regime (ADR 0002, ticket 30). */
+/**
+ * Sezioni che chiudono una pratica: per la pensione l'UM, la sezione del regime (ADR 0002, ticket 30) e, se
+ * attivate, le DMA previste e il miglioramento (ticket 31). Un miglioramento in ipotesi non si chiude: la pratica
+ * resta aperta finché il contratto non è firmato.
+ */
 export const sezioniPertinenti = (pratica: Pratica): NomeSezione[] =>
-  pratica.tipo === 'cessazione' ? ['tfr'] : ['umPensione', pratica.dati.regime === 'TFS' ? 'tfs' : 'tfr'];
+  pratica.tipo === 'cessazione'
+    ? ['tfr']
+    : [
+        'umPensione',
+        pratica.dati.regime === 'TFS' ? 'tfs' : 'tfr',
+        ...(pratica.dati.dmaPreviste ? (['dmaPreviste'] as const) : []),
+        ...(pratica.dati.miglioramento ? (['miglioramento'] as const) : []),
+      ];
 
 /**
  * Aperta (decisione del ticket 10: lo stato si ricava) = almeno una sezione pertinente non chiusa; `daRilavorare` la riapre (lo calcola chi ha motore e tabelle).

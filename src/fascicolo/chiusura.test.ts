@@ -5,6 +5,8 @@ import type {Archivio, Pratica} from '../archivio';
 import type {Tabelle} from '../motore';
 import {casiNormativiTfr} from '../casi-normativi/tfr';
 import {casiNormativiPensioneTfs} from '../casi-normativi/pensione-tfs';
+import {casiNormativiDma} from '../casi-normativi/dma-previste';
+import {casiNormativiMiglioramento} from '../casi-normativi/miglioramento';
 import {tabelle} from '../tabelle';
 import {causaInBreve, chiudiSezione, chiusure, riapriSezione} from './chiusura';
 
@@ -110,5 +112,62 @@ describe('chiudere UM pensione e TFS della pratica di pensione (ticket 30)', () 
     const esito = preparaImport(vuoto, esporta(archivio, ADESSO).file);
     if (esito.stato !== 'pronto') throw new Error(esito.stato);
     expect(applicaImport(vuoto, esito.riepilogo).pratiche[0]).toEqual(chiusa);
+  });
+});
+
+describe('chiudere DMA previste e miglioramento della pratica di pensione (ticket 31)', () => {
+  const dma = casiNormativiDma.find((c) => c.id === 'DM-N02')!;
+  const mc = casiNormativiMiglioramento.find((c) => c.id === 'MC-N01')!;
+  const ipotesi = casiNormativiMiglioramento.find((c) => c.id === 'MC-N05')!;
+  const nuova = (id: string, dati: Pratica['dati']): Pratica => ({id, enteId: 'e1', tipo: 'pensione', dati: dati as never, congelati: [], creata: ADESSO, modificata: ADESSO});
+  /** Una voce in più di 100,00 € (o 5,00 €) in ogni mese, base ed eccezioni. */
+  const conVoce = <P extends Pratica>(p: P, voce: string, importo: number): P => {
+    const eccezioni = Object.fromEntries(Object.entries(p.dati.voci.eccezioni).map(([m, v]) => [m, {...v, [voce]: importo}]));
+    return {...p, dati: {...p.dati, voci: {base: {...p.dati.voci.base, [voce]: importo}, eccezioni}}};
+  };
+
+  it('chiude le DMA previste coi dati della pratica, senza differenze finché nulla cambia', () => {
+    const chiusa = chiudiSezione(nuova('p3', dma.dati), 'dmaPreviste', tabelle, ADESSO);
+    expect(chiusa.congelati[0]).toMatchObject({sezione: 'dmaPreviste', versioneTabelle: tabelle.versione, dati: dma.dati});
+    expect(chiusure(chiusa, tabelle).dmaPreviste?.daRilavorare).toBe(false);
+  });
+
+  it('una voce cambiata dopo la chiusura rende da rilavorare i campi del mese che la usano (DM-N02, novembre 2026)', () => {
+    const chiusa = chiudiSezione(nuova('p3', dma.dati), 'dmaPreviste', tabelle, ADESSO);
+    // 01 da 1.928,23 a 2.028,23 (+100,00): imponibile pensionistico 2.099,26 → 2.199,26; TFS = 0,8 × (2.067,20 + 100,00) − 1.653,76 = +80,00.
+    const stato = chiusure(conVoce(chiusa, '01', 202823), tabelle).dmaPreviste!;
+    expect(stato.daRilavorare).toBe(true);
+    const di = (campo: string) => stato.confronto.differenze.find((d) => d.campo === campo);
+    expect([di('2026-11/imponibile-pensionistico')?.congelato, di('2026-11/imponibile-pensionistico')?.attuale]).toEqual([209926, 219926]);
+    expect([di('2026-11/imponibile-tfs')?.congelato, di('2026-11/imponibile-tfs')?.attuale]).toEqual([165376, 173376]);
+    expect(di('2026-11/imponibile-tfs')?.cause).toEqual([{tipo: 'dati'}]);
+  });
+
+  it('chiude il miglioramento definitivo (MC-N01) e lo rilavora su una voce cambiata, per Scenario A e per decorrenza', () => {
+    const chiusa = chiudiSezione(nuova('p4', mc.dati), 'miglioramento', tabelle, ADESSO);
+    expect(chiusure(chiusa, tabelle).miglioramento?.daRilavorare).toBe(false);
+    // 04 (assegno IIS) da 25,00 a 30,00: riga annua 300,00 → 360,00, 13ª A 1.768,95 → 1.773,95.
+    const stato = chiusure(conVoce(chiusa, '04', 3000), tabelle).miglioramento!;
+    const di = (campo: string) => stato.confronto.differenze.find((d) => d.campo === campo);
+    expect([di('scenarioA/voce-04')?.congelato, di('scenarioA/voce-04')?.attuale]).toEqual([30000, 36000]);
+    expect([di('scenarioA/tredicesima')?.congelato, di('scenarioA/tredicesima')?.attuale]).toEqual([176895, 177395]);
+    expect([di('migliorato-2024-01-01/voce-04')?.congelato, di('migliorato-2024-01-01/voce-04')?.attuale]).toEqual([30000, 36000]);
+    expect(di('scenarioA/voce-04')?.cause).toEqual([{tipo: 'dati'}]);
+  });
+
+  it('il miglioramento in ipotesi non ha importi: non si chiude', () => {
+    expect(() => chiudiSezione(nuova('p5', ipotesi.dati), 'miglioramento', tabelle, ADESSO)).toThrow(/ipotesi/);
+  });
+
+  it('i risultati congelati di DMA e miglioramento sopravvivono a export e import', () => {
+    const pratiche = [
+      chiudiSezione(nuova('p6', dma.dati), 'dmaPreviste', tabelle, ADESSO),
+      chiudiSezione(nuova('p7', mc.dati), 'miglioramento', tabelle, ADESSO),
+    ];
+    const archivio: Archivio = {versioneSchema: 1, enti: [{id: 'e1', nome: 'Comune di Prova'}], pratiche, ultimoExport: null};
+    const vuoto: Archivio = {versioneSchema: 1, enti: [], pratiche: [], ultimoExport: null};
+    const esito = preparaImport(vuoto, esporta(archivio, ADESSO).file);
+    if (esito.stato !== 'pronto') throw new Error(esito.stato);
+    expect(applicaImport(vuoto, esito.riepilogo).pratiche).toEqual(pratiche);
   });
 });

@@ -11,6 +11,7 @@ import type {StatoSezione} from './campi';
 import {SezioneAnagrafica, SezioneForzature, SezioneRetribuzione} from './SezioneDati';
 import type {Modifica} from './SezioneDati';
 import {SezioneTfr} from './SezioneTfr';
+import {SezioneDmaPreviste, SezioneMiglioramento} from './SezioniDmaMiglioramento';
 import {SezioneDatiPensione, SezioneTfs, SezioneUmPensione} from './SezioniPensione';
 import {allineaRegime} from './modifiche';
 import {chiudiSezione, chiusure, riapriSezione} from './chiusura';
@@ -83,7 +84,10 @@ export function Fascicolo({
   // Sezioni del regime e, se chiuse prima di un cambio di regime, quelle dell'altro: restano, da rilavorare.
   const conTfs = regime === 'TFS' || chiuse.tfs !== undefined;
   const conTfr = cessazione || regime === 'TFR' || chiuse.tfr !== undefined;
-  const stato = (sezione: 'umPensione' | 'tfs' | 'tfr') => statoChiusura(sezione) ?? risultato.sezioni[sezione]?.esito ?? 'bloccata';
+  // DMA previste e miglioramento: solo se attivate (o già chiuse, poi disattivate: restano da rilavorare).
+  const conDma = pratica.tipo === 'pensione' && (pratica.dati.dmaPreviste !== undefined || chiuse.dmaPreviste !== undefined);
+  const conMiglioramento = pratica.tipo === 'pensione' && (pratica.dati.miglioramento !== undefined || chiuse.miglioramento !== undefined);
+  const stato = (sezione: 'umPensione' | 'tfs' | 'tfr' | 'dmaPreviste' | 'miglioramento') => statoChiusura(sezione) ?? risultato.sezioni[sezione]?.esito ?? 'bloccata';
   const indice: {id: string; titolo: string; stato?: StatoSezione}[] = [
     {id: 'anagrafica', titolo: 'Anagrafica', stato: statoAnagrafica},
     ...(regime ? [{id: 'pensione', titolo: 'Regime e situazione'}] : []),
@@ -92,6 +96,8 @@ export function Fascicolo({
     ...(regime ? [{id: 'umPensione', titolo: 'Ultimo miglio pensione', stato: stato('umPensione')}] : []),
     ...(conTfs ? [{id: 'tfs', titolo: 'Ultimo miglio TFS', stato: stato('tfs')}] : []),
     ...(conTfr ? [{id: 'tfr', titolo: 'Ultimo miglio TFR', stato: stato('tfr')}] : []),
+    ...(conDma ? [{id: 'dmaPreviste', titolo: 'DMA previste', stato: stato('dmaPreviste')}] : []),
+    ...(conMiglioramento ? [{id: 'miglioramento', titolo: 'Miglioramento contrattuale', stato: stato('miglioramento')}] : []),
     {id: 'uscite', titolo: 'Lettera ed export'},
   ];
 
@@ -119,12 +125,14 @@ export function Fascicolo({
         </nav>
         <div className="min-w-0 space-y-6">
           <SezioneAnagrafica dati={pratica.dati} tabelle={tabelle} modifica={modifica} stato={statoAnagrafica} />
-          {pratica.tipo === 'pensione' && <SezioneDatiPensione dati={pratica.dati} modifica={modificaPensione} />}
+          {pratica.tipo === 'pensione' && <SezioneDatiPensione dati={pratica.dati} modifica={modificaPensione} contratti={tabelle.contratti} contrattoProposto={risultato.miglioramentoProposto} />}
           <SezioneRetribuzione dati={pratica.dati} tabelle={tabelle} risultato={risultato} modifica={modifica} utilita={cessazione ? 'tfr' : 'pensione'} />
           <SezioneForzature dati={pratica.dati} risultato={risultato} modifica={modifica} regime={regime} />
           {regime && <SezioneUmPensione risultato={risultato} {...azioni('umPensione')} />}
           {conTfs && <SezioneTfs risultato={risultato} {...azioni('tfs')} />}
           {conTfr && <SezioneTfr risultato={risultato} {...azioni('tfr')} />}
+          {conDma && pratica.tipo === 'pensione' && <SezioneDmaPreviste risultato={risultato} dati={pratica.dati} {...azioni('dmaPreviste')} />}
+          {conMiglioramento && <SezioneMiglioramento risultato={risultato} {...azioni('miglioramento')} />}
           <LetteraExport
             pratica={pratica}
             ente={ente}

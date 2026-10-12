@@ -1,7 +1,7 @@
 // Operazioni della scrivania (ticket 12). Dati di fantasia.
 import {describe, expect, it} from 'vitest';
 import {archivioVuoto, schemaArchivio} from '../archivio';
-import {aggiungiEnte, aggiungiPratica, aperta, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
+import {aggiungiEnte, aggiungiPratica, aperta, elencoScrivania, eliminaEnte, eliminaPratica, sezioniPertinenti} from './operazioni';
 import type {Filtri} from './operazioni';
 
 const ADESSO = '2026-10-11T10:00:00.000Z';
@@ -91,5 +91,33 @@ describe('pratica di pensione (ticket 30)', () => {
     expect(aperta({...p, congelati: [chiusa('umPensione'), chiusa('tfs')]})).toBe(false);
     expect(aperta({...p, dati: {...p.dati, regime: 'TFR'}, congelati: [chiusa('umPensione'), chiusa('tfs')]})).toBe(true);
     expect(aperta({...p, dati: {...p.dati, regime: 'TFR'}, congelati: [chiusa('umPensione'), chiusa('tfr')]})).toBe(false);
+  });
+});
+
+describe('DMA previste e miglioramento nella pratica di pensione (ticket 31)', () => {
+  const pensione = () => {
+    const p = popolato().pratiche[0];
+    if (p.tipo !== 'pensione') throw new Error(p.tipo);
+    return p;
+  };
+  const chiusa = (sezione: string) => ({sezione, versioneTabelle: 'v', dati: pensione().dati, risultato: {} as never}) as never;
+  const base = () => [chiusa('umPensione'), chiusa('tfs')];
+
+  it('contano fra le sezioni della pratica solo se attivate', () => {
+    expect(sezioniPertinenti(pensione())).toEqual(['umPensione', 'tfs']);
+    const dati = {...pensione().dati, dmaPreviste: {dal: '2026-07'}, miglioramento: {contratto: 'ccnl-2022-24'}};
+    expect(sezioniPertinenti({...pensione(), dati})).toEqual(['umPensione', 'tfs', 'dmaPreviste', 'miglioramento']);
+  });
+
+  it('una pratica con le altre sezioni chiuse resta aperta finché non si chiudono anche le DMA previste', () => {
+    const dati = {...pensione().dati, dmaPreviste: {dal: '2026-07'}};
+    expect(aperta({...pensione(), dati, congelati: base()})).toBe(true);
+    expect(aperta({...pensione(), dati, congelati: [...base(), chiusa('dmaPreviste')]})).toBe(false);
+  });
+
+  it('lo stesso per il miglioramento', () => {
+    const dati = {...pensione().dati, miglioramento: {contratto: 'ccnl-2022-24'}};
+    expect(aperta({...pensione(), dati, congelati: base()})).toBe(true);
+    expect(aperta({...pensione(), dati, congelati: [...base(), chiusa('miglioramento')]})).toBe(false);
   });
 });

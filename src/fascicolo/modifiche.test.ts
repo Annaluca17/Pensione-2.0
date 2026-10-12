@@ -3,7 +3,10 @@ import {describe, expect, it} from 'vitest';
 import type {DatiPratica, DatiPraticaPensione} from '../motore';
 import {
   allineaRegime,
+  impostaDmaPreviste,
+  impostaMiglioramento,
   impostaPensioneErogata,
+  meseDmaProposto,
   impostaSituazione,
   scegliRegime,
   impostaAnagrafica,
@@ -114,5 +117,34 @@ describe('regime della pratica di pensione (ticket 30)', () => {
     expect(entrambi.pensioneErogata).toEqual({fissi: 3000000, tredicesima: 250000});
     expect(impostaPensioneErogata(entrambi, {fissi: 3000000})).not.toHaveProperty('pensioneErogata');
     expect(impostaPensioneErogata(entrambi, {fissi: 3000000}).regime).toBe('TFS');
+  });
+});
+
+describe('DMA previste e miglioramento (ticket 31)', () => {
+  const pensione = (cessazione?: string): DatiPraticaPensione => ({
+    ...dati,
+    anagrafica: {...dati.anagrafica, cessazione},
+    regime: 'TFS',
+    situazione: {tipo: 'ordinaria'},
+  });
+
+  it('DMA previste: il mese si imposta e si toglie, il resto della pratica non cambia', () => {
+    const con = impostaDmaPreviste(pensione(), '2026-04');
+    expect(con.dmaPreviste).toEqual({dal: '2026-04'});
+    expect(con.regime).toBe('TFS');
+    expect(impostaDmaPreviste(con, undefined)).not.toHaveProperty('dmaPreviste');
+  });
+
+  it('il mese proposto è cinque mesi prima della cessazione: sei DMA, il limite (D12)', () => {
+    expect(meseDmaProposto(pensione('2027-03-31'))).toBe('2026-10');
+    expect(meseDmaProposto(pensione('2027-01-15'))).toBe('2026-08');
+    expect(meseDmaProposto(pensione(undefined))).toBeUndefined();
+  });
+
+  it('miglioramento: il contratto si imposta e si toglie, il resto della pratica non cambia', () => {
+    const con = impostaMiglioramento(pensione(), 'ccnl-2022-24');
+    expect(con.miglioramento).toEqual({contratto: 'ccnl-2022-24'});
+    expect(con.regime).toBe('TFS');
+    expect(impostaMiglioramento(con, undefined)).not.toHaveProperty('miglioramento');
   });
 });

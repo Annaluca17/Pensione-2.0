@@ -9,6 +9,8 @@ import {
   schemaCongelato,
   schemaDatiPratica,
   schemaDatiPraticaPensione,
+  schemaDmaPreviste,
+  schemaMiglioramento,
   schemaMeseParziale,
   schemaRetribuzione,
   schemaTfr,
@@ -44,6 +46,8 @@ describe('schema ↔ tipi del motore', () => {
     expectTypeOf<z.infer<typeof schemaRetribuzione>>().toEqualTypeOf<Piatto<SezioneCalcolata<'retribuzione'>>>();
     expectTypeOf<z.infer<typeof schemaUmPensione>>().toEqualTypeOf<Piatto<SezioneCalcolata<'umPensione'>>>();
     expectTypeOf<z.infer<typeof schemaTfs>>().toEqualTypeOf<Piatto<SezioneCalcolata<'tfs'>>>();
+    expectTypeOf<z.infer<typeof schemaDmaPreviste>>().toEqualTypeOf<Piatto<SezioneCalcolata<'dmaPreviste'>>>();
+    expectTypeOf<Equivalenti<z.infer<typeof schemaMiglioramento>, SezioneCalcolata<'miglioramento'>>>().toEqualTypeOf<true>();
     expectTypeOf<Equivalenti<z.infer<typeof schemaCongelato>, Congelato>>().toEqualTypeOf<true>();
   });
 

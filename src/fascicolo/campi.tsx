@@ -120,12 +120,20 @@ export function Avvisi({avvisi}: {avvisi: Avviso[]}) {
   if (avvisi.length === 0) return null;
   return (
     <ul className="mt-4 space-y-2">
-      {avvisi.map((a, i) => (
-        <li key={i} className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="status">
-          {spiega(a)}
-          {'fonte' in a && <span className="mt-1 block text-xs text-amber-800">Fonte: {a.fonte}</span>}
-        </li>
-      ))}
+      {avvisi.map((a, i) => {
+        // "Nessun miglioramento reale" è l'avviso forte del miglioramento contrattuale (T4).
+        const forte = a.codice === 'nessun-miglioramento-reale';
+        return (
+          <li
+            key={i}
+            className={`rounded-md border p-3 text-sm ${forte ? 'border-red-300 bg-red-50 font-medium text-red-900' : 'border-amber-300 bg-amber-50 text-amber-900'}`}
+            role={forte ? 'alert' : 'status'}
+          >
+            {spiega(a)}
+            {'fonte' in a && <span className={`mt-1 block text-xs font-normal ${forte ? 'text-red-800' : 'text-amber-800'}`}>Fonte: {a.fonte}</span>}
+          </li>
+        );
+      })}
     </ul>
   );
 }

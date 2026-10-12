@@ -83,6 +83,28 @@ export function impostaSituazione(dati: DatiPraticaPensione, tipo: Situazione['t
   return {...dati, situazione: {tipo, dal: dal ?? prima}};
 }
 
+/** Mese da cui partono le DMA previste; `undefined` le toglie (ticket 31). */
+export function impostaDmaPreviste(dati: DatiPraticaPensione, dal: MeseISO | undefined): DatiPraticaPensione {
+  if (dal !== undefined) return {...dati, dmaPreviste: {dal}};
+  const {dmaPreviste: _, ...senza} = dati;
+  return senza;
+}
+
+/** Mese proposto: cinque mesi prima della cessazione, cioè sei DMA fino alla cessazione (limite di D12). */
+export function meseDmaProposto(dati: DatiPratica): MeseISO | undefined {
+  const cessazione = dati.anagrafica.cessazione;
+  if (!cessazione || !/^\d{4}-\d{2}/.test(cessazione)) return undefined;
+  const indice = Number(cessazione.slice(0, 4)) * 12 + Number(cessazione.slice(5, 7)) - 1 - 5;
+  return `${Math.floor(indice / 12)}-${String((indice % 12) + 1).padStart(2, '0')}`;
+}
+
+/** Contratto del miglioramento contrattuale; `undefined` lo toglie (ticket 31). */
+export function impostaMiglioramento(dati: DatiPraticaPensione, contratto: string | undefined): DatiPraticaPensione {
+  if (contratto !== undefined) return {...dati, miglioramento: {contratto}};
+  const {miglioramento: _, ...senza} = dati;
+  return senza;
+}
+
 /** Totali della pensione erogata (storia 19): entrano solo se ci sono tutti e due, altrimenti la pratica non li ha. */
 export function impostaPensioneErogata<D extends DatiPratica>(dati: D, totali: {fissi?: Centesimi; tredicesima?: Centesimi}): D {
   const {fissi, tredicesima} = totali;
