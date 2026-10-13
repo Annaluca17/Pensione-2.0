@@ -183,6 +183,8 @@ export function SezioneDatiPensione({
 }
 
 const CODICI_PENSIONE: Avviso['codice'][] = ['contratto-in-ipotesi', 'ivc-incompatibile'];
+/** Col miglioramento l'UM pensione tiene l'IVC inserita (ticket 01): gli avvisi IVC sono del TFS o del TFR. */
+const codiciPensione = (r: Risultato) => (r.sezioni.miglioramento ? CODICI_PENSIONE.filter((c) => c !== 'ivc-incompatibile') : CODICI_PENSIONE);
 const CODICI_TFS: Avviso['codice'][] = ['tfs-annualizzato', 'ivc-incompatibile', 'contratto-in-ipotesi'];
 
 interface PropsSezione {
@@ -225,7 +227,7 @@ export function SezioneUmPensione({risultato, chiusura, onChiudi, onRiapri}: Pro
           </dl>
         </>
       )}
-      <Avvisi avvisi={risultato.avvisi.filter((a) => CODICI_PENSIONE.includes(a.codice))} />
+      <Avvisi avvisi={risultato.avvisi.filter((a) => codiciPensione(risultato).includes(a.codice))} />
     </Riquadro>
   );
 }

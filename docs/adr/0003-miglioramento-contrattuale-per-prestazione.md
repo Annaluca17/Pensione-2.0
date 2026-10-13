@@ -8,10 +8,11 @@ con decorrenza, IVC riassorbite) e non da soglie di anno: per la pensione produc
 di miglioramento contrattuale a parte, con la sua decorrenza; per TFS e TFR applica mese per mese
 solo gli scaglionamenti con decorrenza fino alla cessazione e segnala se l'UM va modificato o rifatto.
 
-Col miglioramento attivo la pensione è quella di allora (pratica pregressa, ticket 01): l'UM pensione si
-calcola con le tabelle firmate entro la cessazione, quindi l'IVC inserita vale e non dà avviso
-`ivc-incompatibile`, perché il contratto firmato dopo non la riassorbe. Senza miglioramento D8 resta valida
-come prima.
+Col miglioramento attivo la pensione è quella di allora (pratica pregressa, ticket 01 delle prove
+pratiche): l'UM pensione prende le voci come inserite, IVC compresa, e coincide con lo Scenario A (C21-7);
+nessun avviso `ivc-incompatibile` sulla pensione. Non si ricalcola con le tabelle firmate entro la
+cessazione perché non ricostruiscono l'IVC di allora: quella del 2019-21, pagata fino alla firma del
+16/11/2022, non è nelle tabelle. Senza miglioramento D8 resta valida; TFS e TFR ordinari restano con D8.
 
 ## Considered Options
 

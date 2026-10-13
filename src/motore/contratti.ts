@@ -22,23 +22,15 @@ const definitivi = (tabelle: Tabelle) =>
 
 /**
  * IVC utile del mese (D8): un periodo di IVC vale solo se il contratto che anticipa non è applicato;
- * quella di un contratto definitivo è riassorbita nel suo tabellare. `firmatiEntro` (ticket 01): con il
- * miglioramento la pensione usa le tabelle di allora, quindi conta solo ciò che era firmato a quella data;
- * i periodi stanno nel contratto che li riassorbe, anche se firmato dopo, e valgono se questo non è applicato.
+ * quella di un contratto definitivo è riassorbita nel suo tabellare.
  */
-export function ivcDaTabella(
-  tabelle: Tabelle,
-  posizione: string,
-  mese: MeseISO,
-  firmatiEntro?: DataISO,
-): {importo: number; contratto: string; mancante?: {chiave: string; fonte: string}} {
+export function ivcDaTabella(tabelle: Tabelle, posizione: string, mese: MeseISO): {importo: number; contratto: string; mancante?: {chiave: string; fonte: string}} {
   const primo = `${mese}-01`;
-  const tutti = definitivi(tabelle);
-  const applicati = firmatiEntro ? tutti.filter((c) => c.firma <= firmatiEntro) : tutti;
+  const applicati = definitivi(tabelle);
   const ids = new Set(applicati.map((c) => c.id));
   const contratto = applicati.filter((c) => c.vigenza.dal <= primo).sort((x, y) => x.vigenza.dal.localeCompare(y.vigenza.dal)).at(-1);
   const area = tabelle.trasposizione.find((t) => t.posizione === posizione)?.area;
-  const periodo = tutti
+  const periodo = applicati
     .flatMap((c) => c.ivc)
     .find((i) => !ids.has(i.anticipa) && i.dal <= primo && (!i.al || i.al >= primo));
   const chiave = periodo?.chiave === 'posizione' ? posizione : area;
@@ -52,16 +44,10 @@ export function ivcDaTabella(
  * Le voci del mese con l'IVC della tabella al posto di quella inserita (D8, storia 50): un'IVC diversa
  * non si somma e dà un avviso; un'IVC non inserita resta assente (il motore non aggiunge importi).
  */
-export function conIvcDaTabella(
-  voci: VociMese,
-  mese: MeseISO,
-  posizione: string,
-  tabelle: Tabelle,
-  firmatiEntro?: DataISO,
-): {voci: VociMese; avviso?: Avviso} {
+export function conIvcDaTabella(voci: VociMese, mese: MeseISO, posizione: string, tabelle: Tabelle): {voci: VociMese; avviso?: Avviso} {
   const inserita = voci[VOCE_IVC];
   if (inserita === undefined) return {voci};
-  const ivc = ivcDaTabella(tabelle, posizione, mese, firmatiEntro);
+  const ivc = ivcDaTabella(tabelle, posizione, mese);
   const avviso: Avviso | undefined =
     inserita === ivc.importo
       ? undefined

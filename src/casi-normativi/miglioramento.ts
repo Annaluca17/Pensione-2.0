@@ -19,14 +19,15 @@
 //   per decorrenza: il giorno dopo la pensione con gli scaglionamenti fino alla cessazione, poi uno per
 //   ogni scaglionamento successivo. Gli avvisi T4 per decorrenza, su fissi + 13ª.
 // - C21-7: Scenario A = voci inserite così come sono, IVC inserita compresa (l'UM certificato col vecchio
-//   contratto); l'UM pensione ordinario resta quello dei ticket 20/23. Scenario B sostituisce dalle
+//   contratto); con il miglioramento anche l'UM pensione ordinario è questo (ticket 01 delle prove
+//   pratiche, 13/10/2026; prima restava quello dei ticket 20/23). Scenario B sostituisce dalle
 //   tabelle della decorrenza 01 (tabellare + incremento successivo), 02 (differenziale storico rivisto,
 //   0 finché il tabellare è per posizione), 09 (0, riassorbita) e 10; le altre voci restano inserite.
 // - C21-8: il TFS si migliora mese per mese sulla finestra (le voci 01, 02, 09 come sopra, alla data del
 //   mese) e si confronta col TFS ordinario sulle voci inserite: se cambia, avviso `tfs-da-modificare`.
 //   Il TFR non si migliora: lo ricalcola INPS e lo comunica nella lettera dei miglioramenti.
 // Gli avvisi qui sono quelli del miglioramento: le sezioni ordinarie hanno i loro (es. `ivc-incompatibile`
-// sui mesi con l'IVC pagata prima della firma, ticket 23 e 25).
+// del TFS e del TFR sui mesi con l'IVC pagata prima della firma, ticket 23 e 25; la pensione no, ticket 01).
 import type {Centesimi, CodiceVoce, DataISO, DatiPratica, DatiPraticaMiglioramento, MeseISO, RegimeFineServizio} from '../motore';
 import type {AvvisoAtteso} from './pensione-tfs';
 
