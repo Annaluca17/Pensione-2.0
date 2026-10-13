@@ -5,6 +5,7 @@ import type {Ente, Pratica} from '../../archivio';
 import {spiega} from '../../motore';
 import type {Avviso, Blocco, ChiaveForzatura, Risultato} from '../../motore';
 import {scriviEuro} from '../modifiche';
+import {riepilogoMiglioramento} from '../riepilogoMiglioramento';
 
 export interface BloccoScheda {
   titolo: string;
@@ -128,34 +129,34 @@ function blocchiDma(risultato: Risultato): BloccoScheda[] {
   return blocchi;
 }
 
-function blocchiMiglioramento(risultato: Risultato): BloccoScheda[] {
+/** Solo i tre valori che servono a PASSWEB, più TFS migliorato o dicitura TFR; le decorrenze intermedie non si stampano (ticket 04). */
+function blocchiMiglioramento(pratica: Extract<Pratica, {tipo: 'pensione'}>, risultato: Risultato): BloccoScheda[] {
   const m = risultato.sezioni.miglioramento;
   const titolo = 'Miglioramento contrattuale';
   if (!m || m.esito === 'bloccata') return [{titolo, motivi: motiviDi(m)}];
   if (m.stato === 'ipotesi') return [{titolo, righe: [[`Contratto ${m.contratto}`, 'ipotesi: nessun importo finché non è firmato']]}];
-  // Si stampa lo Scenario B, ciò che si digita; lo Scenario A sono le voci già inserite (decisione del ticket 33).
-  const blocchi: BloccoScheda[] = m.migliorati.map((b) => ({
-    titolo: `${titolo}: UM dal ${giorno(b.decorrenza)} (Scenario B)`,
-    righe: [
-      ...b.righe.map((r): [string, string] => [r.etichetta, euro(r.composizione.arrotondato)]),
-      [b.tredicesima.etichetta, euro(b.tredicesima.composizione.arrotondato)],
-      ['Totale fissi annui', euro(b.totaleAnnui)],
-      ['Totale con la 13ª', euro(b.totale)],
-      ['Differenza fissi annui (B − A)', euro(b.differenza.annui)],
-      ['Differenza 13ª (B − A)', euro(b.differenza.tredicesima)],
-    ],
-    ...rilievo(b.righe.length),
-  }));
-  if (m.tfs) {
-    blocchi.push({
-      titolo: `${titolo}: TFS migliorato`,
-      righe: [
-        ...m.tfs.righe.map((r): [string, string] => [r.etichetta, euro(r.composizione.arrotondato)]),
-        [`Totale (mesi da ${mese(m.tfs.dal)} a ${mese(m.tfs.al)})`, euro(m.tfs.totale)],
-      ],
-    });
+  const r = riepilogoMiglioramento(m, pratica.dati);
+  const righe: [string, string][] = [];
+  const inEvidenza: number[] = [];
+  const inTonoMinore: number[] = [];
+  righe.push(['Vecchia pensione calcolata: fissi annui', euro(r.vecchia.totaleAnnui)], ['Vecchia pensione calcolata: 13ª', euro(r.vecchia.tredicesima.composizione.arrotondato)]);
+  inEvidenza.push(0, 1);
+  if (r.passweb) {
+    righe.push(['Pensione in PASSWEB: fissi annui', euro(r.passweb.fissi)], ['Pensione in PASSWEB: 13ª', euro(r.passweb.tredicesima)]);
+    righe.push(['Confronto con la vecchia pensione calcolata', r.passweb.uguale ? 'uguale' : 'DIVERSA: controllare le voci inserite']);
+    inTonoMinore.push(2, 3);
+  } else {
+    righe.push(['Pensione in PASSWEB', 'non indicata']);
   }
-  return blocchi;
+  righe.push([`Nuovo miglioramento dal ${giorno(r.nuovo.decorrenza)}: fissi annui`, euro(r.nuovo.totaleAnnui)], [`Nuovo miglioramento dal ${giorno(r.nuovo.decorrenza)}: 13ª`, euro(r.nuovo.tredicesima.composizione.arrotondato)]);
+  inEvidenza.push(righe.length - 2, righe.length - 1);
+  if (r.fineServizio.regime === 'TFR') righe.push(['TFR', r.fineServizio.dicitura]);
+  else if (r.fineServizio.tfs) {
+    const tfs = r.fineServizio.tfs;
+    righe.push(...tfs.righe.map((x): [string, string] => [`TFS migliorato: ${x.etichetta}`, euro(x.composizione.arrotondato)]));
+    righe.push([`TFS migliorato: totale (mesi da ${mese(tfs.dal)} a ${mese(tfs.al)})`, euro(tfs.totale)]);
+  }
+  return [{titolo, righe, inEvidenza, ...(inTonoMinore.length > 0 && {inTonoMinore})}];
 }
 
 function blocchiPensione(pratica: Extract<Pratica, {tipo: 'pensione'}>, risultato: Risultato): BloccoScheda[] {
@@ -163,7 +164,7 @@ function blocchiPensione(pratica: Extract<Pratica, {tipo: 'pensione'}>, risultat
     bloccoUmPensione(risultato),
     ...(pratica.dati.regime === 'TFS' ? [bloccoTfs(risultato)] : [bloccoTfr(risultato)]),
     ...(pratica.dati.dmaPreviste ? blocchiDma(risultato) : []),
-    ...(pratica.dati.miglioramento ? blocchiMiglioramento(risultato) : []),
+    ...(pratica.dati.miglioramento ? blocchiMiglioramento(pratica, risultato) : []),
   ];
 }
 

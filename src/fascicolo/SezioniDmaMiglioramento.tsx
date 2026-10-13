@@ -5,6 +5,7 @@ import type {Avviso, Blocco, DatiPraticaPensione, Risultato, UmPensione} from '.
 import type {Chiusura} from './chiusura';
 import {Avvisi, BarraChiusura, MotiviBlocco, Riquadro, RigaImporto} from './campi';
 import {scriviEuro} from './modifiche';
+import {riepilogoMiglioramento} from './riepilogoMiglioramento';
 
 const mese = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
 const giorno = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
@@ -72,7 +73,27 @@ export function SezioneDmaPreviste({risultato, dati, chiusura, onChiudi, onRiapr
 
 const CODICI_MIGLIORAMENTO: Avviso['codice'][] = ['contratto-in-ipotesi', 'pensione-erogata-diversa', 'nessun-miglioramento-reale', 'tfs-da-modificare'];
 
-/** Scenario A e Scenario B affiancati a una decorrenza: riga per riga, con la differenza. */
+/** Fissi annui e 13ª di un UM: i due dati che si digitano in PASSWEB. */
+function ValoriUm({titolo, nota, annui, tredicesima, chiave, inserire}: {titolo: string; nota?: string; annui: number; tredicesima: number; chiave: string; inserire?: boolean}) {
+  return (
+    <div className={`rounded-lg border p-3 ${inserire ? 'border-sky-200 bg-sky-50' : 'border-slate-200'}`}>
+      <h3 className="text-sm font-semibold text-slate-800">{titolo}</h3>
+      {nota && <p className="text-xs text-slate-600">{nota}</p>}
+      <dl className="mt-2 grid grid-cols-2 gap-3">
+        <div>
+          <dt className="text-xs text-slate-600">Totale fissi annui</dt>
+          <dd className="text-lg font-semibold tabular-nums text-slate-900" data-riga={`${chiave}/annui`}>{euro(annui)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-600">13ª mensilità</dt>
+          <dd className="text-lg font-semibold tabular-nums text-slate-900" data-riga={`${chiave}/tredicesima`}>{euro(tredicesima)}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+/** Dettaglio di una decorrenza intermedia: Scenario A e B affiancati, riga per riga. */
 function Confronto({a, b, decorrenza, differenza}: {a: UmPensione; b: UmPensione; decorrenza: string; differenza: {annui: number; tredicesima: number}}) {
   const ids = [...new Set([...a.righe.map((r) => r.id), ...b.righe.map((r) => r.id)])];
   const riga = (u: UmPensione, id: string) => u.righe.find((r) => r.id === id);
@@ -145,10 +166,11 @@ function Confronto({a, b, decorrenza, differenza}: {a: UmPensione; b: UmPensione
 }
 
 /** Miglioramento contrattuale: Scenario A e B per decorrenza e, in regime TFS, il TFS migliorato (ADR 0003). */
-export function SezioneMiglioramento({risultato, chiusura, onChiudi, onRiapri}: PropsSezione) {
+export function SezioneMiglioramento({risultato, dati, chiusura, onChiudi, onRiapri}: PropsSezione & {dati: DatiPraticaPensione}) {
   const congelato = chiusura?.congelato.sezione === 'miglioramento' ? chiusura.congelato.risultato : undefined;
   const m = congelato ?? risultato.sezioni.miglioramento ?? {esito: 'bloccata' as const, motivi: [] as Blocco[]};
   const definitivo = m.esito === 'calcolata' && m.stato === 'definitivo' ? m : undefined;
+  const riepilogo = definitivo && definitivo.migliorati.length > 0 ? riepilogoMiglioramento(definitivo, dati) : undefined;
   return (
     <Riquadro id="miglioramento" titolo="Miglioramento contrattuale" stato={statoDi(chiusura, m.esito)}>
       {/* Un'ipotesi non ha importi (T5): non c'è nulla da chiudere. */}
@@ -157,29 +179,53 @@ export function SezioneMiglioramento({risultato, chiusura, onChiudi, onRiapri}: 
       {m.esito === 'calcolata' && m.stato === 'ipotesi' && (
         <p className="text-sm text-slate-600">Il contratto scelto è ancora un'ipotesi: nessun importo finché non è firmato.</p>
       )}
-      {definitivo && (
+      {definitivo && riepilogo && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Contratto {definitivo.contratto}: Scenario A = voci inserite come sono; Scenario B = voci 01, 02, 09 e 10 dalle tabelle.
-          </p>
-          {definitivo.migliorati.map((b) => (
-            <Confronto key={b.decorrenza} a={definitivo.scenarioA} b={b} decorrenza={b.decorrenza} differenza={b.differenza} />
-          ))}
-          {definitivo.tfs && (
+          <p className="text-sm text-slate-600">Contratto {definitivo.contratto}: confronto fra ciò che c'è in PASSWEB e ciò che va inserito.</p>
+          <ValoriUm titolo="Vecchia pensione calcolata" nota="Con le voci inserite, come se fosse stata calcolata a quella data." annui={riepilogo.vecchia.totaleAnnui} tredicesima={riepilogo.vecchia.tredicesima.composizione.arrotondato} chiave="miglioramento/vecchia" />
+          {riepilogo.passweb ? (
+            <div>
+              <ValoriUm titolo="Pensione in PASSWEB" annui={riepilogo.passweb.fissi} tredicesima={riepilogo.passweb.tredicesima} chiave="miglioramento/passweb" />
+              <p className={`mt-1 text-sm font-medium ${riepilogo.passweb.uguale ? 'text-emerald-700' : 'text-red-700'}`} role={riepilogo.passweb.uguale ? undefined : 'alert'}>
+                {riepilogo.passweb.uguale ? 'Uguale alla vecchia pensione calcolata.' : 'Diversa dalla vecchia pensione calcolata: controllare le voci inserite.'}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-600">Pensione in PASSWEB: non indicata (si inserisce nella sezione Ultimo miglio pensione).</p>
+          )}
+          <ValoriUm
+            titolo={`Nuovo miglioramento contrattuale dal ${giorno(riepilogo.nuovo.decorrenza)}`}
+            nota="Da inserire in PASSWEB"
+            annui={riepilogo.nuovo.totaleAnnui}
+            tredicesima={riepilogo.nuovo.tredicesima.composizione.arrotondato}
+            chiave="miglioramento/nuovo"
+            inserire
+          />
+          {riepilogo.fineServizio.regime === 'TFR' && <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">{riepilogo.fineServizio.dicitura}</p>}
+          {riepilogo.fineServizio.regime === 'TFS' && riepilogo.fineServizio.tfs && (
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-700">
-                TFS migliorato · mesi da {mese(definitivo.tfs.dal)} a {mese(definitivo.tfs.al)}
+                TFS migliorato · mesi da {mese(riepilogo.fineServizio.tfs.dal)} a {mese(riepilogo.fineServizio.tfs.al)}
               </h3>
               <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-                {definitivo.tfs.righe.map((r) => (
+                {riepilogo.fineServizio.tfs.righe.map((r) => (
                   <RigaImporto key={r.id} chiave={`miglioramento/tfs/${r.id}`} etichetta={r.etichetta} nota={r.campoPassweb} composizione={r.composizione} />
                 ))}
               </ul>
               <p className="mt-3 text-sm">
-                Totale <span className="font-medium tabular-nums">{euro(definitivo.tfs.totale)}</span>
+                Totale <span className="font-medium tabular-nums">{euro(riepilogo.fineServizio.tfs.totale)}</span>
               </p>
             </div>
           )}
+          <details className="rounded-lg border border-slate-200 p-3">
+            <summary className="cursor-pointer text-sm font-medium text-slate-700">Dettaglio per decorrenza ({definitivo.migliorati.length})</summary>
+            <div className="mt-3 space-y-4">
+              <p className="text-xs text-slate-600">Scenario A = voci inserite come sono; Scenario B = voci 01, 02, 09 e 10 dalle tabelle.</p>
+              {definitivo.migliorati.map((b) => (
+                <Confronto key={b.decorrenza} a={definitivo.scenarioA} b={b} decorrenza={b.decorrenza} differenza={b.differenza} />
+              ))}
+            </div>
+          </details>
         </div>
       )}
       <Avvisi avvisi={risultato.avvisi.filter((a) => CODICI_MIGLIORAMENTO.includes(a.codice))} />

@@ -168,29 +168,24 @@ describe('scheda della pratica di pensione: DMA previste', () => {
 describe('scheda della pratica di pensione: miglioramento contrattuale', () => {
   const mc = (id: string) => casiNormativiMiglioramento.find((c) => c.id === id)!.dati;
 
-  it('Scenario B per decorrenza con la differenza, nessun TFS migliorato (cessato prima del primo tabellare); niente Scenario A (MC-N01)', () => {
+  it('tre valori e basta: vecchia pensione, PASSWEB, nuovo miglioramento all’ultima decorrenza; niente decorrenze intermedie (MC-N01)', () => {
     const s = pronta(schedaPensione(mc('MC-N01')));
-    expect(s.blocchi.map((b) => b.titolo)).toEqual([
-      'Ultimo miglio pensione',
-      'Ultimo miglio TFS',
-      'Miglioramento contrattuale: UM dal 01/07/2023 (Scenario B)',
-      'Miglioramento contrattuale: UM dal 01/01/2024 (Scenario B)',
-    ]);
-    expect(valori(s, 'Miglioramento contrattuale: UM dal 01/01/2024 (Scenario B)')).toEqual([
-      '20.452,56 €',
-      '1.336,68 €',
-      '300,00 €',
-      '461,04 €',
-      '64,56 €',
-      '471,72 €',
-      '1.879,19 €',
-      '23.086,56 €',
-      '24.965,75 €',
-      '1.322,88 €',
-      '110,24 €',
-    ]);
-    const prima = valori(s, 'Miglioramento contrattuale: UM dal 01/07/2023 (Scenario B)')!;
-    expect(prima.slice(-5)).toEqual(['1.768,95 €', '21.763,68 €', '23.532,63 €', '0,00 €', '0,00 €']);
+    expect(s.blocchi.map((b) => b.titolo)).toEqual(['Ultimo miglio pensione', 'Ultimo miglio TFS', 'Miglioramento contrattuale']);
+    const blocco = s.blocchi.find((b) => b.titolo === 'Miglioramento contrattuale')!;
+    const etichette = blocco.righe!.map(([e]) => e);
+    expect(etichette).toContain('Nuovo miglioramento dal 01/01/2024: fissi annui');
+    expect(etichette.some((e) => e.includes('01/07/2023'))).toBe(false);
+    expect(blocco.righe).toContainEqual(['Nuovo miglioramento dal 01/01/2024: fissi annui', '23.086,56 €']);
+    expect(blocco.righe).toContainEqual(['Nuovo miglioramento dal 01/01/2024: 13ª', '1.879,19 €']);
+    expect(etichette[0]).toBe('Vecchia pensione calcolata: fissi annui');
+    // Cessato prima del primo tabellare: niente TFS migliorato.
+    expect(etichette.some((e) => e.startsWith('TFS migliorato'))).toBe(false);
+  });
+
+  it('regime TFR: al posto del TFS migliorato la dicitura della comunicazione INPS', () => {
+    const s = pronta(schedaPensione({...mc('MC-N01'), regime: 'TFR'}));
+    const blocco = s.blocchi.find((b) => b.titolo === 'Miglioramento contrattuale')!;
+    expect(blocco.righe).toContainEqual(['TFR', 'Miglioramento TFR: non va effettuato inserimento in PASSWEB, verificare la richiesta nel messaggio per INPS.']);
   });
 
   it('gli avvisi che cambiano ciò che si digita: nessun miglioramento reale, nessun avviso TFS (MC-N01)', () => {

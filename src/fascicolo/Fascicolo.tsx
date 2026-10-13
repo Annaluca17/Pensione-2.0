@@ -137,7 +137,7 @@ export function Fascicolo({
           {conTfs && <SezioneTfs risultato={risultato} {...azioni('tfs')} />}
           {conTfr && <SezioneTfr risultato={risultato} {...azioni('tfr')} />}
           {conDma && pratica.tipo === 'pensione' && <SezioneDmaPreviste risultato={risultato} dati={pratica.dati} {...azioni('dmaPreviste')} />}
-          {conMiglioramento && <SezioneMiglioramento risultato={risultato} {...azioni('miglioramento')} />}
+          {conMiglioramento && pratica.tipo === 'pensione' && <SezioneMiglioramento risultato={risultato} dati={pratica.dati} {...azioni('miglioramento')} />}
           <LetteraExport
             pratica={pratica}
             ente={ente}
