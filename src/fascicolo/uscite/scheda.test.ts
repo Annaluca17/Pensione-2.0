@@ -158,14 +158,13 @@ describe('scheda della pratica di pensione: DMA previste', () => {
 describe('scheda della pratica di pensione: miglioramento contrattuale', () => {
   const mc = (id: string) => casiNormativiMiglioramento.find((c) => c.id === id)!.dati;
 
-  it('Scenario B per decorrenza con la differenza, TFS migliorato a parte; niente Scenario A (MC-N01)', () => {
+  it('Scenario B per decorrenza con la differenza, nessun TFS migliorato (cessato prima del primo tabellare); niente Scenario A (MC-N01)', () => {
     const s = pronta(schedaPensione(mc('MC-N01')));
     expect(s.blocchi.map((b) => b.titolo)).toEqual([
       'Ultimo miglio pensione',
       'Ultimo miglio TFS',
       'Miglioramento contrattuale: UM dal 01/07/2023 (Scenario B)',
       'Miglioramento contrattuale: UM dal 01/01/2024 (Scenario B)',
-      'Miglioramento contrattuale: TFS migliorato',
     ]);
     expect(valori(s, 'Miglioramento contrattuale: UM dal 01/01/2024 (Scenario B)')).toEqual([
       '20.452,56 €',
@@ -182,15 +181,12 @@ describe('scheda della pratica di pensione: miglioramento contrattuale', () => {
     ]);
     const prima = valori(s, 'Miglioramento contrattuale: UM dal 01/07/2023 (Scenario B)')!;
     expect(prima.slice(-5)).toEqual(['1.768,95 €', '21.763,68 €', '23.532,63 €', '0,00 €', '0,00 €']);
-    const tfs = valori(s, 'Miglioramento contrattuale: TFS migliorato')!;
-    expect(tfs).toContain('20.003,10 €');
-    expect(tfs.at(-1)).toBe('22.921,06 €');
   });
 
-  it('gli avvisi che cambiano ciò che si digita: nessun miglioramento reale e UM TFS da modificare (MC-N01)', () => {
+  it('gli avvisi che cambiano ciò che si digita: nessun miglioramento reale, nessun avviso TFS (MC-N01)', () => {
     const s = pronta(schedaPensione(mc('MC-N01')));
     expect(s.avvisi.some((a) => a.includes('Nessun miglioramento reale dal 01/07/2023'))).toBe(true);
-    expect(s.avvisi.some((a) => a.includes('UM TFS da modificare'))).toBe(true);
+    expect(s.avvisi.some((a) => a.includes('UM TFS da modificare'))).toBe(false);
     expect(s.avvisi.some((a) => a.includes('differisce dall'))).toBe(false);
   });
 

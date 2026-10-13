@@ -196,6 +196,11 @@ describe('casi normativi del miglioramento contrattuale: coerenza dei dati, senz
           expect(codici).toEqual([]);
           return;
         }
+        // Cessato prima del primo tabellare del contratto (C21-8, regola 13/10/2026): nessun TFS migliorato.
+        if (!atteso.tfs) {
+          expect(codici).toEqual([]);
+          return;
+        }
         const finestra = mesiFinestra(mesePensione);
         expect(atteso.tfs!.mesi).toEqual({dal: finestra[0], al: finestra[11]});
         // TFS ordinario sulle voci inserite: l'IVC 2020-2023 vale 0 con le tabelle di oggi (D8, T6).

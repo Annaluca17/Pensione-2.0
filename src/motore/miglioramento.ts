@@ -102,7 +102,8 @@ export function calcolaMiglioramento(ingresso: Ingresso): Esito {
 
   const avvisi: Avviso[] = pensioneErogata ? avvisiErogata(pensioneErogata, scenarioA, migliorati) : [];
   let tfsMigliorato: TfsMigliorato | undefined;
-  if (tfs && tfs.mesi.length > 0) {
+  // Cessato prima del primo tabellare del contratto: non c'è nulla da confrontare col TFS ordinario (regola confermata 13/10/2026).
+  if (tfs && tfs.mesi.length > 0 && cessazione >= primoTabellare(scelto)) {
     const calcolo = calcolaTfsMigliorato(tfs.mesi, tabelleScelto);
     if ('blocco' in calcolo) return {blocchi: [calcolo.blocco]};
     tfsMigliorato = calcolo;
@@ -117,6 +118,9 @@ export function calcolaMiglioramento(ingresso: Ingresso): Esito {
 
 const tredicesima = (um: UmPensione) => um.tredicesima.composizione.arrotondato;
 const inserita = (voci: VociMese, voce: CodiceVoce, mese: string): Addendo[] => ((voci[voce] ?? 0) !== 0 ? [{voce, mese, importo: voci[voce]!}] : []);
+
+/** La decorrenza del primo tabellare del contratto, dalla tabella (nessun anno cablato). */
+const primoTabellare = (scelto: ContrattoDefinitivo): DataISO => scelto.scaglionamenti.filter((s) => s.tipo === 'tabellare').map((s) => s.decorrenza).sort()[0] ?? '9999-12-31';
 
 /** C21-6: il giorno dopo la pensione se c'è uno scaglionamento nella vigenza fino ad allora, poi uno per decorrenza successiva. */
 function decorrenze(scelto: ContrattoDefinitivo, dataPensione: DataISO): DataISO[] {

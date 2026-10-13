@@ -326,22 +326,11 @@ const differenzeMigliorato: DifferenzaAttesa[] = [
   {caso: 'mc-solo-pensione', riga: 'totaleAnnui', nuovo: 2290644, decisione: 'D17: somma delle righe, segue 02, 09 e 10', fonte: 'D17'},
 ];
 
-const TFS_NUOVO = 'ADR 0003, D13, C21-8: il vecchio non calcolava il TFS migliorato dei cessati prima del 2024 (tfsMC null, soglia cablata scartata)';
 const differenzeTfsMc: DifferenzaAttesa[] = [
   {caso: 'mc-finestra-2023-2024', riga: 'tab-e', nuovo: 2224320, decisione: `${TFS_MC}; 6 × 1.791,65 + 6 × 1.915,55`, fonte: FONTE_MC},
   {caso: 'mc-finestra-2023-2024', riga: 'differenziali', nuovo: 108228, decisione: `${MIGLIORATO_02}; 12 × 90,19`, fonte: FONTE_MC},
   {caso: 'mc-finestra-2023-2024', riga: 'tredicesima', nuovo: 196879, decisione: `${TFS_MC}; D20: (22.243,20 + 1.082,28 + 300,00) / 12`, fonte: FONTE_MC},
   {caso: 'mc-finestra-2023-2024', riga: 'totale', nuovo: 2559427, decisione: 'D17: somma delle righe', fonte: 'D17'},
-  {caso: 'mc-solo-pensione', riga: 'tab-e', nuovo: 2008963, decisione: `${TFS_NUOVO}; 1.680,67 + 6 × 1.684,02 + 3 × 1.705,52 + 2 × 1.594,14`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'ria', nuovo: 0, decisione: `${TFS_NUOVO}; nessuna RIA`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'tredicesima', nuovo: 171270, decisione: `${TFS_NUOVO}; D20: (20.089,63 + 222,78 + 240,00) / 12`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'assegno-assorbibile', nuovo: 24000, decisione: `${TFS_NUOVO}; 20,00 × 12`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'asili', nuovo: 34092, decisione: `${TFS_NUOVO}; 28,41 × 12`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'assegno-non-riassorbibile', nuovo: 0, decisione: `${TFS_NUOVO}; nessuna voce`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'indennita-64-56', nuovo: 6456, decisione: `${TFS_NUOVO}; 5,38 × 12`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'vigilanza', nuovo: 0, decisione: `${TFS_NUOVO}; nessuna voce`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'differenziali', nuovo: 22278, decisione: `${TFS_NUOVO}; 2 × 111,39 (02 = 0 finché il tabellare è per posizione)`, fonte: FONTE_MC},
-  {caso: 'mc-solo-pensione', riga: 'totale', nuovo: 2267059, decisione: 'D17: somma delle righe', fonte: 'D17'},
 ];
 
 describe('fotografia Unificato: miglioramento contrattuale del nuovo = vecchio ±1 centesimo, salvo differenze attese', () => {
@@ -359,9 +348,14 @@ describe('fotografia Unificato: miglioramento contrattuale del nuovo = vecchio �
         confrontaUm(caso.id, righe(b), vecchioUm(caso.uscite.pensioneMC), differenzeMigliorato);
       });
 
-      it('TFS migliorato = vecchio tfsMC', () => {
+      it('TFS migliorato = vecchio tfsMC (assente se cessato prima del primo tabellare, C21-8)', () => {
         const tfs = miglioramento(r).tfs;
-        if (!tfs) throw new Error('TFS migliorato assente');
+        if (!tfs) {
+          // Cessato prima del 01/01/2024 (primo tabellare del CCNL 2022-24): nessun TFS migliorato, regola confermata 13/10/2026.
+          expect(caso.id).toBe('mc-solo-pensione');
+          expect(caso.uscite.tfsMC).toBeNull();
+          return;
+        }
         const nuovo = valoriTfs(tfs);
         const vecchio = caso.uscite.tfsMC;
         for (const [chiave, riga] of righeTfs) {

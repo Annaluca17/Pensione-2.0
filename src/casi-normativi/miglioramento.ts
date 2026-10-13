@@ -195,8 +195,8 @@ const B4_PRE_2023 = {'01': 158621, '02': 11083, '04': 2500, '06': 3842, '08': 53
 export const casiNormativiMiglioramento: CasoNormativoMiglioramento[] = [
   {
     id: 'MC-N01',
-    titolo: 'Operatore esperto B4 cessato il 30/06/2023, CCNL 2022-24: due decorrenze, pensione erogata uguale ad A, TFS da modificare',
-    regola: 'Pensione: UM migliorato al 01/07/2023 (uguale ad A: l\'incremento 2023 è l\'IVC riassorbita) e al 01/01/2024; TFS mese per mese',
+    titolo: 'Operatore esperto B4 cessato il 30/06/2023, CCNL 2022-24: due decorrenze, pensione erogata uguale ad A, nessun TFS migliorato',
+    regola: 'Pensione: UM migliorato al 01/07/2023 (uguale ad A: l\'incremento 2023 è l\'IVC riassorbita) e al 01/01/2024; nessun TFS migliorato: cessato prima del primo tabellare del contratto (01/01/2024)',
     dati: pratica(
       {posizione: 'B4', assunzione: '1999-03-01', cessazione: '2023-06-30'},
       'ccnl-2022-24',
@@ -216,14 +216,8 @@ export const casiNormativiMiglioramento: CasoNormativoMiglioramento[] = [
         migliorato('2023-07-01', {'01': 159414, '02': 11139, '09': 0, '10': 3931}, um([['01', 159414], ['02', 11139], ['04', 2500], ['06', 3842], ['08', 538], ['10', 3931]], ['01', '02', '04', '06'], 176895, 2176368, 2353263), {annui: 0, tredicesima: 0}),
         migliorato('2024-01-01', {'01': 170438, '02': 11139, '09': 0, '10': 3931}, um([['01', 170438], ['02', 11139], ['04', 2500], ['06', 3842], ['08', 538], ['10', 3931]], ['01', '02', '04', '06'], 187919, 2308656, 2496575), {annui: 132288, tredicesima: 11024}),
       ],
-      tfs: {
-        mesi: {dal: '2022-07', al: '2023-06'},
-        righe: nove({tabE: 2000310, ria: 46104, tredicesima: ['703277/4', 175819], assegnoNonRiassorbibile: 30000, ind6456: 6456, differenziali: 33417}),
-        totale: 2292106,
-        ordinario: soloValori(nove({tabE: 1990356, ria: 46104, tredicesima: ['', 174976], assegnoNonRiassorbibile: 30000, ind6456: 6456, differenziali: 33249})),
-      },
       blocchi: [],
-      avvisi: [nessunMiglioramento('2023-07-01', 2353263, 2353263), daModificare('tab-e,tredicesima,differenziali')],
+      avvisi: [nessunMiglioramento('2023-07-01', 2353263, 2353263)],
     },
     passi: [
       `Cessazione 30/06/2023 nella vigenza del CCNL 2022-24 (2022-2024), firmato il 23/02/2026 dopo la cessazione: miglioramento applicabile. Fonte: ${F.regola}.`,
@@ -231,8 +225,7 @@ export const casiNormativiMiglioramento: CasoNormativoMiglioramento[] = [
       'Scenario A (voci di giugno 2023 come pagate): 01 1.586,21, 02 110,83, 04 25,00, 06 38,42, 08 5,38, 09 8,49, 10 39,31 → annui 21.763,68, 13ª 1.768,95, totale 23.532,63.',
       `UM al 01/07/2023: 01 = Tab. G 1.586,21 + 7,93 = 1.594,14; 02 = differenziale storico rivisto 111,39 (parere ARAN 37607); 09 = 0. 01 + 02 = 1.705,53 = 1.586,21 + 110,83 + 8,49: il miglioramento è l'IVC riassorbita, annui e 13ª identici ad A. Pensione erogata = A → "nessun miglioramento reale" per questa decorrenza. Fonte: ${F.erogata}.`,
       'UM al 01/01/2024: 01 = Tab. B col. 1 1.704,38 → annui 23.086,56 (+1.322,88), 13ª 1.879,19 (+110,24), totale 24.965,75 > erogata.',
-      `TFS migliorato, luglio 2022 - giugno 2023: lug-dic 2022 01 = 1.675,64 + incremento 01/07/2022 8,38 = 1.684,02; gen-mar 2023 1.697,03 + 8,49 = 1.705,52; apr-giu 2023 1.594,14 con 02 111,39; IVC 0. TAB E = 6 × 1.684,02 + 3 × 1.705,52 + 3 × 1.594,14 = 20.003,10; differenziali = 3 × 111,39 = 334,17; 13ª = Σ12 (01, 02, 04, 06) / 12 = 703277/4 → 1.758,19. Fonte: ${F.tfs}.`,
-      'TFS ordinario sulle voci inserite: l\'IVC pagata (8,38 / 8,49) vale 0 con le tabelle di oggi (D8, T6) → TAB E 19.903,56, 13ª 1.749,76, differenziali 332,49. Cambiano tab-e, 13ª e differenziali → avviso "UM TFS da modificare".',
+      `Nessun TFS migliorato: la cessazione (30/06/2023) cade prima del primo scaglionamento tabellare del CCNL 2022-24 (01/01/2024, Tab. B), quindi il TFS resta quello ordinario e non si confronta. Fonte: ${F.tfs}.`,
     ],
     validazione: VALIDAZIONE,
   },

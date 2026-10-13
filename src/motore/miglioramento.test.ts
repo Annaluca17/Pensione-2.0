@@ -298,29 +298,6 @@ describe('miglioramento contrattuale: pensione erogata (T4)', () => {
 });
 
 describe('miglioramento contrattuale: TFS mese per mese (C21-8), TFR mai', () => {
-  it('mesi prima del primo scaglionamento come nel TFS ordinario, poi voci dalle tabelle al 1° del mese; mai annualizzato', () => {
-    const {tfs} = definitivo(calcolaPratica(pensione({voci: {base: VOCI, eccezioni: {}}}), tabelle));
-    expect({dal: tfs!.dal, al: tfs!.al}).toEqual({dal: '2019-12', al: '2020-11'});
-    // TAB E = 4 × 1.000,00 + 8 × 1.010,00; 13ª = (12.080,00 + 240,00) / 12.
-    expect(Object.fromEntries(tfs!.righe.map((r) => [r.id, r.composizione.arrotondato]))).toEqual({'tab-e': 1208000, ria: 24000, tredicesima: 102667, differenziali: 0});
-    expect(tfs!.totale).toBe(1334667);
-    expect(tfs!.righe[0].composizione.operazioni).toEqual([]);
-  });
-
-  it('diverso dal TFS ordinario → avviso tfs-da-modificare con le righe che cambiano', () => {
-    const r = calcolaPratica(pensione(), tabelle);
-    expect(r.avvisi.filter((a) => a.codice === 'tfs-da-modificare')).toEqual([
-      {tipo: 'avviso', codice: 'tfs-da-modificare', righe: ['tab-e', 'tredicesima'], fonte: expect.stringContaining('C21-8')},
-    ]);
-  });
-
-  it('uguale al TFS ordinario → nessun avviso', () => {
-    const eccezioni = Object.fromEntries(['2020-04', '2020-05', '2020-06', '2020-07', '2020-08', '2020-09', '2020-10', '2020-11'].map((m) => [m, {'01': 101000}]));
-    const r = calcolaPratica(pensione({voci: {base: {'01': 100000, '06': 2000, '10': 4000}, eccezioni}}), tabelle);
-    expect(definitivo(r).tfs?.totale).toBe(1334667);
-    expect(codici(r)).not.toContain('tfs-da-modificare');
-  });
-
   it('regime TFR: nessun TFS e nessun TFR di miglioramento; la sezione TFR resta quella ordinaria', () => {
     const r = calcolaPratica(pensione({regime: 'TFR'}), tabelle);
     const m = definitivo(r);
@@ -328,5 +305,33 @@ describe('miglioramento contrattuale: TFS mese per mese (C21-8), TFR mai', () =>
     expect(Object.keys(m).sort()).toEqual(['contratto', 'esito', 'migliorati', 'scenarioA', 'stato']);
     expect(r.sezioni.tfs).toBeUndefined();
     expect(codici(r)).not.toContain('tfs-da-modificare');
+  });
+});
+
+describe('miglioramento contrattuale: TFS migliorato solo per chi cessa dal primo tabellare del contratto', () => {
+  // Regola confermata da Luca il 13/10/2026: cessazione ≥ decorrenza del primo scaglionamento tabellare del
+  // contratto. Per "nuovo" è il 01/01/2021: la cessazione di default (30/11/2020) è prima.
+  it('cessato prima del primo tabellare → miglioramento calcolato, senza TFS migliorato né avviso tfs-da-modificare', () => {
+    const r = calcolaPratica(pensione(), tabelle);
+    const m = definitivo(r);
+    expect(m.scenarioA).toBeDefined();
+    expect(m.migliorati.length).toBeGreaterThan(0);
+    expect(m.tfs).toBeUndefined();
+    expect(r.sezioni.tfs?.esito).toBe('calcolata');
+    expect(codici(r)).not.toContain('tfs-da-modificare');
+  });
+
+  it('cessato il giorno del primo tabellare → TFS migliorato presente (cessazione ≥ decorrenza)', () => {
+    const r = calcolaPratica(pensione({}, {cessazione: '2021-01-01'}), tabelle);
+    expect(definitivo(r).tfs).toBeDefined();
+  });
+
+  it('la data viene dalle tabelle: spostando il primo tabellare prima della cessazione il TFS migliorato torna', () => {
+    const anticipato: ContrattoDefinitivo = {
+      ...nuovo,
+      scaglionamenti: nuovo.scaglionamenti.map((s) => (s.tipo === 'tabellare' && s.decorrenza === '2021-01-01' ? {...s, decorrenza: '2020-11-01'} : s)),
+    };
+    const r = calcolaPratica(pensione(), {...tabelle, contratti: [vecchio, anticipato, ipotesiX]});
+    expect(definitivo(r).tfs).toBeDefined();
   });
 });
