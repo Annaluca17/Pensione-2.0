@@ -204,7 +204,8 @@ export function calcolaPratica(dati: DatiPratica | DatiPraticaPensione, tabelle:
     if (!bloccata('umPensione') && dateRiferimento) {
       const data = dateRiferimento.pensione.usato;
       const voci = {...dati.voci.base, ...dati.voci.eccezioni[meseDi(data)]};
-      const calcolo = calcolaUmPensione({data, voci, posizione, tabelle});
+      // Col miglioramento la pensione è quella di allora: contano solo le tabelle firmate entro la cessazione (ticket 01).
+      const calcolo = calcolaUmPensione({data, voci, posizione, tabelle, ...(pensione.miglioramento && cessazione && {firmatiEntro: cessazione})});
       umPensione = {esito: 'calcolata', ...calcolo.umPensione};
       // Un mese letto anche dal TFR ha già il suo avviso IVC: uno per mese.
       const visti = new Set(avvisi.map((a) => a.codice === 'ivc-incompatibile' && a.mese));

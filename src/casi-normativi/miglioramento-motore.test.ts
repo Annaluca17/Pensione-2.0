@@ -3,7 +3,7 @@
 // per decorrenza (C21-6, C21-7), TFS migliorato mese per mese (C21-8), blocchi e avvisi del miglioramento.
 import {describe, expect, it} from 'vitest';
 import {calcolaPratica} from '../motore';
-import type {Avviso, Miglioramento, Risultato, UmPensione} from '../motore';
+import type {Avviso, DatiPraticaMiglioramento, Miglioramento, Risultato, UmPensione} from '../motore';
 import {tabelle} from '../tabelle';
 import {casiNormativiMiglioramento, type UmAtteso} from './miglioramento';
 
@@ -132,5 +132,36 @@ describe('cessato prima del 2022: il CCNL 2022-24 non si applica (C21-5, T3)', (
   it('scelto il 2022-24 → blocco miglioramento-non-applicabile; la proposta è il 2019-21', () => {
     expect(sezione(r)).toMatchObject({esito: 'bloccata', motivi: [{codice: 'miglioramento-non-applicabile', contratto: 'ccnl-2022-24', cessazione: '2021-06-30'}]});
     expect(r.miglioramentoProposto).toBe('ccnl-2019-21');
+  });
+});
+
+// Ticket 01: pratica inserita nel 2022, prima della firma del 2022-24. Dati di fantasia (CF fantasia); la IVC
+// di maggio 2022 è quella della tabella per B4 (5,03 mensili). Non è ancora in `casiNormativiMiglioramento`:
+// il caso completo (UM migliorati, TFS) va calcolato a mano e validato dall'utente (HITL) prima di entrarci.
+const datiPregressa: DatiPraticaMiglioramento = {
+  anagrafica: {nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', posizione: 'B4', assunzione: '1999-03-01', cessazione: '2022-05-31'},
+  voci: {base: {'01': 158000, '02': 11083, '10': 3931}, eccezioni: {'2022-05': {'09': 503}}},
+  partTime: {base: {percentuale: 100}, eccezioni: {}},
+  forzature: {},
+  iscrittoCredito: true,
+  regime: 'TFS',
+  situazione: {tipo: 'ordinaria'},
+  miglioramento: {contratto: 'ccnl-2022-24'},
+};
+
+describe('pratica pregressa con le tabelle di allora: UM pensione con la IVC inserita (ticket 01)', () => {
+  const r = calcolaPratica(datiPregressa, tabelle);
+
+  it('cessato 05/2022 col 2022-24: l\'UM pensione tiene la IVC inserita (5,03 mensili, 60,36 annui)', () => {
+    const um = r.sezioni.umPensione;
+    if (um?.esito !== 'calcolata') throw new Error('UM pensione non calcolato');
+    expect(um.righe.find((x) => x.voce === '09')?.composizione.arrotondato).toBe(6036);
+  });
+
+  it('l\'UM pensione coincide con lo Scenario A del miglioramento (C21-7)', () => {
+    const um = r.sezioni.umPensione;
+    if (um?.esito !== 'calcolata') throw new Error('UM pensione non calcolato');
+    expect(um.totaleAnnui).toBe(definitivo(r).scenarioA.totaleAnnui);
+    expect(um.totale).toBe(definitivo(r).scenarioA.totale);
   });
 });

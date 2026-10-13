@@ -121,7 +121,8 @@ _Avoid_: voce PASSWEB, campo
 **Miglioramento contrattuale**:
 L'aggiornamento dell'ultimo miglio di un dipendente già cessato quando un contratto firmato dopo la
 cessazione ne aumenta la retribuzione; per la pensione vale tutto il contratto, per TFS e TFR solo
-gli aumenti con decorrenza fino alla cessazione.
+gli aumenti con decorrenza fino alla cessazione. La pensione del miglioramento si calcola con le
+tabelle firmate entro la cessazione: è la pensione di allora, IVC compresa.
 _Avoid_: MC (solo nel codice), rinnovo
 
 **Pensione erogata**:

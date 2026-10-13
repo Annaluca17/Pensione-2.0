@@ -2,6 +2,7 @@
 // "Testing Decisions"). I casi con le tabelle vere stanno in src/casi-normativi.
 import {describe, expect, it} from 'vitest';
 import {pratica, tabelleDiProva} from './fixture';
+import {conIvcDaTabella} from './contratti';
 import {calcolaPratica} from './index';
 import type {DatiPraticaPensione, Risultato, Situazione, Tabelle, UmPensione, VoceCatalogo} from './index';
 
@@ -209,6 +210,18 @@ describe('IVC del mese della pensione (D8, T6, storie 49-50)', () => {
   it('IVC non inserita: nessuna riga, il motore non aggiunge importi (ticket 08)', () => {
     const r = calcolaPratica(conIvc('2025-06-30'), conContratti);
     expect(umPensione(r).righe.map((x) => x.voce)).toEqual(['01']);
+  });
+
+  it('col miglioramento (firmatiEntro = cessazione) il contratto firmato dopo non conta: la IVC inserita vale, senza avviso (ticket 01)', () => {
+    const {voci, avviso} = conIvcDaTabella({'09': 1000}, '2023-06', 'C5', conContratti, '2023-06-30');
+    expect(voci['09']).toBe(1000);
+    expect(avviso).toBeUndefined();
+  });
+
+  it('firmatiEntro dopo la firma di B: la riassorbita torna a 0 e dà avviso', () => {
+    const {voci, avviso} = conIvcDaTabella({'09': 1000}, '2023-06', 'C5', conContratti, '2026-03-01');
+    expect(voci['09']).toBe(0);
+    expect(avviso).toEqual(expect.objectContaining({codice: 'ivc-incompatibile', daTabella: 0, contrattoApplicato: 'b'}));
   });
 });
 

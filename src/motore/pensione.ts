@@ -14,11 +14,14 @@ interface Ingresso {
   tabelle: Tabelle;
 }
 
-/** Calcola l'UM pensione; gli avvisi vanno nel risultato. */
-export function calcolaUmPensione({data, voci: inserite, posizione, tabelle}: Ingresso): {umPensione: UmPensione; avvisi: Avviso[]} {
+/**
+ * Calcola l'UM pensione; gli avvisi vanno nel risultato. `firmatiEntro` (ticket 01): col miglioramento,
+ * le tabelle firmate dopo la cessazione non contano (pratica pregressa, C21-5).
+ */
+export function calcolaUmPensione({data, voci: inserite, posizione, tabelle, firmatiEntro}: Ingresso & {firmatiEntro?: DataISO}): {umPensione: UmPensione; avvisi: Avviso[]} {
   const mese = meseDi(data);
   // IVC dalla tabella del contratto applicato (D8, T6); una riga per voce presente nel mese.
-  const {voci, avviso} = conIvcDaTabella(inserite, mese, posizione, tabelle);
+  const {voci, avviso} = conIvcDaTabella(inserite, mese, posizione, tabelle, firmatiEntro);
   return {
     umPensione: umDaVoci(mese, voci, tabelle),
     avvisi: [...(avviso ? [avviso] : []), ...avvisiIpotesi(tabelle, data)],
