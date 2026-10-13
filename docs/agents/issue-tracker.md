@@ -35,6 +35,12 @@ Ogni file di issue porta, vicino a `Status:`, una riga `Modello consigliato:`
 (Haiku 5.5 / Sonnet 5.5 / Opus 5.5 / Fable 5.1) con il motivo in poche parole.
 Criterio in `CLAUDE.md`, sezione "Modello consigliato per ogni task".
 
+## Ticket in parallelo
+
+Più sessioni sulla stessa cartella si intralciano: test rossi per il lavoro a
+metà di un'altra, porta 5180 del server di prova occupata. Ticket in parallelo
+= una worktree per sessione; nella stessa cartella solo in sequenza.
+
 ## Privacy
 
 `.scratch/` è in `.gitignore`: le issue non vanno su GitHub, perché il repo è

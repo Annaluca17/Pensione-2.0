@@ -16,6 +16,17 @@ I cinque ruoli predefiniti (needs-triage, needs-info, ready-for-agent, ready-for
 
 Single-context: `GLOSSARY.md` e `docs/adr/` nella radice, creati quando servono. See `docs/agents/domain.md`.
 
+## Prima di ogni commit
+
+`npm run check` (lint, tipi, test) verde.
+
+## Lavorare un ticket
+
+- Confronta il tuo modello con la riga `Modello consigliato:` del ticket. Se il
+  tuo è più economico, fermati e dillo a Luca prima di toccare il codice.
+- I valori attesi presi dal ticket o dati da Luca restano quelli: se il calcolo
+  non li riproduce, è una domanda per Luca, non un test da adattare.
+
 ## Modello consigliato per ogni task
 
 Per risparmiare token, ogni task della divisione del progetto indica il modello
