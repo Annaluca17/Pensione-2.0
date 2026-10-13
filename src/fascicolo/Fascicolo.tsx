@@ -1,7 +1,7 @@
 // Fascicolo su pagina unica con indice laterale (ticket 14, storie 6-7, 32): i dati si compilano a
 // mano e il Risultato si ricalcola intero a ogni modifica, senza pulsante "calcola". La pratica di pensione
 // (ticket 30) ha regime e situazione, UM pensione e, secondo il regime, TFS o TFR.
-import {useMemo} from 'react';
+import {useLayoutEffect, useMemo} from 'react';
 import type {Archivio, Pratica} from '../archivio';
 import {calcolaPratica} from '../motore';
 import type {DatiPraticaPensione, NomeSezione} from '../motore';
@@ -32,6 +32,11 @@ export function Fascicolo({
   const ente = pratica && archivio.enti.find((e) => e.id === pratica.enteId);
   const risultato = useMemo(() => (pratica ? calcolaPratica(pratica.dati, tabelle) : undefined), [pratica]);
   const chiuse = useMemo(() => (pratica ? chiusure(pratica, tabelle) : {}), [pratica]);
+  // La scrivania e il fascicolo condividono la pagina: senza questo, la pratica si aprirebbe
+  // nel punto in cui era scorsa la lista (il pulsante Apri, spesso in fondo).
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [praticaId]);
 
   const percorso = (
     <nav className="mb-4 text-sm text-slate-500" aria-label="Percorso">
