@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Spazio } from './scrivania/Spazio';
-import ScaricaVecchioSito from './vecchio-sito/ScaricaVecchioSito';
 import { filtroDaModulo, idPortale, type FiltroTipo } from './portale/portale';
 
 // Il Portale Strumenti Interni apre il sito con ?modulo=<id> (vecchio o nuovo: sempre la scrivania,
@@ -29,10 +28,6 @@ export default function App() {
       )}
       <main>
         <Spazio tipo={tipo} onTipo={setTipo} />
-        {/* Le tre chiavi del vecchio sito non si cancellano mai: si possono sempre scaricare (ticket 35). */}
-        <div className="px-4 pb-12 sm:px-8">
-          <ScaricaVecchioSito />
-        </div>
       </main>
     </div>
   );
