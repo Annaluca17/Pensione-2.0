@@ -1,5 +1,5 @@
-// Lettera TFR .docx (ticket 17, storie 71, 76-78): una per pratica di cessazione, nessun importo,
-// forzatura o versione. Forma della vecchia lettera (generateLetterTFR.ts) con una sola riga di tabella;
+// Lettera TFR .docx (ticket 17, storie 71, 76-78): per una o più pratiche di cessazione dello stesso ente
+// (ticket 10 delle prove), nessun importo, forzatura o versione. Forma della vecchia lettera (generateLetterTFR.ts);
 // oggetto predefinito dalle tabelle versionate, modificabile e non salvato; data = oggi, modificabile.
 import {AlignmentType, BorderStyle, Document, Packer, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, WidthType} from 'docx';
 import type {Pratica} from '../../archivio';
@@ -24,7 +24,8 @@ export interface ParametriLettera extends DatiEnteLettera {
   oggetto: string;
   /** aaaa-mm-gg */
   data: string;
-  dipendente: {nome: string; codiceFiscale: string; assunzione?: string; cessazione?: string};
+  /** Uno o più dipendenti: una riga di tabella ciascuno, ordinati per nome. */
+  dipendenti: {nome: string; codiceFiscale: string; assunzione?: string; cessazione?: string}[];
 }
 
 /** Oggetto predefinito: testo e riferimento normativo dalle tabelle (cambiano con la versione). */
@@ -36,6 +37,12 @@ export const oggettoPredefinitoMiglioramento = (tabelle: Tabelle) =>
 
 export const nomeFileLettera = (tipo: 'TFR' | 'Miglioramento', codiceFiscale: string, data: string) =>
   `Lettera${tipo}_${codiceFiscale || 'pratica'}_${data}.docx`;
+
+/** Con più dipendenti il file porta il nome dell'ente (ripulito dai caratteri vietati nei nomi di file). */
+export const nomeFileLetteraEnte = (tipo: 'TFR' | 'Miglioramento', ente: string, data: string) =>
+  `Lettera${tipo}_${ente.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'ente'}_${data}.docx`;
+
+const perNome = <T extends {nome: string}>(dipendenti: T[]) => [...dipendenti].sort((a, b) => a.nome.localeCompare(b.nome, 'it'));
 
 const giorno = (d?: string) => (d && d.length >= 10 ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '—');
 const testo = (t: string, opzioni: Record<string, unknown> = {}) => new TextRun({text: t, font: 'Arial', size: 22, ...opzioni});
@@ -63,7 +70,7 @@ interface Struttura {
   corpo: (TextRun | string)[];
   colonne: readonly number[];
   intestazioni: string[];
-  riga: string[];
+  righe: string[][];
   dopoTabella?: string;
 }
 
@@ -105,7 +112,7 @@ function documento(s: Struttura): Document {
           new Table({
             width: {size: LARGHEZZA, type: WidthType.DXA},
             columnWidths: [...s.colonne],
-            rows: [riga(s.intestazioni, true), riga(s.riga, false)],
+            rows: [riga(s.intestazioni, true), ...s.righe.map((r) => riga(r, false))],
           }),
           ...(s.dopoTabella
             ? [new Paragraph({alignment: AlignmentType.JUSTIFIED, spacing: {before: 200, after: 200}, children: [testo(s.dopoTabella)]})]
@@ -123,17 +130,18 @@ function documento(s: Struttura): Document {
 }
 
 export function letteraTfr(p: ParametriLettera): Document {
-  const d = p.dipendente;
+  const dipendenti = perNome(p.dipendenti);
+  const plurale = dipendenti.length > 1;
   return documento({
     ...p,
     corpo: [
       "Con la presente si comunica che, ai fini dell'aggiornamento della posizione assicurativa tramite sistema " +
-        'PASSWEB, sono stati inseriti i dati utili al calcolo del Trattamento di Fine Rapporto (TFR) del seguente ' +
-        'dipendente cessato dal servizio:',
+        `PASSWEB, sono stati inseriti i dati utili al calcolo del Trattamento di Fine Rapporto (TFR) ${plurale ? 'dei seguenti ' : 'del seguente '}` +
+        `${plurale ? 'dipendenti cessati' : 'dipendente cessato'} dal servizio:`,
     ],
     colonne: COLONNE,
     intestazioni: ['Cognome e Nome', 'Codice Fiscale', 'Data Assunzione', 'Data Cessazione'],
-    riga: [d.nome, d.codiceFiscale, giorno(d.assunzione), giorno(d.cessazione)],
+    righe: dipendenti.map((d) => [d.nome, d.codiceFiscale, giorno(d.assunzione), giorno(d.cessazione)]),
   });
 }
 
@@ -145,26 +153,33 @@ export interface ParametriLetteraMiglioramento extends DatiEnteLettera {
   dataPassweb: string;
   /** Il riferimento normativo del corpo, dalle tabelle versionate. */
   riferimentoNormativo: string;
-  /** In regime TFR la lettera chiede anche il ricalcolo del TFR (C21-8). */
-  regime: 'TFS' | 'TFR';
-  dipendente: {nome: string; codiceFiscale: string; cessazione?: string};
+  /** Uno o più dipendenti, ordinati per nome; in regime TFR la lettera chiede anche il ricalcolo del TFR (C21-8). */
+  dipendenti: {nome: string; codiceFiscale: string; cessazione?: string; regime: 'TFS' | 'TFR'}[];
 }
 
 const COLONNE_MIGLIORAMENTO = [3346, 2860, 2300] as const;
 
 export function letteraMiglioramento(p: ParametriLetteraMiglioramento): Document {
-  const d = p.dipendente;
+  const dipendenti = perNome(p.dipendenti);
+  const plurale = dipendenti.length > 1;
+  const inTfr = dipendenti.filter((d) => d.regime === 'TFR').map((d) => d.nome);
+  const ricalcolo = !inTfr.length
+    ? undefined
+    : plurale
+      ? `Per i seguenti dipendenti si richiede anche il ricalcolo del TFR: ${inTfr.join(', ')}.`
+      : 'Per il dipendente indicato si richiede il ricalcolo del TFR.';
   return documento({
     ...p,
     corpo: [
       'Con la presente si comunica che in data ',
       testo(giorno(p.dataPassweb), {bold: true}),
-      ` sono stati inseriti, tramite sistema PASSWEB, i miglioramenti contrattuali ai sensi dell’${p.riferimentoNormativo} per il seguente dipendente già posto in quiescenza:`,
+      ` sono stati inseriti, tramite sistema PASSWEB, i miglioramenti contrattuali ai sensi dell’${p.riferimentoNormativo} ` +
+        (plurale ? 'per i seguenti dipendenti già posti in quiescenza:' : 'per il seguente dipendente già posto in quiescenza:'),
     ],
     colonne: COLONNE_MIGLIORAMENTO,
     intestazioni: ['Cognome e Nome', 'Codice Fiscale', 'Data Cessazione'],
-    riga: [d.nome, d.codiceFiscale, giorno(d.cessazione)],
-    dopoTabella: p.regime === 'TFR' ? 'Per il dipendente indicato si richiede il ricalcolo del TFR.' : undefined,
+    righe: dipendenti.map((d) => [d.nome, d.codiceFiscale, giorno(d.cessazione)]),
+    dopoTabella: ricalcolo,
   });
 }
 

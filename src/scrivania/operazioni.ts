@@ -84,6 +84,8 @@ export interface Filtri {
   soloAperte: boolean;
   tipo: TipoPratica | 'tutti';
   enteId: string | 'tutti';
+  /** aaaa-mm, facoltativo: solo le pratiche con la cessazione in quel mese (senza data non entrano). */
+  meseCessazione?: string;
 }
 
 export interface RigaScrivania {
@@ -121,6 +123,7 @@ export function elencoScrivania(
     .filter((r) => !filtri.soloAperte || r.aperta)
     .filter((r) => filtri.tipo === 'tutti' || r.pratica.tipo === filtri.tipo)
     .filter((r) => filtri.enteId === 'tutti' || r.pratica.enteId === filtri.enteId)
+    .filter((r) => !filtri.meseCessazione || r.pratica.dati.anagrafica.cessazione?.startsWith(filtri.meseCessazione))
     .sort((a, b) => {
       const [ca, cb] = [a.pratica.dati.anagrafica.cessazione, b.pratica.dati.anagrafica.cessazione];
       if (ca === cb) return a.pratica.dati.anagrafica.nome.localeCompare(b.pratica.dati.anagrafica.nome);

@@ -8,7 +8,7 @@ import {casiNormativiPensioneTfs} from '../../casi-normativi/pensione-tfs';
 import {calcolaPratica} from '../../motore';
 import type {DatiPratica, Tabelle} from '../../motore';
 import {tabelle} from '../../tabelle';
-import {esitoLetteraMiglioramento, letteraMiglioramento, letteraTfr, nomeFileLettera, oggettoPredefinito, oggettoPredefinitoMiglioramento} from './lettera';
+import {esitoLetteraMiglioramento, letteraMiglioramento, letteraTfr, nomeFileLettera, nomeFileLetteraEnte, oggettoPredefinito, oggettoPredefinitoMiglioramento} from './lettera';
 import type {ParametriLettera, ParametriLetteraMiglioramento} from './lettera';
 
 const parametri: ParametriLettera = {
@@ -17,7 +17,7 @@ const parametri: ParametriLettera = {
   luogo: 'Prova',
   oggetto: oggettoPredefinito(tabelle),
   data: '2026-10-12',
-  dipendente: {nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', assunzione: '2012-09-01', cessazione: '2026-10-20'},
+  dipendenti: [{nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', assunzione: '2012-09-01', cessazione: '2026-10-20'}],
 };
 
 async function testoDi(p: ParametriLettera) {
@@ -106,8 +106,7 @@ const parametriMc: ParametriLetteraMiglioramento = {
   data: '2026-10-12',
   dataPassweb: '2026-10-09',
   riferimentoNormativo: tabelle.lettere.miglioramento.riferimentoNormativo,
-  regime: 'TFS',
-  dipendente: {nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', cessazione: '2023-06-30'},
+  dipendenti: [{nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', cessazione: '2023-06-30', regime: 'TFS'}],
 };
 
 async function testoMc(p: ParametriLetteraMiglioramento) {
@@ -142,7 +141,7 @@ describe('lettera del miglioramento contrattuale', () => {
   });
 
   it('in regime TFR chiede il ricalcolo del TFR per la persona; in TFS non lo nomina', async () => {
-    expect(await testoMc({...parametriMc, regime: 'TFR'})).toContain('si richiede il ricalcolo del TFR');
+    expect(await testoMc({...parametriMc, dipendenti: [{...parametriMc.dipendenti[0], regime: 'TFR'}]})).toContain('si richiede il ricalcolo del TFR');
     expect(await testoMc(parametriMc)).not.toContain('TFR');
   });
 
@@ -151,5 +150,67 @@ describe('lettera del miglioramento contrattuale', () => {
     expect(oggettoPredefinitoMiglioramento(prova)).toContain('RIFERIMENTO DI PROVA');
     expect(await testoMc({...parametriMc, oggetto: 'Oggetto scritto a mano'})).toContain('OGGETTO: Oggetto scritto a mano');
     expect(nomeFileLettera('Miglioramento', 'RSSMRA80A01H501U', '2026-10-12')).toBe('LetteraMiglioramento_RSSMRA80A01H501U_2026-10-12.docx');
+  });
+});
+
+// Lettera cumulativa (ticket 10): più dipendenti dello stesso ente in una lettera sola.
+const anna = {nome: 'Anna Bianchi', codiceFiscale: 'BNCNNA85C41H501A', assunzione: '2015-03-01', cessazione: '2026-09-30'};
+const luigi = {nome: 'Luigi Verdi', codiceFiscale: 'VRDLGU75D10H501B', assunzione: '2010-01-15', cessazione: '2026-11-15'};
+const mario = parametri.dipendenti[0];
+
+describe('lettera TFR per più dipendenti', () => {
+  it('una riga per dipendente, ordinate per nome, corpo al plurale', async () => {
+    const t = await testoDi({...parametri, dipendenti: [mario, luigi, anna]});
+    expect(t.indexOf('Anna Bianchi')).toBeGreaterThan(-1);
+    expect(t.indexOf('Anna Bianchi')).toBeLessThan(t.indexOf('Luigi Verdi'));
+    expect(t.indexOf('Luigi Verdi')).toBeLessThan(t.indexOf('Mario Rossi'));
+    for (const atteso of ['BNCNNA85C41H501A', 'VRDLGU75D10H501B', '15/01/2010', '30/09/2026']) expect(t).toContain(atteso);
+    expect(t).toContain('dei seguenti dipendenti cessati dal servizio');
+    expect(t).not.toContain('del seguente dipendente');
+  });
+
+  it('con un dipendente il corpo resta al singolare', async () => {
+    const t = await testoDi(parametri);
+    expect(t).toContain('del seguente dipendente cessato dal servizio');
+  });
+
+  it('nessun importo', async () => {
+    expect(await testoDi({...parametri, dipendenti: [mario, anna]})).not.toMatch(/€|\d+,\d{2}/);
+  });
+});
+
+describe('lettera del miglioramento per più dipendenti', () => {
+  const due = {...parametriMc, dipendenti: [{nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', cessazione: '2023-06-30', regime: 'TFS' as const}, {nome: 'Anna Bianchi', codiceFiscale: 'BNCNNA85C41H501A', cessazione: '2022-12-31', regime: 'TFS' as const}]};
+
+  it('una riga per dipendente, una sola data PASSWEB, corpo al plurale', async () => {
+    const t = await testoMc(due);
+    expect(t.indexOf('Anna Bianchi')).toBeLessThan(t.indexOf('Mario Rossi'));
+    expect(t).toContain('31/12/2022');
+    expect(t.match(/09\/10\/2026/g)).toHaveLength(1);
+    expect(t).toContain('per i seguenti dipendenti già posti in quiescenza');
+    expect(t).not.toContain('per il seguente dipendente');
+  });
+
+  it('nessuna frase sul TFR se nessuno è in regime TFR', async () => {
+    expect(await testoMc(due)).not.toContain('TFR');
+  });
+
+  it('con più dipendenti la frase del ricalcolo TFR nomina solo chi è in regime TFR', async () => {
+    const [m, a] = due.dipendenti;
+    const t = await testoMc({...due, dipendenti: [m, {...a, regime: 'TFR' as const}]});
+    expect(t).toContain('Per i seguenti dipendenti si richiede anche il ricalcolo del TFR: Anna Bianchi.');
+    const due2 = await testoMc({...due, dipendenti: [{...m, regime: 'TFR' as const}, {...a, regime: 'TFR' as const}]});
+    expect(due2).toContain('Per i seguenti dipendenti si richiede anche il ricalcolo del TFR: Anna Bianchi, Mario Rossi.');
+  });
+
+  it('nessun importo', async () => {
+    expect(await testoMc(due)).not.toMatch(/€|\d+,\d{2}/);
+  });
+});
+
+describe('nome del file della lettera cumulativa', () => {
+  it('con più dipendenti usa il nome dell’ente, ripulito dai caratteri non ammessi nei nomi di file', () => {
+    expect(nomeFileLetteraEnte('TFR', 'Comune di Prova', '2026-10-12')).toBe('LetteraTFR_Comune di Prova_2026-10-12.docx');
+    expect(nomeFileLetteraEnte('Miglioramento', 'Unione A/B: "Prova"', '2026-10-12')).toBe('LetteraMiglioramento_Unione A B Prova_2026-10-12.docx');
   });
 });

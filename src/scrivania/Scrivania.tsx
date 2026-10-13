@@ -4,6 +4,7 @@ import {useMemo, useState} from 'react';
 import type {Archivio} from '../archivio';
 import {GIORNI_SCADENZA, aggiungiEnte, aggiungiPratica, elencoScrivania, eliminaEnte, eliminaPratica} from './operazioni';
 import type {Filtri, TipoPratica} from './operazioni';
+import {LetteraCumulativa} from './LetteraCumulativa';
 import {PannelloArchivio, esportaFile} from './PannelloArchivio';
 import {causaInBreve, ipotesiInBreve} from '../fascicolo/chiusura';
 import {tabelle} from '../tabelle';
@@ -77,7 +78,10 @@ export function Scrivania({
     () => new Map(archivio.pratiche.map((p) => [p.id, ipotesiInBreve(p, tabelle)] as const).filter(([, c]) => c !== undefined)),
     [archivio],
   );
+  const [cumulativa, setCumulativa] = useState(false);
   const righe = useMemo(() => elencoScrivania(archivio, filtri, oggi(), (p) => cause.has(p.id)), [archivio, filtri, cause]);
+  // La lettera per più dipendenti ha senso con un ente e un tipo precisi (ticket 10 delle prove).
+  const enteLettera = archivio.enti.find((e) => e.id === filtri.enteId);
   const contaPratiche = (enteId: string) => archivio.pratiche.filter((p) => p.enteId === enteId).length;
 
   const creaEnte = () => {
@@ -228,8 +232,30 @@ export function Scrivania({
                 </option>
               ))}
             </select>
+            <input
+              type="month"
+              className="rounded-md border border-slate-300 px-2 py-1.5"
+              aria-label="Filtro per mese di cessazione"
+              value={filtri.meseCessazione ?? ''}
+              onChange={(e) => setFiltri({...altriFiltri, meseCessazione: e.target.value || undefined})}
+            />
+            {enteLettera && filtri.tipo !== 'tutti' && (
+              <button className={bottoneTenue} aria-pressed={cumulativa} onClick={() => setCumulativa(!cumulativa)}>
+                Lettera per più dipendenti
+              </button>
+            )}
           </div>
         </div>
+
+        {cumulativa && enteLettera && filtri.tipo !== 'tutti' && (
+          <LetteraCumulativa
+            key={`${enteLettera.id}-${filtri.tipo}`}
+            righe={righe}
+            ente={enteLettera}
+            tipo={filtri.tipo}
+            aggiornaEnte={(lettera) => aggiorna((a) => ({...a, enti: a.enti.map((e) => (e.id === enteLettera.id ? {...e, lettera} : e))}))}
+          />
+        )}
 
         {righe.length === 0 ? (
           <p className="p-5 text-sm text-slate-500">Nessuna pratica con questi filtri.</p>

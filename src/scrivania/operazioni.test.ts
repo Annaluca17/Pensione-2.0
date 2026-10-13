@@ -65,6 +65,15 @@ describe('elenco della scrivania', () => {
     expect(elencoScrivania(popolato(), {...tutte, enteId: 'e2'}, OGGI).map((r) => r.pratica.id)).toEqual(['p4', 'p3']);
   });
 
+  it('filtro per mese di cessazione (aaaa-mm): chi non ha la data non entra; senza filtro entrano tutti', () => {
+    const ids = (mese?: string) => elencoScrivania(popolato(), {...tutte, meseCessazione: mese}, OGGI).map((r) => r.pratica.id);
+    expect(ids('2026-10')).toEqual(['p2']);
+    expect(ids('2026-09')).toEqual(['p4']);
+    expect(ids('2027-01')).toEqual([]);
+    expect(ids(undefined)).toEqual(['p4', 'p2', 'p1', 'p3']);
+    expect(ids('')).toEqual(['p4', 'p2', 'p1', 'p3']);
+  });
+
   it('aperte/tutte: una cessazione col TFR chiuso non è aperta, salvo se da rilavorare', () => {
     const a = popolato();
     const chiusa = {...a.pratiche[1], congelati: [{sezione: 'tfr', versioneTabelle: 'v', dati: a.pratiche[1].dati, risultato: {} as never}]};

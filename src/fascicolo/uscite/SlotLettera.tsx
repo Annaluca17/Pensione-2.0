@@ -2,71 +2,12 @@
 // miglioramento contrattuale per la pensione. I dati fissi si chiedono la prima volta e si salvano
 // sull'ente; oggetto e date si modificano qui e non si salvano.
 import {useState} from 'react';
-import type {Ente, Pratica} from '../../archivio';
+import type {Pratica} from '../../archivio';
 import {tabelle} from '../../tabelle';
 import {campo, etichetta} from '../campi';
+import {oggi, pulsante, scarica, useEnteLettera} from './enteLettera';
 import {esitoLetteraMiglioramento, letteraMiglioramentoBlob, letteraTfrBlob, nomeFileLettera, oggettoPredefinito, oggettoPredefinitoMiglioramento} from './lettera';
-import type {DatiEnteLettera} from './lettera';
 import type {PropsUscita, Uscita} from './tipo';
-
-const oggi = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-function scarica(nome: string, blob: Blob) {
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement('a'), {href: url, download: nome});
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-const pulsante =
-  'rounded-md bg-blue-600 px-3 py-1.5 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300';
-
-/** I dati fissi dell'ente: chiesti la prima volta, poi riassunti con "Modifica". */
-function useEnteLettera(ente: Ente, aggiornaEnte: PropsUscita['aggiornaEnte']) {
-  const salvati: DatiEnteLettera = {nomeComune: ente.lettera?.nomeComune ?? '', sedeInps: ente.lettera?.sedeInps ?? '', luogo: ente.lettera?.luogo ?? ''};
-  const completi = Boolean(salvati.nomeComune && salvati.sedeInps && salvati.luogo);
-  const [modifica, setModifica] = useState(false);
-  const [datiEnte, setDatiEnte] = useState<DatiEnteLettera>(salvati);
-  const chiede = !completi || modifica;
-  return {
-    valido: !chiede || Boolean(datiEnte.nomeComune.trim() && datiEnte.sedeInps.trim() && datiEnte.luogo.trim()),
-    /** I dati da usare nella lettera; se erano da chiedere li salva sull'ente. */
-    usa(): DatiEnteLettera {
-      if (!chiede) return salvati;
-      const usati = {nomeComune: datiEnte.nomeComune.trim(), sedeInps: datiEnte.sedeInps.trim(), luogo: datiEnte.luogo.trim()};
-      aggiornaEnte(usati);
-      setModifica(false);
-      return usati;
-    },
-    campi: chiede ? (
-      <fieldset className="space-y-2 rounded-md border border-slate-200 p-2">
-        <legend className="px-1 text-xs text-slate-500">Dati dell'ente, si salvano per le prossime lettere</legend>
-        {(
-          [
-            ['nomeComune', 'Nome del Comune'],
-            ['sedeInps', 'Sede provinciale INPS'],
-            ['luogo', 'Luogo'],
-          ] as const
-        ).map(([chiave, nome]) => (
-          <label key={chiave} className={etichetta}>
-            {nome}
-            <input className={campo} value={datiEnte[chiave]} onChange={(e) => setDatiEnte({...datiEnte, [chiave]: e.target.value})} />
-          </label>
-        ))}
-      </fieldset>
-    ) : (
-      <p className="text-slate-600">
-        Comune di {salvati.nomeComune} · INPS di {salvati.sedeInps} · {salvati.luogo}{' '}
-        <button className="text-blue-700 hover:underline" onClick={() => setModifica(true)}>
-          Modifica
-        </button>
-      </p>
-    ),
-  };
-}
 
 type PropsTipo<T extends Pratica['tipo']> = PropsUscita & {pratica: Extract<Pratica, {tipo: T}>};
 
@@ -82,7 +23,7 @@ function LetteraTfr({pratica, ente, aggiornaEnte}: PropsTipo<'cessazione'>) {
       ...dati.usa(),
       oggetto: oggetto.trim() || oggettoPredefinito(tabelle),
       data,
-      dipendente: {nome: a.nome, codiceFiscale: a.codiceFiscale, assunzione: a.assunzione, cessazione: a.cessazione},
+      dipendenti: [{nome: a.nome, codiceFiscale: a.codiceFiscale, assunzione: a.assunzione, cessazione: a.cessazione}],
     });
     scarica(nomeFileLettera('TFR', a.codiceFiscale, data), blob);
   };
@@ -136,8 +77,7 @@ function LetteraMiglioramento({pratica, ente, risultato, aggiornaEnte}: PropsTip
       data,
       dataPassweb,
       riferimentoNormativo: tabelle.lettere.miglioramento.riferimentoNormativo,
-      regime: pratica.dati.regime,
-      dipendente: {nome: a.nome, codiceFiscale: a.codiceFiscale, cessazione: a.cessazione},
+      dipendenti: [{nome: a.nome, codiceFiscale: a.codiceFiscale, cessazione: a.cessazione, regime: pratica.dati.regime}],
     });
     scarica(nomeFileLettera('Miglioramento', a.codiceFiscale, data), blob);
   };
