@@ -22,7 +22,26 @@ export function schedaPdf(scheda: Scheda, generata: string): jsPDF {
 
   for (const blocco of scheda.blocchi) {
     if (blocco.righe && blocco.righe.length > 0) {
-      autoTable(doc, {...stile, startY: dopo(), head: [[blocco.titolo, 'Valore']], body: blocco.righe, columnStyles: {1: {halign: 'right', cellWidth: 60}}});
+      const evidenza = new Set(blocco.inEvidenza);
+      const minore = new Set(blocco.inTonoMinore);
+      autoTable(doc, {
+        ...stile,
+        startY: dopo(),
+        head: [[blocco.titolo, evidenza.size > 0 ? 'Valore (in grassetto: da inserire in PASSWEB)' : 'Valore']],
+        body: blocco.righe,
+        columnStyles: {1: {halign: 'right', cellWidth: 60}},
+        didParseCell: (d) => {
+          if (d.section !== 'body') return;
+          if (evidenza.has(d.row.index)) {
+            d.cell.styles.fontStyle = 'bold';
+            d.cell.styles.fontSize = 11;
+            d.cell.styles.fillColor = [224, 242, 254];
+          } else if (minore.has(d.row.index)) {
+            d.cell.styles.fontSize = 8;
+            d.cell.styles.textColor = [110, 110, 110];
+          }
+        },
+      });
     }
     if (blocco.motivi) {
       // Con le righe sono i mesi non preparati; da soli, la sezione bloccata.

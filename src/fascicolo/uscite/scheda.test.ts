@@ -97,6 +97,16 @@ describe('scheda della pratica di pensione', () => {
   });
 });
 
+describe('scheda della pratica di pensione: dati da inserire in PASSWEB', () => {
+  it('13ª e totale fissi annui in evidenza, il totale con la 13ª in tono minore', () => {
+    const s = pronta(schedaPensione(casoPensione('PT-N01')));
+    const um = s.blocchi.find((b) => b.titolo === 'Ultimo miglio pensione')!;
+    const etichette = (indici?: number[]) => indici?.map((i) => um.righe![i][0]);
+    expect(etichette(um.inEvidenza)?.slice(1)).toEqual(['Totale fissi annui']);
+    expect(etichette(um.inTonoMinore)).toEqual(['Totale con la 13ª']);
+  });
+});
+
 describe('scheda della pratica di pensione: regime e blocchi', () => {
   it('regime TFR: blocco TFR al posto del TFS (MC-N04 senza miglioramento)', () => {
     const {miglioramento: _m, ...dati} = casiNormativiMiglioramento.find((c) => c.id === 'MC-N04')!.dati;

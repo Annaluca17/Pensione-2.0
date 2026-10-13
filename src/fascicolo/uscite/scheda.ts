@@ -10,6 +10,9 @@ export interface BloccoScheda {
   titolo: string;
   /** Campo e valore come nella maschera; assente se la sezione è bloccata. */
   righe?: [string, string][];
+  /** Indici delle righe da inserire in PASSWEB (in primo piano) e di quelle di sola lettura (tono minore). */
+  inEvidenza?: number[];
+  inTonoMinore?: number[];
   /** Motivi del blocco, in italiano; con le righe: i mesi non preparati sotto quelli calcolati. */
   motivi?: string[];
 }
@@ -75,6 +78,9 @@ const motiviDi = (sezione: {esito: 'calcolata'} | {esito: 'bloccata'; motivi: Bl
 const euro = (c: number) => `${scriviEuro(c)} €`;
 const mese = (m: string) => `${m.slice(5, 7)}/${m.slice(0, 4)}`;
 
+/** Dopo le `n` righe di voci: 13ª e totale fissi annui si digitano in PASSWEB, il totale con la 13ª no. */
+const rilievo = (n: number) => ({inEvidenza: [n, n + 1], inTonoMinore: [n + 2]});
+
 function bloccoUmPensione(risultato: Risultato): BloccoScheda {
   const um = risultato.sezioni.umPensione;
   const titolo = 'Ultimo miglio pensione';
@@ -87,6 +93,7 @@ function bloccoUmPensione(risultato: Risultato): BloccoScheda {
       ['Totale fissi annui', euro(um.totaleAnnui)],
       ['Totale con la 13ª', euro(um.totale)],
     ],
+    ...rilievo(um.righe.length),
   };
 }
 
@@ -137,6 +144,7 @@ function blocchiMiglioramento(risultato: Risultato): BloccoScheda[] {
       ['Differenza fissi annui (B − A)', euro(b.differenza.annui)],
       ['Differenza 13ª (B − A)', euro(b.differenza.tredicesima)],
     ],
+    ...rilievo(b.righe.length),
   }));
   if (m.tfs) {
     blocchi.push({

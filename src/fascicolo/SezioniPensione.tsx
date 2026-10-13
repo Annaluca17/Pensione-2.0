@@ -215,16 +215,24 @@ export function SezioneUmPensione({risultato, chiusura, onChiudi, onRiapri}: Pro
             ))}
             <RigaImporto chiave={`umPensione/${um.tredicesima.id}`} etichetta={um.tredicesima.etichetta} composizione={um.tredicesima.composizione} />
           </ul>
-          <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-slate-500">Totale annui</dt>
-              <dd className="font-medium tabular-nums">{scriviEuro(um.totaleAnnui)} €</dd>
+          <p className="mt-4 text-xs font-medium uppercase tracking-wide text-sky-800">Da inserire in PASSWEB</p>
+          <dl className="mt-1 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-sky-300 bg-sky-50 p-3">
+              <dt className="text-sm text-sky-900">Totale fissi annui</dt>
+              <dd className="text-xl font-semibold tabular-nums text-slate-900" data-riga="umPensione/totale-annui">
+                {scriviEuro(um.totaleAnnui)} €
+              </dd>
             </div>
-            <div>
-              <dt className="text-xs text-slate-500">Totale con la 13ª</dt>
-              <dd className="font-medium tabular-nums">{scriviEuro(um.totale)} €</dd>
+            <div className="rounded-lg border border-sky-300 bg-sky-50 p-3">
+              <dt className="text-sm text-sky-900">{um.tredicesima.etichetta}</dt>
+              <dd className="text-xl font-semibold tabular-nums text-slate-900" data-riga="umPensione/tredicesima-evidenza">
+                {scriviEuro(um.tredicesima.composizione.arrotondato)} €
+              </dd>
             </div>
           </dl>
+          <p className="mt-2 text-xs text-slate-500">
+            Totale con la 13ª (non si inserisce): <span className="tabular-nums">{scriviEuro(um.totale)} €</span>
+          </p>
         </>
       )}
       <Avvisi avvisi={risultato.avvisi.filter((a) => codiciPensione(risultato).includes(a.codice))} />

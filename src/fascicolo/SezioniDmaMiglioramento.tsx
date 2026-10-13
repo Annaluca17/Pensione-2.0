@@ -102,8 +102,10 @@ function Confronto({a, b, decorrenza, differenza}: {a: UmPensione; b: UmPensione
               </tr>
             );
           })}
-          <tr>
-            <td className="p-2 text-slate-800">{a.tredicesima.etichetta}</td>
+          <tr className="bg-sky-50 text-base font-semibold text-slate-900">
+            <td className="p-2">
+              {a.tredicesima.etichetta} <span className="block text-xs font-normal text-sky-800">da inserire in PASSWEB</span>
+            </td>
             <td className="p-2 text-right tabular-nums" data-riga={`miglioramento/${decorrenza}/A/tredicesima`}>
               {euro(a.tredicesima.composizione.arrotondato)}
             </td>
@@ -111,12 +113,14 @@ function Confronto({a, b, decorrenza, differenza}: {a: UmPensione; b: UmPensione
               {euro(b.tredicesima.composizione.arrotondato)}
             </td>
           </tr>
-          <tr className="font-medium">
-            <td className="p-2">Totale fissi annui</td>
+          <tr className="bg-sky-50 text-base font-semibold text-slate-900">
+            <td className="p-2">
+              Totale fissi annui <span className="block text-xs font-normal text-sky-800">da inserire in PASSWEB</span>
+            </td>
             <td className="p-2 text-right tabular-nums">{euro(a.totaleAnnui)}</td>
             <td className="p-2 text-right tabular-nums">{euro(b.totaleAnnui)}</td>
           </tr>
-          <tr className="font-medium">
+          <tr className="text-xs text-slate-500">
             <td className="p-2">Totale con la 13ª</td>
             <td className="p-2 text-right tabular-nums">{euro(a.totale)}</td>
             <td className="p-2 text-right tabular-nums">{euro(b.totale)}</td>
