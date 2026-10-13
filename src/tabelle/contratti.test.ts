@@ -110,6 +110,16 @@ describe('valori delle fonti', () => {
     expect(aree.map((a) => ivc[1].importi[a].mensile)).toEqual([2093, 1928, 1715, 1646]);
   });
 
+  it('IVC 2019-21: per posizione, 0,42% da aprile a giugno 2019 e 0,70% dopo, assorbite dal CCNL 2019-21', () => {
+    // Caso di fantasia (C3), validato da Luca: importi dal PDF RGS IVC 2019 Funzioni Locali.
+    const ivc = definitivo('ccnl-2019-21').ivc;
+    const delMese = (mese: string) => ivc.find((p) => p.dal <= `${mese}-01` && (!p.al || `${mese}-01` <= p.al));
+    expect(ivc.every((p) => p.anticipa === 'ccnl-2019-21' && p.chiave === 'posizione')).toBe(true);
+    expect(delMese('2019-03')).toBeUndefined();
+    expect(delMese('2019-05')?.importi.C3.mensile).toBe(749);
+    expect(delMese('2022-05')?.importi.C3.mensile).toBe(1249);
+  });
+
   it('IVC 2022-23: per posizione, assorbite dal CCNL 2022-24 (valgono 0 se si applica)', () => {
     const ivc = definitivo('ccnl-2022-24').ivc.filter((p) => p.anticipa === 'ccnl-2022-24');
     expect(ivc.map((p) => p.dal)).toEqual(['2022-04-01', '2022-07-01', '2023-01-01']);

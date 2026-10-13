@@ -46,4 +46,10 @@ export const versioni: readonly VersioneTabelle[] = [
     file: ['lettere.ts', 'index.ts'],
     impronta: '0d40ab497aca36',
   },
+  {
+    id: '2026-10-13.1',
+    motivo: 'IVC 2019-21 per posizione (RGS: 0,42% apr-giu 2019, 0,70% dal 07/2019); applicato il CCNL 2019-21 vale 0, nessun importo calcolato cambia',
+    file: ['ccnl-2019-21.ts'],
+    impronta: '09eca845b0e444',
+  },
 ];

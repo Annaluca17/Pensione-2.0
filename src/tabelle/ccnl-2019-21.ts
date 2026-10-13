@@ -3,6 +3,9 @@
 // (divisore 12): lo verifica importi.test.ts.
 import type {ContrattoDefinitivo} from '../motore';
 
+const FONTE_IVC =
+  'RGS, IVC 2019 Funzioni Locali (L. 145/2018 art. 1 c. 440), https://www.rgs.mef.gov.it/_Documenti/VERSIONE-I/Attivit--i/Ordinament/Indennita/Misure-dell-ivc-anno-2019/FUNZIONI-LOCALI-IVC-2019.pdf';
+
 export const ccnl201921 = {
   id: 'ccnl-2019-21',
   nome: 'CCNL Funzioni Locali 2019-2021',
@@ -169,7 +172,83 @@ export const ccnl201921 = {
     },
   },
   ],
-  // Le anticipazioni IVC del triennio sono comprese negli incrementi di Tabella D (art. 76 c. 4).
-  ivc: [],
+  // Le anticipazioni IVC del triennio sono comprese negli incrementi di Tabella D (art. 76 c. 4): applicato
+  // il contratto valgono 0 (D8). Si sono pagate fino all'applicazione del CCNL, quindi il periodo dal
+  // 01/07/2019 non ha fine. La RGS distingue i profili d'accesso D1/D3 e B1/B3 con importi uguali.
+  ivc: [
+  {
+    dal: '2019-04-01',
+    al: '2019-06-30',
+    chiave: 'posizione',
+    percentuale: 0.42,
+    anticipa: 'ccnl-2019-21',
+    fonte: `${FONTE_IVC}: 0,42% degli stipendi tabellari dal 01/04/2019 al 30/06/2019`,
+    importi: {
+      D7: {mensile: 1090},
+      D6: {mensile: 1037},
+      D5: {mensile: 970},
+      D4: {mensile: 929},
+      D3: {mensile: 891},
+      D2: {mensile: 813},
+      D1: {mensile: 775},
+      C6: {mensile: 824},
+      C5: {mensile: 802},
+      C4: {mensile: 773},
+      C3: {mensile: 749},
+      C2: {mensile: 729},
+      C1: {mensile: 712},
+      B8: {mensile: 744},
+      B7: {mensile: 728},
+      B6: {mensile: 701},
+      B5: {mensile: 688},
+      B4: {mensile: 677},
+      B3: {mensile: 667},
+      B2: {mensile: 642},
+      B1: {mensile: 631},
+      A6: {mensile: 653},
+      A5: {mensile: 642},
+      A4: {mensile: 629},
+      A3: {mensile: 618},
+      A2: {mensile: 605},
+      A1: {mensile: 597},
+    },
+  },
+  {
+    dal: '2019-07-01',
+    chiave: 'posizione',
+    percentuale: 0.7,
+    anticipa: 'ccnl-2019-21',
+    fonte: `${FONTE_IVC}: 0,70% degli stipendi tabellari dal 01/07/2019, fino all'applicazione del CCNL`,
+    importi: {
+      D7: {mensile: 1816},
+      D6: {mensile: 1729},
+      D5: {mensile: 1617},
+      D4: {mensile: 1548},
+      D3: {mensile: 1485},
+      D2: {mensile: 1355},
+      D1: {mensile: 1291},
+      C6: {mensile: 1373},
+      C5: {mensile: 1336},
+      C4: {mensile: 1288},
+      C3: {mensile: 1249},
+      C2: {mensile: 1215},
+      C1: {mensile: 1187},
+      B8: {mensile: 1239},
+      B7: {mensile: 1213},
+      B6: {mensile: 1168},
+      B5: {mensile: 1147},
+      B4: {mensile: 1128},
+      B3: {mensile: 1112},
+      B2: {mensile: 1069},
+      B1: {mensile: 1052},
+      A6: {mensile: 1089},
+      A5: {mensile: 1070},
+      A4: {mensile: 1048},
+      A3: {mensile: 1030},
+      A2: {mensile: 1009},
+      A1: {mensile: 995},
+    },
+  },
+  ],
   indennitaComparto: [],
 } as const satisfies ContrattoDefinitivo;

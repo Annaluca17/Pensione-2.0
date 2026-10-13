@@ -137,7 +137,8 @@ describe('cessato prima del 2022: il CCNL 2022-24 non si applica (C21-5, T3)', (
 
 // Ticket 01 delle prove: pratica inserita nel 2022, prima della firma del 2019-21 e del 2022-24. Dati di
 // fantasia (CF fantasia) con l'IVC di maggio 2022 della pratica vera, 19,62: l'IVC pagata allora, che le
-// tabelle non ricostruiscono (l'IVC 2019-21 non c'è, quella 2022 per B4 è 5,03). Non è ancora in
+// tabelle non ricostruiscono (ticket 08: IVC 2019-21 più l'IVC 2022 provvisoria sul tabellare 2016-18,
+// che non è tabulata; le tabelle hanno solo quella rideterminata sul 2019-21). Non è ancora in
 // `casiNormativiMiglioramento`: il caso completo (UM migliorati, TFS) va calcolato a mano e validato (HITL).
 const datiPregressa: DatiPraticaMiglioramento = {
   anagrafica: {nome: 'Mario Rossi', codiceFiscale: 'RSSMRA80A01H501U', posizione: 'B4', assunzione: '1999-03-01', cessazione: '2022-05-31'},
@@ -163,5 +164,10 @@ describe('pratica pregressa con le tabelle di allora: UM pensione con la IVC ins
     const um = r.sezioni.umPensione;
     if (um?.esito !== 'calcolata') throw new Error('UM pensione non calcolato');
     expect(ordinaUm(comeNelCaso(um))).toEqual(ordinaUm(comeNelCaso(definitivo(r).scenarioA)));
+  });
+
+  it('nel TFS l\'IVC di 05/2022 resta 0: la 2019-21 è riassorbita dal CCNL 2019-21, applicato (D8, ticket 08)', () => {
+    const ivc = r.avvisi.find((a): a is Extract<Avviso, {codice: 'ivc-incompatibile'}> => a.codice === 'ivc-incompatibile' && a.mese === '2022-05');
+    expect(ivc).toMatchObject({inserita: 1962, daTabella: 0});
   });
 });
