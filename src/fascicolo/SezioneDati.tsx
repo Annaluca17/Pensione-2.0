@@ -108,53 +108,55 @@ export function SezioneRetribuzione({
         ))}
       </div>
 
-      <h3 className="mb-2 mt-5 text-sm font-semibold text-slate-700">Eccezioni per mese</h3>
-      {eccezioniVoci.length > 0 && (
-        <ul className="mb-2 space-y-1 text-sm">
-          {eccezioniVoci.map((e) => (
-            <li key={`${e.mese}-${e.voce}`} className="grid grid-cols-[6rem_1fr_9rem_auto] items-center gap-2">
-              <span>{mese(e.mese)}</span>
-              <span className="text-slate-600">voce {e.voce}</span>
-              <CampoEuro nome={`Voce ${e.voce} di ${mese(e.mese)}`} valore={e.importo} onCambia={(c) => modifica((d) => impostaEccezioneVoce(d, e.mese, e.voce, c))} />
-              <button className="text-xs text-red-600 hover:underline" onClick={() => modifica((d) => impostaEccezioneVoce(d, e.mese, e.voce, undefined))}>
-                Togli
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {mesi.length > 0 ? (
-        <div className="flex flex-wrap items-end gap-2 text-sm">
-          <label className={etichetta}>
-            Mese
-            <select className={campo} value={meseScelto} onChange={(e) => setNuova({...nuova, mese: e.target.value})}>
-              {mesi.map((m) => (
-                <option key={m} value={m}>
-                  {mese(m)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={etichetta}>
-            Voce
-            <select className={campo} value={nuova.voce} onChange={(e) => setNuova({...nuova, voce: e.target.value})}>
-              {voci.map((v) => (
-                <option key={v.codice} value={v.codice}>
-                  {v.codice} {v.descrizione}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50"
-            onClick={() => modifica((d) => impostaEccezioneVoce(d, meseScelto, nuova.voce, d.voci.base[nuova.voce] ?? 0))}
-          >
-            Aggiungi eccezione
-          </button>
-        </div>
-      ) : (
-        <p className="text-sm text-slate-500">Le eccezioni si aggiungono quando assunzione e cessazione sono valide.</p>
-      )}
+      <details className="mt-5">
+        <summary className="mb-2 cursor-pointer text-sm font-semibold text-slate-700">Eccezioni per mese ({eccezioniVoci.length})</summary>
+        {eccezioniVoci.length > 0 && (
+          <ul className="mb-2 space-y-1 text-sm">
+            {eccezioniVoci.map((e) => (
+              <li key={`${e.mese}-${e.voce}`} className="grid grid-cols-[6rem_1fr_9rem_auto] items-center gap-2">
+                <span>{mese(e.mese)}</span>
+                <span className="text-slate-600">voce {e.voce}</span>
+                <CampoEuro nome={`Voce ${e.voce} di ${mese(e.mese)}`} valore={e.importo} onCambia={(c) => modifica((d) => impostaEccezioneVoce(d, e.mese, e.voce, c))} />
+                <button className="text-xs text-red-600 hover:underline" onClick={() => modifica((d) => impostaEccezioneVoce(d, e.mese, e.voce, undefined))}>
+                  Togli
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {mesi.length > 0 ? (
+          <div className="flex flex-wrap items-end gap-2 text-sm">
+            <label className={etichetta}>
+              Mese
+              <select className={campo} value={meseScelto} onChange={(e) => setNuova({...nuova, mese: e.target.value})}>
+                {mesi.map((m) => (
+                  <option key={m} value={m}>
+                    {mese(m)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={etichetta}>
+              Voce
+              <select className={campo} value={nuova.voce} onChange={(e) => setNuova({...nuova, voce: e.target.value})}>
+                {voci.map((v) => (
+                  <option key={v.codice} value={v.codice}>
+                    {v.codice} {v.descrizione}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-50"
+              onClick={() => modifica((d) => impostaEccezioneVoce(d, meseScelto, nuova.voce, d.voci.base[nuova.voce] ?? 0))}
+            >
+              Aggiungi eccezione
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">Le eccezioni si aggiungono quando assunzione e cessazione sono valide.</p>
+        )}
+      </details>
 
       <h3 className="mb-2 mt-5 text-sm font-semibold text-slate-700">Part-time</h3>
       <div className="flex flex-wrap items-end gap-3 text-sm">
