@@ -9,7 +9,7 @@ describe('halley.regole (seam S3)', () => {
     ['Differenziale storico', '02'], ['DIFF.STORICO', '02'], ['L.E.D. / Integr.Tab.', '02'],
     ['DIFF.STIPENDIALE', '03'],
     ['Ass.Pers.non riassorb.', '04'], ['ASS.AD PERSONAM', '05'], ['Ass.pers.assorbibile', '05'],
-    ['Salario anzianita`', '06'],
+    ['Salario anzianita`', '06'], ['SALARIO IND.ANZ.', '06'],
     ['Retrib.Posizione(non dir)', '07'], ['RETR.POSIZ.N.DIR.', '07'],
     ['Indenn.Specifica (I-IV)', '08'], ['IND.SPECIFICA', '08'], ['VARIE PENSION.', '08'],
     ['Inden.di vacanza contr.', '09'], ['IND.VACANZA CONT.', '09'],
@@ -17,6 +17,7 @@ describe('halley.regole (seam S3)', () => {
     ['Indennita` di vigil.', '11'], ['IND.DI VIGILANZA', '11'],
     ['Elemento perequativo', 'perequativo'],
     ['Tredicesima', 'ignora'], ['Tredicesima (n.Inadel)', 'ignora'], ['Una tantum 1.5 L.197/22', 'ignora'], ['Totale lordo', 'ignora'],
+    ['PROG.ECON.(FONDO)', 'ignora'], ['PROG.ECON.(BIL.)', 'ignora'],
   ])('%s → %s', (etichetta, atteso) => {
     expect(classifica(halley, etichetta)).toBe(atteso);
   });
@@ -38,6 +39,13 @@ describe('halley.leggiCedolino (seam S2)', () => {
       formato: 'cedolino', anno: 2026, mese: 8, nome: 'ROSSI MARIO', cf: 'RSSMRA80A01H501U',
       straordinaria: false, assunzione: '09-12-1997', cessazione: '', posizione: 'D1', partTime: '',
     });
+  });
+
+  it('modulo con Livello/Ruolo e part-time con il tipo: "A1 RUOLO" → A1, "50,00-O" com è', () => {
+    const c = leggiCedolino(cedolinoHalley({
+      mese: 'Maggio', anno: 2022, livello: 'A1 RUOLO', partTime: '50,00-O', testata: [['STIPENDIO BASE', 1421.75]],
+    }))!;
+    expect(c).toMatchObject({posizione: 'A1', partTime: '50,00-O'});
   });
 
   it('abbina ogni importo della testata alla sua etichetta, in centesimi', () => {

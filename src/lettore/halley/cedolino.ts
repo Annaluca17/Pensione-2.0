@@ -17,6 +17,8 @@ const RE_DATA = /^\d{2}-\d{2}-\d{4}$/;
  * comunale ha l'area vuota: "/SEGRETARIO C/0/TI" (posizione non A-D, va segnalata).
  */
 const RE_AREA = /^[A-Z]*\/([^/]*)\/[^/]*\/[A-Z]*$/;
+/** Modulo più vecchio, senza Area/ex Pos.: casella "Livello/Ruolo", es. "A1 RUOLO". */
+const RE_LIVELLO = /^([A-D]\d)\b/;
 
 /** Margine orizzontale (pt) fra casella dell'etichetta e valore. */
 const MARGINE = 12;
@@ -86,7 +88,8 @@ export function leggiCedolino(p: PaginaPdf): CedolinoMensile | null {
     voci: vociTestata(p),
     assunzione: valoreSotto(p, /^DATA ASSUNZIONE$/i, RE_DATA),
     cessazione: valoreSotto(p, /^DATA CESSAZIONE$/i, RE_DATA),
-    posizione: area.match(RE_AREA)?.[1].trim() ?? '',
+    posizione: area.match(RE_AREA)?.[1].trim()
+      ?? valoreSotto(p, /^Livello\/Ruolo$/i, RE_LIVELLO).match(RE_LIVELLO)?.[1] ?? '',
     partTime: valoreSotto(p, /^% PART-TIME$/i, /\d/),
   };
 }

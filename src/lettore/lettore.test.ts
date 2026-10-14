@@ -49,6 +49,22 @@ describe('leggiProposte (seam S1)', () => {
     expect(p.avvisi).toEqual([expect.stringContaining('tipo (O/V/M)')]);
   });
 
+  it('legge % e tipo quando il cedolino li porta insieme ("50,00-O"), senza avviso sul tipo', () => {
+    const [p] = leggiProposte([mese('Gennaio', 1900, {partTime: '50,00-V'}), mese('Febbraio', 1900, {partTime: '50,00-O'})]);
+    expect(p.dati.partTime).toEqual({
+      base: {percentuale: 50, tipo: 'O'},
+      eccezioni: {'2026-01': {percentuale: 50, tipo: 'V'}},
+    });
+    expect(p.avvisi).toEqual([]);
+  });
+
+  it('avvisa sul tipo solo per i mesi in cui manca', () => {
+    const [p] = leggiProposte([mese('Gennaio', 1900, {partTime: '75'}), mese('Febbraio', 1900, {partTime: '50,00-O'})]);
+    expect(p.avvisi).toEqual([
+      "Part-time sotto il 100% senza tipo (gennaio 2026 75%): il tipo (O/V/M) lo indica l'operatore.",
+    ]);
+  });
+
   it('a tempo pieno non dà avvisi di part-time', () => {
     const [p] = leggiProposte([mese('Gennaio', 1900)]);
     expect(p.dati.partTime).toEqual({base: {percentuale: 100}, eccezioni: {}});
@@ -84,6 +100,16 @@ describe('leggiProposte (seam S1)', () => {
       const [p] = leggiProposte(pagine, {fineTfs: '2026-03-31'});
       expect(p.dati.voci).toEqual({base: {'01': 190000}, eccezioni: {}});
       expect(p.avvisi).toEqual(['Mancano i cedolini di 1 mese (valgono come la base): luglio 2025.']);
+    });
+
+    it('nessun cedolino nella finestra: voci vuote e avviso con i mesi letti e quelli che servono', () => {
+      // Il cedolino di maggio dopo una cessazione al 30 aprile (tredicesima, conguagli).
+      const [p] = leggiProposte([cedolino(2022, 4, 1421.75, {cessazione: '30-04-2022'})]);
+      expect(p.dati.voci).toEqual({base: {}, eccezioni: {}});
+      expect(p.avvisi).toEqual([
+        'Nessun cedolino nei 12 mesi fino alla fine TFS (maggio 2021 - aprile 2022): letto solo maggio 2022. '
+          + 'Carica i cedolini di quei mesi.',
+      ]);
     });
 
     it('senza fine TFS la finestra arriva al mese di cessazione letto dai PDF', () => {

@@ -1,5 +1,5 @@
 // Dai cedolini di un dipendente alla Proposta: base = ultimo mese, eccezioni = ogni mese diverso.
-import type {Centesimi, MeseISO, PartTime, VociMese} from '../motore';
+import type {Centesimi, MeseISO, PartTime, TipoPartTime, VociMese} from '../motore';
 import {classifica} from './regole';
 import type {CedolinoMensile, Gestionale, OpzioniLettura, Proposta} from './tipi';
 
@@ -22,11 +22,13 @@ function posizione(s: string): string {
   return /^[ABCD][1-8]$/.test(p) ? p : s.trim();
 }
 
-/** % part-time del cedolino: vuota = tempo pieno. */
-function percentuale(c: CedolinoMensile): number {
-  const m = c.partTime.trim().match(/^(\d+)(?:,\d+)?$/);
-  return m ? Number(m[1]) : 100;
+/** Part-time del cedolino: "50" o "50,00-O" (con il tipo O/V/M); vuoto = tempo pieno. */
+function partTime(c: CedolinoMensile): PartTime {
+  const m = c.partTime.trim().match(/^(\d+)(?:,\d+)?(?:-([OVM]))?$/);
+  if (!m) return {percentuale: 100};
+  return m[2] ? {percentuale: Number(m[1]), tipo: m[2] as TipoPartTime} : {percentuale: Number(m[1])};
 }
+const ugualePt = (a: PartTime, b: PartTime) => a.percentuale === b.percentuale && a.tipo === b.tipo;
 
 const fineMese = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number);
@@ -85,12 +87,18 @@ export function costruisciProposta(cf: string, letti: CedolinoMensile[], g: Gest
   const fine = opz.fineTfs ?? dataISO(ultimo.cessazione);
   const finestra = fine ? dodiciMesi(fine) : null;
   const ord = finestra ? tutti.filter(c => finestra.includes(meseIso(c))) : tutti;
+  const nomeIso = (m: MeseISO) => `${NOMI_MESI[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
+  if (finestra && !ord.length) {
+    // Es. il solo cedolino di maggio dopo una cessazione al 30 aprile: senza avviso la Proposta sarebbe vuota e muta.
+    const fuori = [...new Set(letti.map(nomeMese))];
+    avvisi.push(`Nessun cedolino nei 12 mesi fino alla fine TFS (${nomeIso(finestra[0])} - ${nomeIso(finestra[11])}): `
+      + `${fuori.length === 1 ? 'letto solo' : 'letti solo'} ${fuori.join(', ')}. Carica i cedolini di quei mesi.`);
+  }
   if (finestra) {
     const mancanti = finestra.filter(m => !ord.some(c => meseIso(c) === m));
     if (mancanti.length && ord.length) {
-      const nome = (m: MeseISO) => `${NOMI_MESI[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`;
       avvisi.push(`Mancano i cedolini di ${mancanti.length} ${mancanti.length === 1 ? 'mese' : 'mesi'} `
-        + `(valgono come la base): ${mancanti.map(nome).join(', ')}.`);
+        + `(valgono come la base): ${mancanti.map(nomeIso).join(', ')}.`);
     }
   }
 
@@ -104,7 +112,7 @@ export function costruisciProposta(cf: string, letti: CedolinoMensile[], g: Gest
   const base = baseMese ? leggiMese(baseMese, g).voci : {};
   const eccezioni: Record<MeseISO, VociMese> = {};
   const ptEccezioni: Record<MeseISO, PartTime> = {};
-  const ptBase = baseMese ? percentuale(baseMese) : 100;
+  const ptBase = baseMese ? partTime(baseMese) : {percentuale: 100};
   for (const c of ord.slice(0, -1)) {
     const voci = leggiMese(c, g).voci;
     const diverse: Record<string, Centesimi> = {};
@@ -112,7 +120,7 @@ export function costruisciProposta(cf: string, letti: CedolinoMensile[], g: Gest
       if ((voci[codice] ?? 0) !== (base[codice] ?? 0)) diverse[codice] = voci[codice] ?? 0;
     }
     if (Object.keys(diverse).length) eccezioni[meseIso(c)] = diverse;
-    if (percentuale(c) !== ptBase) ptEccezioni[meseIso(c)] = {percentuale: percentuale(c)};
+    if (!ugualePt(partTime(c), ptBase)) ptEccezioni[meseIso(c)] = partTime(c);
   }
 
   for (const c of ord) {
@@ -146,10 +154,10 @@ export function costruisciProposta(cf: string, letti: CedolinoMensile[], g: Gest
     }
   }
 
-  const parziali = ord.filter(c => percentuale(c) < 100);
-  if (parziali.length) {
-    avvisi.push(`Part-time sotto il 100% (${parziali.map(c => `${nomeMese(c)} ${percentuale(c)}%`).join(', ')}): `
-      + 'il tipo (O/V/M) non è sul cedolino, lo indica l\'operatore.');
+  const senzaTipo = ord.filter(c => partTime(c).percentuale < 100 && !partTime(c).tipo);
+  if (senzaTipo.length) {
+    avvisi.push(`Part-time sotto il 100% senza tipo (${senzaTipo.map(c => `${nomeMese(c)} ${partTime(c).percentuale}%`).join(', ')}): `
+      + 'il tipo (O/V/M) lo indica l\'operatore.');
   }
 
   return {
@@ -157,7 +165,7 @@ export function costruisciProposta(cf: string, letti: CedolinoMensile[], g: Gest
     dati: {
       anagrafica,
       voci: {base, eccezioni},
-      partTime: {base: {percentuale: ptBase}, eccezioni: ptEccezioni},
+      partTime: {base: ptBase, eccezioni: ptEccezioni},
     },
     avvisi,
     nonRiconosciute: [...nonRiconosciute],

@@ -75,6 +75,8 @@ export interface DatiCedolino {
   cf?: string;
   matricola?: string;
   area?: string;         // 'FUN/D1/0/TI'
+  /** Modulo più vecchio: casella "Livello/Ruolo" ('A1 RUOLO') al posto di Area/ex Pos. */
+  livello?: string;
   assunzione?: string;
   cessazione?: string;
   partTime?: string;
@@ -93,7 +95,9 @@ export function cedolinoHalley(d: DatiCedolino): PaginaPdf {
   p.push(t('MATRICOLA', 37, 79, 32), t('COGNOME E NOME', 85, 79, 49), t('CODICE FISCALE', 373, 79, 42));
   const nome = d.nome ?? 'ROSSI MARIO';
   p.push(t(d.matricola ?? '17', 63, 90, 9), t(nome, 85, 90, nome.length * 5.1), t(d.cf ?? 'RSSMRA80A01H501U', 372, 90, 82));
-  p.push(t('PROFILO PROFESSIONALE', 92, 97, 65), t('Area/ex Pos./Diff./Rapp.', 253, 98, 64));
+  p.push(t('PROFILO PROFESSIONALE', 92, 97, 65));
+  if (d.livello) p.push(t('Livello/Ruolo', 268, 98, 34), t(d.livello, 267, 108, 41));
+  else p.push(t('Area/ex Pos./Diff./Rapp.', 253, 98, 64));
   if (d.area) p.push(t(d.area, 265, 107, 39));
   p.push(t('ISTRUTTORE AMMINISTRATIVO', 54, 108, 156));
   p.push(t('DATA NASCITA', 45, 115, 39), t('DATA ASSUNZIONE', 111, 115, 49), t('DATA CESSAZIONE', 184, 115, 48));

@@ -17,9 +17,9 @@ const CAMPI: Array<[keyof Anagrafica, string]> = [
   ['cessazione', 'Cessazione'],
 ];
 
-/** La % viene dalla Proposta; il tipo O/V/M, che non è sul cedolino, resta quello già indicato dall'operatore. */
+/** La % viene dalla Proposta; il tipo O/V/M anche se il cedolino lo porta ("50,00-O"), altrimenti resta quello della pratica. */
 function partTime(prima: DatiPratica['partTime'], dalProposta: DatiPratica['partTime']): DatiPratica['partTime'] {
-  const conTipo = (p: PartTime, tipo: PartTime['tipo']): PartTime => (tipo ? {...p, tipo} : p);
+  const conTipo = (p: PartTime, tipo: PartTime['tipo']): PartTime => (p.tipo || !tipo ? p : {...p, tipo});
   const eccezioni: Record<MeseISO, PartTime> = {};
   for (const [mese, p] of Object.entries(dalProposta.eccezioni)) {
     eccezioni[mese] = conTipo(p, prima.eccezioni[mese]?.tipo);

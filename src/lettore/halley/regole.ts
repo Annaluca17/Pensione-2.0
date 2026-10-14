@@ -3,17 +3,19 @@
 //  - "Varie pension." 5,38 è la stessa Indennità specifica (08).
 //  - "L.E.D. / Integr. Tab." è il differenziale storico (02).
 //  - L'Elemento perequativo non si somma più (ticket 10, D5): è conglobato nel tabellare.
+//  - "Salario Ind.Anz." è la RIA (06) (Luca, 14/10/2026).
+//  - "Prog.Econ.(Fondo)" e "Prog.Econ.(Bil.)" si ignorano: giroconto fondo/bilancio che si compensa a zero (Luca, 14/10/2026).
 // L'ordine conta: vince la prima regola che corrisponde.
 import type {RegolaEtichetta} from '../tipi';
 
 export const regoleHalley: RegolaEtichetta[] = [
-  {se: /^(tredic|totale|una tantum)/, destinazione: 'ignora'},
+  {se: /^(tredic|totale|una tantum|prog econ)/, destinazione: 'ignora'},
   {se: /^stipendio (tabellare|base)/, destinazione: '01'},
   {se: /^(l e d|led)\b|^diff\w* storico/, destinazione: '02'},
   {se: /^diff\w* stipendial/, destinazione: '03'},
   {se: /^ass\w* (.*\bassorb|ad personam)/, destinazione: '05'}, // "riassorb" non corrisponde
   {se: /^ass\w* pers/, destinazione: '04'},
-  {se: /^salario (individuale )?(di )?anzian|^r i a\b|^ria\b/, destinazione: '06'},
+  {se: /^salario (individuale )?(di )?anzian|^salario ind\w* anz|^r i a\b|^ria\b/, destinazione: '06'},
   {se: /^retr\w* posiz/, destinazione: '07'},
   {se: /^ind\w* specifica|^varie pension/, destinazione: '08'},
   {se: /vacanza/, destinazione: '09'},

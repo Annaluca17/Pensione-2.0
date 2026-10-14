@@ -1,5 +1,5 @@
 // Caricamento dei PDF Halley nella sezione Retribuzione (ticket 29, D7): i file si leggono nel browser,
-// la Proposta si vede in anteprima con gli avvisi e solo "Applica" tocca la pratica.
+// la Proposta si vede in anteprima con gli avvisi e solo "Applica" tocca la pratica; "Annulla" la rimette com'era.
 import {useMemo, useState} from 'react';
 import type {ChangeEvent} from 'react';
 import {estraiPagine} from '../lettore/pdf';
@@ -15,7 +15,8 @@ export function CaricaPdf({dati, tabelle, modifica}: {dati: DatiPratica; tabelle
   const [lettura, setLettura] = useState('');
   const [errore, setErrore] = useState('');
   const [cfScelto, setCfScelto] = useState('');
-  const [applicata, setApplicata] = useState(false);
+  /** Anagrafica, voci e part-time di prima dell'Applica, per annullarla. */
+  const [prima, setPrima] = useState<Pick<DatiPratica, 'anagrafica' | 'voci' | 'partTime'> | null>(null);
 
   const fineTfs = dati.anagrafica.cessazione || undefined;
   const proposte = useMemo(() => leggiProposte(pagine, {fineTfs}), [pagine, fineTfs]);
@@ -29,7 +30,7 @@ export function CaricaPdf({dati, tabelle, modifica}: {dati: DatiPratica; tabelle
     e.target.value = '';
     if (!lista.length) return;
     setErrore('');
-    setApplicata(false);
+    setPrima(null);
     const nuove: PaginaPdf[] = [];
     const falliti: string[] = [];
     for (const [i, f] of lista.entries()) {
@@ -50,18 +51,25 @@ export function CaricaPdf({dati, tabelle, modifica}: {dati: DatiPratica; tabelle
     setPagine([]);
     setCfScelto('');
     setErrore('');
-    setApplicata(false);
+    setPrima(null);
   }
 
   function applica() {
     if (!proposta) return;
+    setPrima({anagrafica: dati.anagrafica, voci: dati.voci, partTime: dati.partTime});
     modifica((d) => applicaProposta(d, proposta).dati);
-    setApplicata(true);
     setPagine([]);
     setCfScelto('');
   }
 
+  function annulla() {
+    if (!prima) return;
+    modifica((d) => ({...d, ...prima}));
+    setPrima(null);
+  }
+
   const descrizioneVoce = (codice: string) => tabelle.catalogoVoci.find((v) => v.codice === codice)?.descrizione ?? '';
+  const vuota = proposta ? Object.keys(proposta.dati.voci.base).length === 0 : false;
   const avvisi = applicazione ? [...(proposta?.avvisi ?? []), ...applicazione.avvisi] : [];
 
   return (
@@ -77,7 +85,14 @@ export function CaricaPdf({dati, tabelle, modifica}: {dati: DatiPratica; tabelle
           {errore}
         </p>
       )}
-      {applicata && <p className="mt-2 text-sm text-emerald-800">Proposta applicata: voci e part-time sostituiti.</p>}
+      {prima && (
+        <p className="mt-2 text-sm text-emerald-800">
+          Proposta applicata: voci e part-time sostituiti.{' '}
+          <button className="text-blue-700 underline hover:text-blue-900" onClick={annulla}>
+            Annulla
+          </button>
+        </p>
+      )}
 
       {pagine.length > 0 && scelta.esito === 'vuoto' && (
         <p className="mt-2 text-sm text-amber-800">Nei PDF non c&apos;è nessun cedolino o riepilogo Halley leggibile.</p>
@@ -135,7 +150,12 @@ export function CaricaPdf({dati, tabelle, modifica}: {dati: DatiPratica; tabelle
             <p className="mt-2 text-amber-900">Etichette non riconosciute: {proposta.nonRiconosciute.join(', ')}.</p>
           )}
           <div className="mt-3 flex gap-2">
-            <button className="rounded-md bg-blue-700 px-3 py-1.5 text-white hover:bg-blue-800" onClick={applica}>
+            <button
+              className="rounded-md bg-blue-700 px-3 py-1.5 text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              onClick={applica}
+              disabled={vuota}
+              title={vuota ? 'Nessuna voce letta: applicarla svuoterebbe la retribuzione' : undefined}
+            >
               Applica
             </button>
             <button className="rounded-md border border-slate-300 px-3 py-1.5 hover:bg-slate-100" onClick={svuota}>

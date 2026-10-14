@@ -46,6 +46,18 @@ describe('applicaProposta (seam S1)', () => {
     expect(avvisi).toEqual([]);
   });
 
+  it('il tipo O/V/M letto dal cedolino vince su quello già indicato; dove manca resta quello della pratica', () => {
+    const prima = vuota();
+    prima.partTime = {base: {percentuale: 100, tipo: 'V'}, eccezioni: {'2026-01': {percentuale: 100, tipo: 'V'}}};
+    const {dati} = applicaProposta(prima, proposta({
+      partTime: {base: {percentuale: 50, tipo: 'O'}, eccezioni: {'2026-01': {percentuale: 90}}},
+    }));
+    expect(dati.partTime).toEqual({
+      base: {percentuale: 50, tipo: 'O'},
+      eccezioni: {'2026-01': {percentuale: 90, tipo: 'V'}},
+    });
+  });
+
   it("un campo pieno e diverso non si sovrascrive e produce l'avviso; uno pieno e uguale no", () => {
     const {dati, avvisi} = applicaProposta(
       vuota({nome: 'ROSSI MARIO', codiceFiscale: 'RSSMRA80A01H501U', posizione: 'D1', cessazione: '2026-10-31'}),
