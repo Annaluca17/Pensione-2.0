@@ -239,11 +239,15 @@ export function Scrivania({
               value={filtri.meseCessazione ?? ''}
               onChange={(e) => setFiltri({...altriFiltri, meseCessazione: e.target.value || undefined})}
             />
-            {enteLettera && filtri.tipo !== 'tutti' && (
-              <button className={bottoneTenue} aria-pressed={cumulativa} onClick={() => setCumulativa(!cumulativa)}>
-                Lettera per più dipendenti
-              </button>
-            )}
+            <button
+              className={`${bottoneTenue} disabled:cursor-not-allowed disabled:opacity-50`}
+              aria-pressed={cumulativa}
+              disabled={!enteLettera || filtri.tipo === 'tutti'}
+              title={!enteLettera || filtri.tipo === 'tutti' ? 'Scegli prima un ente e un tipo nei filtri' : undefined}
+              onClick={() => setCumulativa(!cumulativa)}
+            >
+              Lettera per più dipendenti
+            </button>
           </div>
         </div>
 
